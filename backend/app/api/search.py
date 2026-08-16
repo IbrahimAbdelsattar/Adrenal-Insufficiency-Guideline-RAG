@@ -26,20 +26,49 @@ class SearchRequest(BaseModel):
 
 @router.get("/health")
 def get_health() -> dict:
-    """Liveness plus index readiness."""
+    """Liveness, index readiness, and configuration state.
+
+    Reports whether the gateway key is present and whether the configured model
+    matches the one the index was built with. Both are silent misconfigurations
+    that otherwise only surface as a failed search — never returns the key.
+    """
+    settings = get_settings()
+    key_configured = bool(settings.openrouter_api_key)
+
     try:
-        ready = VectorStore().is_ready()
+        store = VectorStore(settings)
+        ready = store.is_ready()
+        manifest = store.read_manifest()
     except Exception as exc:  # an unavailable store is degraded, not fatal
-        return {"status": "degraded", "index_ready": False, "message": str(exc)}
+        return {
+            "status": "degraded",
+            "index_ready": False,
+            "api_key_configured": key_configured,
+            "message": str(exc),
+        }
+
+    index_model = manifest.embedding_model if manifest else ""
+    model_matches = (not index_model) or index_model == settings.embedding_model
+
+    problems = []
+    if not ready:
+        problems.append("No index built - run: python -m backend.app.cli ingest")
+    if not key_configured:
+        problems.append("OMNIROUTE_API_KEY is not set - search cannot embed queries")
+    if not model_matches:
+        problems.append(
+            f"Index was built with '{index_model}' but EMBEDDING_MODEL is "
+            f"'{settings.embedding_model}' - re-ingest or revert the setting"
+        )
 
     return {
-        "status": "ok",
+        "status": "ok" if not problems else "degraded",
         "index_ready": ready,
-        "message": (
-            "Index ready."
-            if ready
-            else "No index built yet - run: python -m backend.app.cli ingest"
-        ),
+        "api_key_configured": key_configured,
+        "embedding_model": settings.embedding_model,
+        "index_embedding_model": index_model,
+        "model_matches_index": model_matches,
+        "message": "; ".join(problems) if problems else "Index ready.",
     }
 
 
