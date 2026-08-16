@@ -46,14 +46,14 @@ Monolithic repository, per [plan.md](plan.md) Structure Decision. Backend Python
 
 **⚠️ MUST complete before Phase 3.**
 
-- [ ] T008 [P] Define all Pydantic schemas in `backend/app/models.py` — `SourceDocument`, `Chunk`, `IndexManifest`, `RetrievalResult`, `SearchResponse`, `GoldenQuestion` — with the exact fields, types, and defaults from data-model.md; enforce the "no nulls, use empty string" rule required by ChromaDB metadata
-- [ ] T009 Create `data/sources.yaml` containing the NICE NG243 entry verbatim from data-model.md Registered corpus, including `credibility_note` and `license_note`
-- [ ] T010 Implement `backend/app/ingestion/registry.py` — load and validate `data/sources.yaml` into `SourceDocument` models, enforce unique `doc_id` matching `^[a-z0-9_]+$`, reject placeholder/empty `credibility_note`, compute `requires_caution` when `document_type != "guideline"` or `publication_year < current_year - 10`, and raise a fail-closed error naming any PDF in `data/corpus/` with no registry entry (FR-001, FR-002, FR-003)
-- [ ] T011 [P] Define the `Embedder` protocol in `backend/app/embeddings/base.py` with `embed_documents(list[str]) -> list[list[float]]`, `embed_query(str) -> list[float]`, and a `model_id` property
-- [ ] T012 Implement `backend/app/embeddings/openrouter.py` — an `Embedder` posting to `{OPENROUTER_BASE_URL}/embeddings`, batching inputs at `EMBEDDING_BATCH_SIZE`, retrying 429 and 5xx with exponential backoff, and raising a typed error that maps to CLI exit code 4 (research.md D3)
-- [ ] T013 [P] Define the `Retriever` protocol in `backend/app/retrieval/base.py` with `search(query: str, top_k: int) -> list[RetrievalResult]` — the Day 2 substitution seam (FR-035)
-- [ ] T014 Implement `backend/app/retrieval/store.py` — persistent ChromaDB client at `INDEX_DIR`, collection lifecycle with cosine space, atomic build-then-swap so a failed ingest leaves the previous index queryable, and read/write of `data/index/manifest.json` (FR-018, FR-020)
-- [ ] T015 Create the FastAPI app in `backend/app/main.py` — mount the API router, enable CORS for `localhost:3000`, and implement `GET /api/health` returning `status` and `index_ready` per contracts/search-api.yaml
+- [X] T008 [P] Define all Pydantic schemas in `backend/app/models.py` — `SourceDocument`, `Chunk`, `IndexManifest`, `RetrievalResult`, `SearchResponse`, `GoldenQuestion` — with the exact fields, types, and defaults from data-model.md; enforce the "no nulls, use empty string" rule required by ChromaDB metadata
+- [X] T009 Create `data/sources.yaml` containing the NICE NG243 entry verbatim from data-model.md Registered corpus, including `credibility_note` and `license_note`
+- [X] T010 Implement `backend/app/ingestion/registry.py` — load and validate `data/sources.yaml` into `SourceDocument` models, enforce unique `doc_id` matching `^[a-z0-9_]+$`, reject placeholder/empty `credibility_note`, compute `requires_caution` when `document_type != "guideline"` or `publication_year < current_year - 10`, and raise a fail-closed error naming any PDF in `data/corpus/` with no registry entry (FR-001, FR-002, FR-003)
+- [X] T011 [P] Define the `Embedder` protocol in `backend/app/embeddings/base.py` with `embed_documents(list[str]) -> list[list[float]]`, `embed_query(str) -> list[float]`, and a `model_id` property
+- [X] T012 Implement `backend/app/embeddings/openrouter.py` — an `Embedder` posting to `{OPENROUTER_BASE_URL}/embeddings`, batching inputs at `EMBEDDING_BATCH_SIZE`, retrying 429 and 5xx with exponential backoff, and raising a typed error that maps to CLI exit code 4 (research.md D3)
+- [X] T013 [P] Define the `Retriever` protocol in `backend/app/retrieval/base.py` with `search(query: str, top_k: int) -> list[RetrievalResult]` — the Day 2 substitution seam (FR-035)
+- [X] T014 Implement `backend/app/retrieval/store.py` — persistent ChromaDB client at `INDEX_DIR`, collection lifecycle with cosine space, atomic build-then-swap so a failed ingest leaves the previous index queryable, and read/write of `data/index/manifest.json` (FR-018, FR-020)
+- [X] T015 Create the FastAPI app in `backend/app/main.py` — mount the API router, enable CORS for `localhost:3000`, and implement `GET /api/health` returning `status` and `index_ready` per contracts/search-api.yaml
 
 **Checkpoint**: `uvicorn backend.app.main:app` starts and `GET /api/health` returns `{"status":"ok","index_ready":false}`.
 
