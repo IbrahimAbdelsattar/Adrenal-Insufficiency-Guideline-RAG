@@ -1,0 +1,258 @@
+openapi: 3.1.0
+info:
+  title: Clinical Decision Support Lite — Retrieval API
+  version: 1.0.0
+  description: >
+    Retrieval endpoints implemented in feature 001. Every response carries full citation
+    metadata alongside relevance scores, per Constitution Principle II. Low-scoring
+    results are flagged rather than filtered, per Principle VI.
+
+servers:
+  - url: http://localhost:8000
+    description: Local development
+
+paths:
+  /api/health:
+    get:
+      summary: Liveness and index readiness
+      operationId: getHealth
+      responses:
+        "200":
+          description: Service status
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [status, index_ready]
+                properties:
+                  status:
+                    type: string
+                    enum: [ok, degraded]
+                  index_ready:
+                    type: boolean
+                    description: False when the collection is empty or missing.
+                  message:
+                    type: string
+
+  /api/index:
+    get:
+      summary: Index manifest and per-document statistics
+      operationId: getIndexStatus
+      description: Backs the frontend index-status panel (FR-030).
+      responses:
+        "200":
+          description: Current index manifest
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/IndexManifest"
+        "404":
+          description: No index has been built yet
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /api/sources:
+    get:
+      summary: Registered source documents with provenance
+      operationId: listSources
+      description: Exposes the provenance registry for review (FR-001, User Story 4).
+      responses:
+        "200":
+          description: Registered sources
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [sources]
+                properties:
+                  sources:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/SourceDocument"
+
+  /api/search:
+    post:
+      summary: Retrieve guideline chunks relevant to a clinical question
+      operationId: search
+      description: >
+        Dense cosine top-K retrieval. Returns chunks ranked by relevance with complete
+        citation metadata and scores in a single response (FR-021, FR-022).
+        Results below the relevance floor are returned with below_floor=true rather than
+        being removed (FR-023).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [query]
+              properties:
+                query:
+                  type: string
+                  minLength: 3
+                  maxLength: 1000
+                  description: Natural-language clinical question
+                top_k:
+                  type: integer
+                  minimum: 1
+                  maximum: 50
+                  default: 5
+      responses:
+        "200":
+          description: Ranked retrieval results
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SearchResponse"
+        "422":
+          description: Invalid query
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "503":
+          description: Index not built, or embedding provider unavailable
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+components:
+  schemas:
+    SearchResponse:
+      type: object
+      required: [query, results, result_count, evidence_found, disclaimer]
+      properties:
+        query:
+          type: string
+        results:
+          type: array
+          items:
+            $ref: "#/components/schemas/RetrievalResult"
+        result_count:
+          type: integer
+        evidence_found:
+          type: boolean
+          description: >
+            False when no result meets the relevance floor. Consumers MUST NOT present
+            clinical guidance when this is false (FR-025, Principle I).
+        embedding_model:
+          type: string
+        latency_ms:
+          type: integer
+        disclaimer:
+          type: string
+          description: Decision-support disclaimer; must be displayed (FR-029).
+
+    RetrievalResult:
+      type: object
+      required: [chunk, score, rank, below_floor]
+      properties:
+        chunk:
+          $ref: "#/components/schemas/Chunk"
+        score:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 1
+        rank:
+          type: integer
+          minimum: 1
+        below_floor:
+          type: boolean
+
+    Chunk:
+      type: object
+      required:
+        [chunk_id, text, document_name, doc_id, page_number, section_title,
+         section_number, subsection_title, recommendation_ids, source_url,
+         document_type, publication_year, requires_caution, token_count, is_oversized]
+      properties:
+        chunk_id:
+          type: string
+          example: nice_ng243_p09_c03
+        text:
+          type: string
+        document_name:
+          type: string
+        doc_id:
+          type: string
+        page_number:
+          type: integer
+          description: 1-indexed page in the original PDF, for human trace-back.
+        section_title:
+          type: string
+          example: "1.2 Initial identification and referral"
+        section_number:
+          type: string
+          example: "1.2"
+        subsection_title:
+          type: string
+          example: "When to suspect adrenal insufficiency"
+        recommendation_ids:
+          type: string
+          description: Comma-joined recommendation numbers; empty for narrative chunks.
+          example: "1.2.1,1.2.2"
+        source_url:
+          type: string
+        document_type:
+          type: string
+          enum: [guideline, bulletin, review, other]
+        publication_year:
+          type: integer
+        requires_caution:
+          type: boolean
+          description: Non-guideline or older than 10 years; must be flagged in UI (FR-028).
+        token_count:
+          type: integer
+        is_oversized:
+          type: boolean
+
+    SourceDocument:
+      type: object
+      required:
+        [doc_id, document_name, publisher, publication_year, source_url,
+         document_type, credibility_note, license_note]
+      properties:
+        doc_id: { type: string }
+        document_name: { type: string }
+        publisher: { type: string }
+        publication_year: { type: integer }
+        source_url: { type: string }
+        document_type:
+          type: string
+          enum: [guideline, bulletin, review, other]
+        credibility_note: { type: string }
+        license_note: { type: string }
+
+    IndexManifest:
+      type: object
+      required: [built_at, embedding_model, document_count, chunk_count]
+      properties:
+        built_at: { type: string, format: date-time }
+        embedding_model: { type: string }
+        embedding_dimensions: { type: integer }
+        chunk_target_tokens: { type: integer }
+        chunk_min_tokens: { type: integer }
+        chunk_max_tokens: { type: integer }
+        document_count: { type: integer }
+        chunk_count: { type: integer }
+        oversized_chunk_count: { type: integer }
+        per_document:
+          type: array
+          items:
+            type: object
+            properties:
+              doc_id: { type: string }
+              pages_processed: { type: integer }
+              pages_empty: { type: integer }
+              chunk_count: { type: integer }
+
+    Error:
+      type: object
+      required: [detail]
+      properties:
+        detail: { type: string }
+        code: { type: string }

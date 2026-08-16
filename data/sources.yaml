@@ -1,0 +1,24 @@
+# Provenance registry (Constitution Principle III, FR-001).
+#
+# Every PDF in data/corpus/ MUST have an entry here. Ingestion fails closed on any
+# unregistered file (FR-002) — an undocumented source cannot silently enter the index.
+
+sources:
+  - doc_id: nice_ng243
+    document_name: "NICE NG243 — Adrenal insufficiency: identification and management"
+    filename: "adrenal-insufficiency-identification-and-management-pdf-66143954919877.pdf"
+    publisher: "National Institute for Health and Care Excellence (NICE)"
+    publication_year: 2024
+    source_url: "https://www.nice.org.uk/guidance/ng243"
+    document_type: guideline
+    credibility_note: >-
+      NICE is the statutory body producing evidence-based clinical guidance for the NHS
+      in England. NG243 was published 28 August 2024 following formal evidence review and
+      committee consensus. Published openly at nice.org.uk with no access restriction.
+    license_note: >-
+      (c) NICE 2024. Subject to the NICE Notice of Rights. Reproduced here for
+      non-commercial educational use within a hackathon prototype.
+
+# Evaluated and EXCLUDED (plan.md Corpus Decision Record):
+#   WHO Drug Information Vol 17 No.4 (2003) - a periodical, not a clinical guideline;
+#   23 years old; spans ~30 unrelated topics. Fails Principle III on three counts.

@@ -1,0 +1,107 @@
+openapi: 3.1.0
+info:
+  title: Clinical Decision Support Lite — Generation API (CONTRACT ONLY)
+  version: 0.1.0
+  description: >
+    DEFINED BUT NOT IMPLEMENTED IN FEATURE 001.
+
+    Constitution Principle V forbids generation work until retrieval demonstrably
+    returns reasonable evidence. This contract exists so the Day 2 implementation can be
+    dropped in without restructuring the API layer (FR-034).
+
+    The implementation stub at backend/app/api/generate.py MUST return HTTP 501 until
+    the Day 1 end-of-day review gates in spec.md have all passed.
+
+    Binding constraints on any future implementation:
+      * Every clinical claim traces to at least one retrieved chunk (Principle I).
+      * When evidence_found is false, the response MUST abstain. It MUST NOT emit
+        clinical content from model memory.
+      * Citations reference real chunk_ids present in the response payload.
+      * Every response carries the decision-support disclaimer.
+
+servers:
+  - url: http://localhost:8000
+
+paths:
+  /api/generate:
+    post:
+      summary: Answer a clinical question grounded in retrieved evidence
+      operationId: generateAnswer
+      description: NOT IMPLEMENTED in feature 001. Returns 501.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [query]
+              properties:
+                query:
+                  type: string
+                  minLength: 3
+                  maxLength: 1000
+                top_k:
+                  type: integer
+                  default: 5
+      responses:
+        "200":
+          description: Grounded answer with citations
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GenerationResponse"
+        "501":
+          description: >
+            Not implemented. Current behaviour in feature 001, by constitutional design.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  detail:
+                    type: string
+                    example: >
+                      Generation is not implemented. Day 1 scope is ingestion and
+                      retrieval only (Constitution Principle V). Use POST /api/search.
+
+components:
+  schemas:
+    GenerationResponse:
+      type: object
+      required: [query, evidence_found, answer, citations, disclaimer]
+      properties:
+        query:
+          type: string
+        evidence_found:
+          type: boolean
+          description: >
+            When false, `answer` MUST be an explicit statement that no supporting
+            evidence was found, and `citations` MUST be empty.
+        answer:
+          type: string
+          description: Grounded recommendation, or an explicit abstention.
+        citations:
+          type: array
+          description: Every citation must reference a chunk actually retrieved.
+          items:
+            type: object
+            required: [chunk_id, document_name, page_number, section_title]
+            properties:
+              chunk_id: { type: string }
+              document_name: { type: string }
+              page_number: { type: integer }
+              section_title: { type: string }
+              source_url: { type: string }
+              quoted_text: { type: string }
+        confidence:
+          type: string
+          enum: [high, moderate, low, insufficient_evidence]
+        supporting_chunks:
+          type: array
+          description: Full retrieval results the answer was grounded in.
+          items:
+            type: object
+        generation_model:
+          type: string
+        disclaimer:
+          type: string
