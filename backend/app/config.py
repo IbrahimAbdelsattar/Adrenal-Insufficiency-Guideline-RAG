@@ -39,10 +39,15 @@ class Settings(BaseSettings):
     )
 
     # --- Embeddings ---
+    # Default is the model verified working on the OmniRoute gateway and the one
+    # the shipped index is built with. The former default
+    # (openai/text-embedding-3-small) is NOT routable there — it returns
+    # "No credentials for embedding provider" — so falling back to it produced a
+    # model-mismatch 503 whenever EMBEDDING_MODEL failed to propagate.
     embedding_model: str = Field(
-        default="openai/text-embedding-3-small", alias="EMBEDDING_MODEL"
+        default="gemini/gemini-embedding-001", alias="EMBEDDING_MODEL"
     )
-    embedding_batch_size: int = Field(default=100, alias="EMBEDDING_BATCH_SIZE")
+    embedding_batch_size: int = Field(default=32, alias="EMBEDDING_BATCH_SIZE")
 
     # --- Generation (Day 2; unused in feature 001) ---
     generation_model: str = Field(
