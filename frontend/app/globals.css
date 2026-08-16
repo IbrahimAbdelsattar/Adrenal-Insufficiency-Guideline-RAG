@@ -1,42 +1,107 @@
+/* Font @import must precede Tailwind: Tailwind v4 expands into rules, and CSS
+   requires every @import to come before any rule. */
+@import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600;700&family=Great+Vibes&family=JetBrains+Mono:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Plus+Jakarta+Sans:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400&family=Tajawal:wght@400;500;700;800;900&family=Cairo:wght@400;600;700;800&display=swap');
 @import "tailwindcss";
-@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
 
-/* Clinical palette: deep slate ground, teal for trust, amber for caution, cyan for technology */
+/* 
+  SAPPHIRE VEIL BRAND SYSTEM & ARABIC LOCALIZATION
+  Palette:
+  - Pale Ice: #E7F0FA
+  - Steel Sky: #7BA4D0
+  - Royal Sapphire: #2E5E99
+  - Midnight Navy: #0D2440
+*/
 @theme {
-  --color-ground: #070c18;
-  --color-surface: #0f172a;
-  --color-surface-hover: #162036;
-  --color-surface-2: #1a2744;
-  --color-line: #223354;
-  --color-line-glow: #334b7a;
-  --color-ink: #f1f5f9;
-  --color-ink-dim: #94a3b8;
-  --color-ink-faint: #64748b;
-  --color-accent: #14b8a6;
-  --color-accent-bright: #2dd4bf;
-  --color-accent-deep: #0d9488;
-  --color-cyan: #06b6d4;
-  --color-cyan-glow: rgba(6, 182, 212, 0.15);
-  --color-caution: #f59e0b;
-  --color-caution-glow: rgba(245, 158, 11, 0.15);
-  --color-weak: #64748b;
+  --color-ground: var(--theme-ground);
+  --color-surface: var(--theme-surface);
+  --color-surface-hover: var(--theme-surface-hover);
+  --color-surface-2: var(--theme-surface-2);
+  --color-line: var(--theme-line);
+  --color-ink: var(--theme-ink);
+  --color-ink-dim: var(--theme-ink-dim);
+  --color-ink-faint: var(--theme-ink-faint);
+  --color-accent: var(--theme-accent);
+  --color-accent-bright: var(--theme-accent-bright);
+  --color-accent-deep: var(--theme-accent-deep);
+  --color-ice: var(--theme-ice);
+  --color-caution: #F59E0B;
+  --color-weak: var(--theme-ink-faint);
+}
+
+/* Default & Dark Mode Variables */
+:root, html.dark {
+  --theme-ground: #0D2440;
+  --theme-surface: #122b49;
+  --theme-surface-hover: #173559;
+  --theme-surface-2: #1c3e68;
+  --theme-line: #224775;
+  --theme-ink: #E7F0FA;
+  --theme-ink-dim: #7BA4D0;
+  --theme-ink-faint: #5a85b3;
+  --theme-accent: #2E5E99;
+  --theme-accent-bright: #7BA4D0;
+  --theme-accent-deep: #1c4273;
+  --theme-ice: #E7F0FA;
+
+  --shadow-extruded: 8px 8px 22px rgba(4, 12, 23, 0.85), -6px -6px 18px rgba(46, 94, 153, 0.25);
+  --shadow-extruded-hover: 12px 12px 30px rgba(4, 12, 23, 0.95), -8px -8px 24px rgba(46, 94, 153, 0.38);
+  --shadow-inset: inset 4px 4px 10px rgba(4, 12, 23, 0.9), inset -4px -4px 10px rgba(46, 94, 153, 0.25);
+  --shadow-inset-active: inset 5px 5px 12px rgba(4, 12, 23, 0.95), inset -5px -5px 12px rgba(46, 94, 153, 0.35);
+  --shadow-btn: 5px 5px 14px rgba(4, 12, 23, 0.8), -4px -4px 12px rgba(46, 94, 153, 0.3);
+  --shadow-btn-primary: 6px 6px 18px rgba(4, 12, 23, 0.8), -4px -4px 14px rgba(123, 164, 208, 0.35);
+  --bg-radial: radial-gradient(at 0% 0%, rgba(46, 94, 153, 0.25) 0px, transparent 50%), radial-gradient(at 100% 0%, rgba(123, 164, 208, 0.18) 0px, transparent 50%), radial-gradient(at 50% 100%, rgba(13, 36, 64, 0.95) 0px, transparent 100%);
+}
+
+/* Light Mode Variables */
+html.light {
+  --theme-ground: #F0F5FA;
+  --theme-surface: #FFFFFF;
+  --theme-surface-hover: #F8FAFC;
+  --theme-surface-2: #E1EDF8;
+  --theme-line: #C2D6EC;
+  --theme-ink: #0D2440;
+  --theme-ink-dim: #2E5E99;
+  --theme-ink-faint: #4A72A3;
+  --theme-accent: #2E5E99;
+  --theme-accent-bright: #2E5E99;
+  --theme-accent-deep: #1c4273;
+  --theme-ice: #0D2440;
+
+  --shadow-extruded: 7px 7px 18px rgba(155, 180, 210, 0.5), -7px -7px 18px rgba(255, 255, 255, 0.95);
+  --shadow-extruded-hover: 10px 10px 24px rgba(155, 180, 210, 0.65), -9px -9px 24px rgba(255, 255, 255, 1);
+  --shadow-inset: inset 4px 4px 10px rgba(155, 180, 210, 0.55), inset -4px -4px 10px rgba(255, 255, 255, 0.95);
+  --shadow-inset-active: inset 5px 5px 12px rgba(155, 180, 210, 0.65), inset -5px -5px 12px rgba(255, 255, 255, 1);
+  --shadow-btn: 5px 5px 12px rgba(155, 180, 210, 0.5), -4px -4px 10px rgba(255, 255, 255, 0.9);
+  --shadow-btn-primary: 6px 6px 16px rgba(46, 94, 153, 0.4), -4px -4px 12px rgba(255, 255, 255, 0.9);
+  --bg-radial: radial-gradient(at 0% 0%, rgba(123, 164, 208, 0.25) 0px, transparent 50%), radial-gradient(at 100% 0%, rgba(46, 94, 153, 0.15) 0px, transparent 50%), radial-gradient(at 50% 100%, rgba(240, 245, 250, 0.95) 0px, transparent 100%);
 }
 
 html,
 body {
-  background-color: var(--color-ground);
-  background-image: 
-    radial-gradient(at 0% 0%, rgba(13, 148, 136, 0.12) 0px, transparent 50%),
-    radial-gradient(at 100% 0%, rgba(6, 182, 212, 0.08) 0px, transparent 50%),
-    radial-gradient(at 50% 100%, rgba(15, 23, 42, 0.8) 0px, transparent 100%);
+  background-color: var(--theme-ground);
+  background-image: var(--bg-radial);
   background-attachment: fixed;
-  color: var(--color-ink);
+  color: var(--theme-ink);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  transition: background-color 0.3s ease, color 0.3s ease;
 }
 
 body {
   font-family: 'Plus Jakarta Sans', ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+}
+
+/* Arabic RTL Typography */
+[dir="rtl"] body {
+  font-family: 'Tajawal', 'Cairo', 'Plus Jakarta Sans', sans-serif;
+}
+
+.font-brand-cursive {
+  font-family: 'Great Vibes', cursive;
+}
+
+.font-brand-serif {
+  font-family: 'Cinzel', serif;
 }
 
 code, kbd, samp, .font-mono {
@@ -45,48 +110,114 @@ code, kbd, samp, .font-mono {
 
 /* Custom Scrollbar */
 ::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+  width: 9px;
+  height: 9px;
 }
 ::-webkit-scrollbar-track {
-  background: #070c18;
+  background: var(--theme-ground);
 }
 ::-webkit-scrollbar-thumb {
-  background: #1e293b;
-  border-radius: 4px;
+  background: var(--theme-surface-2);
+  border-radius: 6px;
+  border: 2px solid var(--theme-ground);
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #334155;
+  background: var(--theme-accent);
 }
 
-/* Glassmorphism utility classes */
-.glass-panel {
-  background: rgba(15, 23, 42, 0.75);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+/* 
+  =========================================
+  SAPPHIRE VEIL MONOMORPHIC UI UTILITY CLASSES
+  =========================================
+*/
+
+/* 1. Monomorphic Extruded Card */
+.mono-card {
+  background: var(--theme-surface);
+  box-shadow: var(--shadow-extruded);
+  border: 1px solid rgba(123, 164, 208, 0.12);
+  transition: background-color 0.3s ease, box-shadow 0.3s ease;
 }
 
-.glass-panel-interactive {
-  background: rgba(15, 23, 42, 0.75);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+/* 2. Interactive Monomorphic Card */
+.mono-card-interactive {
+  background: var(--theme-surface);
+  box-shadow: var(--shadow-extruded);
+  border: 1px solid rgba(123, 164, 208, 0.12);
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-.glass-panel-interactive:hover {
-  background: rgba(22, 32, 54, 0.85);
-  border-color: rgba(45, 212, 191, 0.3);
-  box-shadow: 0 8px 32px -8px rgba(13, 148, 136, 0.2);
+.mono-card-interactive:hover {
+  background: var(--theme-surface-hover);
+  box-shadow: var(--shadow-extruded-hover), 0 0 24px rgba(123, 164, 208, 0.2);
+  transform: translateY(-2px);
+  border-color: rgba(123, 164, 208, 0.4);
+}
+
+/* 3. Monomorphic Inset Surface */
+.mono-inset {
+  background: var(--theme-surface-2);
+  box-shadow: var(--shadow-inset);
+  border: 1px solid rgba(123, 164, 208, 0.1);
+  transition: background-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+.mono-inset-active:focus-within {
+  box-shadow: var(--shadow-inset-active), 0 0 14px rgba(123, 164, 208, 0.3);
+  border-color: rgba(123, 164, 208, 0.5);
+}
+
+/* 4. Monomorphic Buttons */
+.mono-button {
+  background: var(--theme-surface);
+  box-shadow: var(--shadow-btn);
+  border: 1px solid rgba(123, 164, 208, 0.15);
+  transition: all 0.18s ease-in-out;
+}
+
+.mono-button:hover:not(:disabled) {
+  background: var(--theme-surface-2);
+  box-shadow: var(--shadow-extruded-hover);
   transform: translateY(-1px);
 }
 
-/* Animations */
+.mono-button:active:not(:disabled) {
+  box-shadow: var(--shadow-inset);
+  transform: translateY(1px);
+}
+
+/* Primary Sapphire VEIL Button */
+.mono-button-primary {
+  background: linear-gradient(145deg, #2E5E99, #1c4273);
+  color: #FFFFFF;
+  box-shadow: var(--shadow-btn-primary);
+  border: 1px solid rgba(123, 164, 208, 0.4);
+  transition: all 0.18s ease-in-out;
+}
+
+.mono-button-primary:hover:not(:disabled) {
+  background: linear-gradient(145deg, #386db0, #224c82);
+  box-shadow: var(--shadow-btn-primary), 0 0 24px rgba(123, 164, 208, 0.45);
+  transform: translateY(-1px);
+}
+
+.mono-button-primary:active:not(:disabled) {
+  box-shadow: var(--shadow-inset);
+  transform: translateY(1px);
+}
+
+/* 5. Monomorphic Pill Badge */
+.mono-pill {
+  background: var(--theme-surface-2);
+  box-shadow: var(--shadow-inset);
+  border: 1px solid rgba(123, 164, 208, 0.15);
+}
+
+/* Keyframes */
 @keyframes fadeInUp {
   from {
     opacity: 0;
-    transform: translateY(12px);
+    transform: translateY(14px);
   }
   to {
     opacity: 1;
@@ -95,22 +226,20 @@ code, kbd, samp, .font-mono {
 }
 
 .animate-fade-in-up {
-  animation: fadeInUp 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  animation: fadeInUp 0.32s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
-@keyframes pulseGlow {
+@keyframes monoPulse {
   0%, 100% {
-    opacity: 1;
-    box-shadow: 0 0 12px rgba(45, 212, 191, 0.4);
+    box-shadow: 0 0 14px rgba(123, 164, 208, 0.5);
   }
   50% {
-    opacity: 0.6;
-    box-shadow: 0 0 4px rgba(45, 212, 191, 0.1);
+    box-shadow: 0 0 4px rgba(123, 164, 208, 0.15);
   }
 }
 
-.animate-pulse-glow {
-  animation: pulseGlow 2.5s infinite ease-in-out;
+.animate-mono-pulse {
+  animation: monoPulse 2.4s infinite ease-in-out;
 }
 
 @keyframes shimmer {
@@ -125,29 +254,29 @@ code, kbd, samp, .font-mono {
 .skeleton-shimmer {
   background: linear-gradient(
     90deg,
-    rgba(30, 41, 59, 0.4) 25%,
-    rgba(51, 65, 85, 0.6) 37%,
-    rgba(30, 41, 59, 0.4) 63%
+    var(--theme-surface) 25%,
+    var(--theme-surface-2) 37%,
+    var(--theme-surface) 63%
   );
   background-size: 200% 100%;
   animation: shimmer 1.8s infinite ease-in-out;
 }
 
-/* Dynamic Score Meters */
+/* Dynamic Gauges */
 .meter-high {
-  background: linear-gradient(90deg, #0d9488, #2dd4bf);
-  box-shadow: 0 0 10px rgba(45, 212, 191, 0.3);
+  background: linear-gradient(90deg, #2E5E99, #7BA4D0);
+  box-shadow: 0 0 10px rgba(123, 164, 208, 0.5);
 }
 
 .meter-medium {
-  background: linear-gradient(90deg, #0284c7, #38bdf8);
+  background: linear-gradient(90deg, #1c4273, #5a85b3);
 }
 
 .meter-low {
-  background: linear-gradient(90deg, #64748b, #94a3b8);
+  background: linear-gradient(90deg, #334e6e, #506a8a);
 }
 
 ::selection {
-  background: rgba(13, 148, 136, 0.4);
-  color: #ffffff;
+  background: rgba(46, 94, 153, 0.6);
+  color: #FFFFFF;
 }

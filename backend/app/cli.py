@@ -1,6 +1,8 @@
 """Command-line interface (contracts/cli-contract.md).
 
     python -m backend.app.cli ingest [--dry-run] [--doc-id ID] [--verbose]
+    python -m backend.app.cli query "..." [--top-k 5] [--json] [--full-text]
+    python -m backend.app.cli eval [--top-k 5] [--json]
 """
 
 from __future__ import annotations
@@ -108,6 +110,89 @@ def cmd_query(args: argparse.Namespace) -> int:
 
 
 # ----------------------------------------------------------------------
+# eval
+# ----------------------------------------------------------------------
+
+
+def cmd_eval(args: argparse.Namespace) -> int:
+    import json
+
+    from backend.app.evaluation import TARGET_HIT_RATE, evaluate
+    from backend.app.retrieval.dense import DenseRetriever
+    from backend.app.retrieval.store import VectorStore
+
+    settings = get_settings()
+    store = VectorStore(settings)
+    if not store.is_ready():
+        _echo("No index built. Run: python -m backend.app.cli ingest")
+        return 1
+
+    top_k = args.top_k or settings.top_k
+    report = evaluate(
+        DenseRetriever(store=store, settings=settings),
+        top_k=top_k,
+        settings=settings,
+    )
+
+    if args.json:
+        print(
+            json.dumps(
+                {
+                    "top_k": report.top_k,
+                    "total": report.total,
+                    "hits": report.hits,
+                    "hit_rate": round(report.hit_rate, 4),
+                    "mean_hit_rank": round(report.mean_hit_rank, 2),
+                    "target": TARGET_HIT_RATE,
+                    "passed": report.passed,
+                    "questions": [
+                        {
+                            "id": o.question.id,
+                            "status": o.status,
+                            "rank": o.rank,
+                            "expected_sections": o.question.expected_sections,
+                            "retrieved_sections": o.retrieved_sections,
+                        }
+                        for o in report.outcomes
+                    ],
+                },
+                indent=2,
+            )
+        )
+        return 0 if report.passed else 1
+
+    _echo(f"Golden set: {report.total} questions | top_k={report.top_k}")
+    _echo("")
+    for outcome in report.outcomes:
+        rank = f"rank {outcome.rank}" if outcome.rank else "--"
+        _echo(
+            f"  {outcome.question.id}  {outcome.status:<4}  {rank:<8}"
+            f"expected {','.join(outcome.question.expected_sections):<9}"
+            f"{outcome.question.question[:46]}"
+        )
+
+    _echo("")
+    _echo(
+        f"Hit rate: {report.hits}/{report.total} ({report.hit_rate:.1%})   "
+        f"target >= {TARGET_HIT_RATE:.0%}   "
+        f"{'PASS' if report.passed else 'FAIL'}"
+    )
+    if report.hits:
+        _echo(f"Mean rank of hits: {report.mean_hit_rank:.1f}")
+    if report.misses:
+        _echo("")
+        _echo("Misses (retrieved sections shown for diagnosis):")
+        for outcome in report.misses:
+            _echo(
+                f"  {outcome.question.id}  expected "
+                f"{','.join(outcome.question.expected_sections)}  "
+                f"got {','.join(outcome.retrieved_sections)}"
+            )
+
+    return 0 if report.passed else 1
+
+
+# ----------------------------------------------------------------------
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -135,6 +220,13 @@ def build_parser() -> argparse.ArgumentParser:
         "--full-text", action="store_true", help="Print whole chunks, not excerpts."
     )
     query.set_defaults(func=cmd_query)
+
+    evaluate_cmd = sub.add_parser(
+        "eval", help="Run the golden question set and report retrieval hit rate."
+    )
+    evaluate_cmd.add_argument("--top-k", type=int, default=0, help="Retrieval depth.")
+    evaluate_cmd.add_argument("--json", action="store_true", help="Emit JSON.")
+    evaluate_cmd.set_defaults(func=cmd_eval)
 
     return parser
 

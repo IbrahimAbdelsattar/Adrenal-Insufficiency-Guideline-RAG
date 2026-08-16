@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 import time
 
 from fastapi import APIRouter, HTTPException
@@ -12,6 +13,8 @@ from backend.app.errors import PipelineError
 from backend.app.models import DISCLAIMER, IndexManifest, SearchResponse
 from backend.app.retrieval.dense import DenseRetriever
 from backend.app.retrieval.store import VectorStore
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api", tags=["retrieval"])
 
@@ -105,12 +108,22 @@ def search(request: SearchRequest) -> SearchResponse:
     except PipelineError as exc:
         raise HTTPException(status_code=503, detail=str(exc)) from exc
 
+    latency_ms = int((time.perf_counter() - started) * 1000)
+    above_floor = sum(1 for r in results if not r.below_floor)
+    logger.info(
+        "search results=%d above_floor=%d top_score=%.3f latency_ms=%d",
+        len(results),
+        above_floor,
+        results[0].score if results else 0.0,
+        latency_ms,
+    )
+
     return SearchResponse(
         query=request.query,
         results=results,
         result_count=len(results),
-        evidence_found=any(not r.below_floor for r in results),
+        evidence_found=above_floor > 0,
         embedding_model=settings.embedding_model,
-        latency_ms=int((time.perf_counter() - started) * 1000),
+        latency_ms=latency_ms,
         disclaimer=DISCLAIMER,
     )

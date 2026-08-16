@@ -8,6 +8,7 @@ a second lookup and metadata cannot drift from its vector (Constitution Principl
 
 from __future__ import annotations
 
+import logging
 import time
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
@@ -20,6 +21,8 @@ from backend.app.ingestion.chunker import chunk_blocks
 from backend.app.ingestion.sectioner import detect_blocks
 from backend.app.models import Chunk, IndexManifest, PerDocumentStats, SourceDocument
 from backend.app.retrieval.store import VectorStore
+
+logger = logging.getLogger(__name__)
 
 Reporter = Callable[[str], None]
 
@@ -60,9 +63,16 @@ def _process_document(
     doc: SourceDocument, settings: Settings, report: Reporter
 ) -> tuple[list[Chunk], DocumentReport]:
     path = settings.corpus_path / doc.filename
+    stage_start = time.perf_counter()
 
     pages = parser.parse_pdf(path)
     report(f"Parsing    {doc.doc_id} ... {len(pages)} pages")
+    logger.info(
+        "parsed doc_id=%s pages=%d elapsed=%.2fs",
+        doc.doc_id,
+        len(pages),
+        time.perf_counter() - stage_start,
+    )
 
     cleaned = cleaner.clean(pages, settings.boilerplate_page_ratio)
     report(
@@ -85,6 +95,17 @@ def _process_document(
             f"Chunking   {len(chunks)} chunks | mean {sum(sizes) // len(sizes)} tok | "
             f"min {min(sizes)} | max {max(sizes)} | "
             f"oversized {sum(1 for c in chunks if c.is_oversized)}"
+        )
+        logger.info(
+            "chunked doc_id=%s chunks=%d mean_tokens=%d oversized=%d "
+            "sections=%d recommendations=%d total_elapsed=%.2fs",
+            doc.doc_id,
+            len(chunks),
+            sum(sizes) // len(sizes),
+            sum(1 for c in chunks if c.is_oversized),
+            sections,
+            recommendations,
+            time.perf_counter() - stage_start,
         )
 
     return chunks, DocumentReport(
@@ -150,7 +171,14 @@ def run_ingest(
         embedder = OpenRouterEmbedder(settings)
 
     report(f"Embedding  {len(all_chunks)} chunks via {embedder.model_id} ...")
+    embed_start = time.perf_counter()
     vectors = embedder.embed_documents([c.text for c in all_chunks])
+    logger.info(
+        "embedded chunks=%d model=%s elapsed=%.2fs",
+        len(all_chunks),
+        embedder.model_id,
+        time.perf_counter() - embed_start,
+    )
 
     store = store or VectorStore(settings)
     store.build(all_chunks, vectors)

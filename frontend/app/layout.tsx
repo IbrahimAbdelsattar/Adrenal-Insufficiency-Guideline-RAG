@@ -1,109 +1,161 @@
-import type { Metadata } from "next";
-import "./globals.css";
+"use client";
 
-export const metadata: Metadata = {
-  title: "Clinical Decision Support Lite — Adrenal Insufficiency Guideline RAG",
-  description:
-    "Evidence-grounded retrieval over official NICE clinical guidelines with page-level citation traceability.",
-};
+import { useEffect, useState } from "react";
+import "./globals.css";
+import { ThemeToggle } from "@/components/ThemeToggle";
+import { LanguageToggle } from "@/components/LanguageToggle";
+import { translations, type Language } from "@/lib/translations";
 
 export default function RootLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  const [lang, setLang] = useState<Language>("en");
+
+  useEffect(() => {
+    const savedLang = localStorage.getItem("sapphire_lang") as Language | null;
+    if (savedLang && (savedLang === "en" || savedLang === "ar")) {
+      setLang(savedLang);
+    }
+    const handleLangChange = (e: Event) => {
+      const customEvent = e as CustomEvent<Language>;
+      if (customEvent.detail) setLang(customEvent.detail);
+    };
+    window.addEventListener("languageChange", handleLangChange);
+    return () => window.removeEventListener("languageChange", handleLangChange);
+  }, []);
+
+  const t = translations[lang];
+
   return (
-    <html lang="en" className="dark">
+    <html lang={lang} dir={lang === "ar" ? "rtl" : "ltr"} className="dark">
+      <head>
+        <title>Sapphire VEIL — Clinical Decision Support</title>
+        <meta
+          name="description"
+          content="Sapphire VEIL evidence retrieval over official NICE clinical guidelines with page-level citation traceability."
+        />
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              (function() {
+                try {
+                  var savedTheme = localStorage.getItem('sapphire_theme');
+                  var prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+                  var theme = savedTheme || (prefersDark ? 'dark' : 'light');
+                  if (theme === 'dark') {
+                    document.documentElement.classList.add('dark');
+                    document.documentElement.classList.remove('light');
+                  } else {
+                    document.documentElement.classList.add('light');
+                    document.documentElement.classList.remove('dark');
+                  }
+
+                  var savedLang = localStorage.getItem('sapphire_lang') || 'en';
+                  document.documentElement.setAttribute('lang', savedLang);
+                  document.documentElement.setAttribute('dir', savedLang === 'ar' ? 'rtl' : 'ltr');
+                } catch (e) {}
+              })();
+            `,
+          }}
+        />
+      </head>
       <body className="min-h-screen bg-ground text-ink antialiased selection:bg-accent-deep selection:text-white">
-        {/* Main Application Header */}
-        <header className="sticky top-0 z-40 border-b border-line/80 bg-surface/80 backdrop-blur-md">
+        {/* Sapphire VEIL Header */}
+        <header className="sticky top-0 z-40 border-b border-line/60 bg-ground/90 backdrop-blur-md transition-colors duration-300">
           <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-x-6 gap-y-3 px-4 py-3.5 sm:px-6">
-            {/* Brand Logo & Context */}
-            <div className="flex items-center gap-3.5">
-              <div className="relative flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-accent-deep to-accent text-ground shadow-lg shadow-accent/20">
-                <svg
-                  className="h-5 w-5 fill-current"
-                  viewBox="0 0 24 24"
-                  aria-hidden="true"
-                >
-                  <path d="M19 3H5c-1.1 0-1.99.9-1.99 2L3 19c0 1.1.89 2 1.99 2H19c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-1 11h-4v4h-4v-4H6v-4h4V6h4v4h4v4z" />
-                </svg>
+            {/* Sapphire VEIL Brand Identity */}
+            <div className="flex items-center gap-4">
+              <div className="mono-card relative flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-surface-2 to-surface text-accent-bright shadow-lg border border-accent-bright/20">
+                <span className="font-brand-cursive text-2xl text-accent-bright drop-shadow">S</span>
+                <span className="font-brand-serif text-xs font-bold tracking-widest text-accent-bright -ml-1">V</span>
                 <span className="absolute -bottom-0.5 -right-0.5 flex h-3 w-3">
                   <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-accent-bright opacity-75"></span>
                   <span className="relative inline-flex rounded-full h-3 w-3 bg-accent-bright"></span>
                 </span>
               </div>
               <div>
-                <div className="flex items-center gap-2">
-                  <h1 className="text-base font-bold tracking-tight text-ink">
-                    Clinical Decision Support Lite
+                <div className="flex items-baseline gap-2">
+                  <h1 className="text-xl tracking-wide text-ink">
+                    <span className="font-brand-cursive text-2xl font-normal text-accent-bright me-1.5">Sapphire</span>
+                    <span className="font-brand-serif font-bold text-accent-bright tracking-widest text-lg">VEIL</span>
                   </h1>
-                  <span className="rounded-full border border-accent-bright/30 bg-accent-bright/10 px-2 py-0.5 text-[10px] font-semibold text-accent-bright uppercase tracking-wider">
-                    v1.0 Baseline
+                  <span className="mono-pill px-2.5 py-0.5 text-[10px] font-mono font-bold text-accent-bright uppercase tracking-wider">
+                    {t.tagline}
                   </span>
                 </div>
                 <p className="text-xs font-medium text-ink-dim">
-                  Adrenal Insufficiency Management · NICE Guideline NG243
+                  {t.brandSubtitle}
                 </p>
               </div>
             </div>
 
-            {/* Header Right Badges & Shortcuts */}
+            {/* Header Right Controls (Language & Theme Toggles) */}
             <div className="flex items-center gap-3">
               <div className="hidden items-center gap-2 text-xs text-ink-faint sm:flex">
-                <span className="rounded-md border border-line bg-surface-2 px-2 py-1 font-mono text-[11px] text-ink-dim shadow-inner">
+                <span className="mono-inset px-2.5 py-1 font-mono text-[11px] font-semibold text-accent-bright shadow-inner rounded-lg">
                   Ctrl + K
                 </span>
-                <span>to search</span>
+                <span>{t.shortcutHint}</span>
               </div>
 
-              <div className="flex items-center gap-2 rounded-full border border-line bg-surface-2/60 px-3.5 py-1.5 text-xs font-medium text-ink-dim">
-                <span className="h-2 w-2 rounded-full bg-accent-bright animate-pulse" />
-                <span className="hidden sm:inline">Constitution Mode:</span>
-                <span className="text-accent-bright font-semibold">Retrieval Only</span>
+              <div className="mono-pill flex items-center gap-2.5 rounded-full px-3.5 py-1.5 text-xs font-medium text-ink-dim">
+                <span className="h-2 w-2 rounded-full bg-accent-bright animate-mono-pulse" />
+                <span className="hidden sm:inline text-ink-faint">{t.modeLabel}</span>
+                <span className="text-accent-bright font-bold">{t.modeValue}</span>
               </div>
+
+              {/* Language Switcher Button */}
+              <LanguageToggle onLanguageChange={setLang} />
+
+              {/* Theme Toggle Button */}
+              <ThemeToggle />
             </div>
           </div>
         </header>
 
         {/*
           Constitution Principle IV / FR-029:
-          Mandatory Clinical Disclaimer Banner
+          Monomorphic Inset Clinical Disclaimer Banner
         */}
-        <div className="border-b border-caution/30 bg-gradient-to-r from-caution/10 via-caution/5 to-transparent">
-          <div className="mx-auto flex max-w-7xl items-start gap-3 px-4 py-2.5 sm:px-6">
-            <svg
-              className="mt-0.5 h-4 w-4 shrink-0 text-caution"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
-              />
-            </svg>
-            <p className="text-xs leading-relaxed text-caution/95">
-              <strong className="font-semibold text-caution">Clinical Decision Support Aid:</strong>{" "}
-              This research prototype provides evidence retrieval from registered official guidelines only.
-              It is not a diagnostic tool or emergency service. All retrieved evidence must be evaluated by a qualified medical professional.
+        <div className="mono-inset border-y border-caution/20 bg-caution/[0.04]">
+          <div className="mx-auto flex max-w-7xl items-start gap-3 px-4 py-3 sm:px-6">
+            <div className="mono-pill flex h-6 w-6 shrink-0 items-center justify-center rounded-lg text-caution">
+              <svg
+                className="h-4 w-4"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+                />
+              </svg>
+            </div>
+            <p className="text-xs leading-relaxed text-caution/90">
+              <strong className="font-bold text-caution">{t.disclaimerTitle}</strong>{" "}
+              {t.disclaimerBody}
             </p>
           </div>
         </div>
 
-        {/* Main Application Container */}
+        {/* Main Monomorphic Layout Container */}
         <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6">{children}</main>
 
-        {/* Footer */}
-        <footer className="mt-16 border-t border-line/60 bg-surface/40 py-8 text-center text-xs text-ink-faint">
+        {/* Sapphire VEIL Monomorphic Footer */}
+        <footer className="mt-16 border-t border-line/60 bg-ground/80 py-8 text-center text-xs text-ink-faint">
           <div className="mx-auto max-w-7xl px-4 sm:px-6">
-            <p className="font-medium text-ink-dim">
-              Evidence Grounded · Structural Citations · Non-Modifying Retrieval Pipeline
+            <p className="font-semibold text-ink-dim">
+              <span className="font-brand-cursive text-sm text-accent-bright me-1">Sapphire</span>
+              <span className="font-brand-serif text-accent-bright font-bold me-2">VEIL</span>
+              · {t.footerText}
             </p>
             <p className="mt-1 text-ink-faint">
-              Every result traces directly to an official registered PDF, page number, and recommendation section.
+              {t.footerSub}
             </p>
           </div>
         </footer>

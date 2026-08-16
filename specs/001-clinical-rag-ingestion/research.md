@@ -73,9 +73,38 @@ irrelevant here.
 - *Local `bge-small-en-v1.5`* — free and offline, but a model download and slow CPU
   embedding for no quality gain at this corpus size.
 
-**Implementation notes**: batch inputs (≤100 per request), retry on 429/5xx with
-exponential backoff, and persist the model id into the index manifest so an index built
-with one model is never queried with another.
+**Implementation notes**: batch inputs, retry on 429/5xx with exponential backoff, and
+persist the model id into the index manifest so an index built with one model is never
+queried with another.
+
+### D3a — Revised in implementation: OmniRoute, not OpenRouter
+
+"Omniroute" turned out to be **OmniRoute**, a self-hostable multi-provider AI gateway —
+not OpenRouter. The two were conflated during planning. Corrected against the running
+instance:
+
+| | Planned | Actual |
+|---|---|---|
+| Base URL | `https://openrouter.ai/api/v1` | `https://omniroute.dawrly.space/v1` |
+| Embedding model | `openai/text-embedding-3-small` | `gemini/gemini-embedding-001` |
+| Dimensions | 1536 | 3072 |
+
+OmniRoute is OpenAI-compatible, so `OpenRouterEmbedder` worked unchanged once the base
+URL was corrected — the provider seam did its job.
+
+The model changed because the gateway's OpenAI-backed routes have no upstream credential
+configured: `openai/*` returns *"No credentials for embedding provider"*, and
+`openrouter/*` returns 401 *"User not found"*. Of the 33 embedding models the gateway
+lists, `gemini/gemini-embedding-001` was the one that authenticated and returned vectors.
+Batch size was lowered from 100 to 32 for the Gemini route.
+
+**Verified**: 95 chunks embedded and indexed in 34 s; a live query returns §1.7
+"Emergency management of adrenal crisis" (p.27) at score 0.808 for *"How should an
+adrenal crisis be managed?"*.
+
+**Follow-up**: the class name `OpenRouterEmbedder` and the `OPENROUTER_*` env vars are
+now misnomers. Renaming to `GatewayEmbedder` / `GATEWAY_*` is cosmetic and deferred —
+it would touch config, .env, and docs for no functional gain during the hackathon.
 
 ---
 

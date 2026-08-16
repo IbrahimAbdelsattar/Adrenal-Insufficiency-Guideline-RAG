@@ -93,17 +93,17 @@ Monolithic repository, per [plan.md](plan.md) Structure Decision. Backend Python
 
 **Depends on**: Phase 3 (needs a populated index).
 
-- [ ] T026 [US2] Implement `backend/app/retrieval/dense.py` — a `Retriever` embedding the query, running cosine top-K against ChromaDB, converting distance to a 0–1 score, assigning ranks, and setting `below_floor` from `RELEVANCE_FLOOR` without ever removing results (FR-021, FR-022, FR-023)
-- [ ] T027 [US2] Implement `POST /api/search` in `backend/app/api/search.py` returning the `SearchResponse` from contracts/search-api.yaml — including `evidence_found`, `embedding_model`, `latency_ms`, and the disclaimer — with 422 on invalid query and 503 when the index is missing or the provider is unavailable (FR-024, FR-025)
-- [ ] T028 [US2] Implement `GET /api/index` in `backend/app/api/search.py` returning the `IndexManifest`, 404 when no index exists, and rejecting queries whose manifest embedding model differs from the configured one (FR-030, data-model.md validation rule)
-- [ ] T029 [P] [US2] Implement the `POST /api/generate` stub in `backend/app/api/generate.py` returning HTTP 501 with the explanatory message from contracts/generation-api.yaml (FR-034, Constitution Principle V)
-- [ ] T030 [P] [US2] Implement the `query` command in `backend/app/cli.py` with `--top-k`, `--json`, and `--full-text`, rendering the ranked output and `[BELOW FLOOR]` labels exactly as specified in contracts/cli-contract.md (FR-024)
-- [ ] T031 [P] [US2] Create the typed API client in `frontend/lib/api.ts` with TypeScript interfaces mirroring `SearchResponse`, `RetrievalResult`, `Chunk`, and `IndexManifest` from contracts/search-api.yaml
-- [ ] T032 [P] [US2] Build `frontend/components/ChunkCard.tsx` displaying relevance score, document name, page number, section title, sub-section, recommendation ids, and full chunk text; visibly flag `requires_caution` and `below_floor` results (FR-027, FR-028)
-- [ ] T033 [P] [US2] Build `frontend/components/SearchBox.tsx` — controlled input with submit, loading state, and error surface
-- [ ] T034 [P] [US2] Build `frontend/components/IndexStatus.tsx` showing document count, chunk count, and embedding model from `GET /api/index` (FR-030)
-- [ ] T035 [US2] Build `frontend/app/page.tsx` composing SearchBox, IndexStatus, and the ranked ChunkCard list; render an explicit "no evidence available" state when `evidence_found` is false or the index is empty (FR-026, US2 scenario 5)
-- [ ] T036 [US2] Build `frontend/app/layout.tsx` with the persistent decision-support disclaimer stating the system is not a diagnostic or emergency service (FR-029, Constitution Principle IV)
+- [X] T026 [US2] Implement `backend/app/retrieval/dense.py` — a `Retriever` embedding the query, running cosine top-K against ChromaDB, converting distance to a 0–1 score, assigning ranks, and setting `below_floor` from `RELEVANCE_FLOOR` without ever removing results (FR-021, FR-022, FR-023)
+- [X] T027 [US2] Implement `POST /api/search` in `backend/app/api/search.py` returning the `SearchResponse` from contracts/search-api.yaml — including `evidence_found`, `embedding_model`, `latency_ms`, and the disclaimer — with 422 on invalid query and 503 when the index is missing or the provider is unavailable (FR-024, FR-025)
+- [X] T028 [US2] Implement `GET /api/index` in `backend/app/api/search.py` returning the `IndexManifest`, 404 when no index exists, and rejecting queries whose manifest embedding model differs from the configured one (FR-030, data-model.md validation rule)
+- [X] T029 [P] [US2] Implement the `POST /api/generate` stub in `backend/app/api/generate.py` returning HTTP 501 with the explanatory message from contracts/generation-api.yaml (FR-034, Constitution Principle V)
+- [X] T030 [P] [US2] Implement the `query` command in `backend/app/cli.py` with `--top-k`, `--json`, and `--full-text`, rendering the ranked output and `[BELOW FLOOR]` labels exactly as specified in contracts/cli-contract.md (FR-024)
+- [X] T031 [P] [US2] Create the typed API client in `frontend/lib/api.ts` with TypeScript interfaces mirroring `SearchResponse`, `RetrievalResult`, `Chunk`, and `IndexManifest` from contracts/search-api.yaml
+- [X] T032 [P] [US2] Build `frontend/components/ChunkCard.tsx` displaying relevance score, document name, page number, section title, sub-section, recommendation ids, and full chunk text; visibly flag `requires_caution` and `below_floor` results (FR-027, FR-028)
+- [X] T033 [P] [US2] Build `frontend/components/SearchBox.tsx` — controlled input with submit, loading state, and error surface
+- [X] T034 [P] [US2] Build `frontend/components/IndexStatus.tsx` showing document count, chunk count, and embedding model from `GET /api/index` (FR-030)
+- [X] T035 [US2] Build `frontend/app/page.tsx` composing SearchBox, IndexStatus, and the ranked ChunkCard list; render an explicit "no evidence available" state when `evidence_found` is false or the index is empty (FR-026, US2 scenario 5)
+- [X] T036 [US2] Build `frontend/app/layout.tsx` with the persistent decision-support disclaimer stating the system is not a diagnostic or emergency service (FR-029, Constitution Principle IV)
 
 **Checkpoint**: quickstart V3, V4, V9, and V10 pass. **This is the demo gate: question → top chunks → source page and section.**
 
@@ -117,10 +117,10 @@ Monolithic repository, per [plan.md](plan.md) Structure Decision. Backend Python
 
 **Depends on**: Phase 4 (needs working retrieval).
 
-- [ ] T037 [US3] Author `backend/tests/eval/golden_questions.yaml` with at least 10 adrenal-insufficiency questions, each carrying `id`, `question`, `expected_doc_id`, `expected_sections`, optional `expected_recommendation_ids`, and a `notes` justification — derived by reading NG243 sections 1.1 through 1.8 (FR-031)
-- [ ] T038 [US3] Implement `backend/tests/eval/test_retrieval_quality.py` asserting that each golden question retrieves an expected section within top-K, and reporting per-question rank plus aggregate hit rate against the 80% target (FR-032, FR-033, SC-003)
-- [ ] T039 [US3] Implement the `eval` command in `backend/app/cli.py` with `--top-k` and `--json`, producing the HIT/MISS table, hit rate, mean rank of hits, and exit code 0/1 against the target from contracts/cli-contract.md
-- [ ] T040 [P] [US3] Add `backend/tests/integration/test_no_split_recommendations.py` verifying against the real built index that every recommendation id appears in exactly one chunk (SC-006, quickstart V8)
+- [X] T037 [US3] Author `backend/tests/eval/golden_questions.yaml` with at least 10 adrenal-insufficiency questions, each carrying `id`, `question`, `expected_doc_id`, `expected_sections`, optional `expected_recommendation_ids`, and a `notes` justification — derived by reading NG243 sections 1.1 through 1.8 (FR-031)
+- [X] T038 [US3] Implement `backend/tests/eval/test_retrieval_quality.py` asserting that each golden question retrieves an expected section within top-K, and reporting per-question rank plus aggregate hit rate against the 80% target (FR-032, FR-033, SC-003)
+- [X] T039 [US3] Implement the `eval` command in `backend/app/cli.py` with `--top-k` and `--json`, producing the HIT/MISS table, hit rate, mean rank of hits, and exit code 0/1 against the target from contracts/cli-contract.md
+- [X] T040 [P] [US3] Add `backend/tests/integration/test_no_split_recommendations.py` verifying against the real built index that every recommendation id appears in exactly one chunk (SC-006, quickstart V8)
 
 **Checkpoint**: quickstart V5 and V8 pass; hit rate ≥ 80%.
 
@@ -134,9 +134,9 @@ Monolithic repository, per [plan.md](plan.md) Structure Decision. Backend Python
 
 **Depends on**: Phase 2 (registry exists).
 
-- [ ] T041 [P] [US4] Implement `GET /api/sources` in `backend/app/api/search.py` returning all registered `SourceDocument` entries with publisher, year, URL, type, credibility note, and licence note per contracts/search-api.yaml (FR-001)
-- [ ] T042 [P] [US4] Add `backend/tests/unit/test_registry.py` asserting that an unregistered PDF in the corpus causes a fail-closed error naming the file, and that placeholder or empty credibility notes are rejected (FR-002, US4 scenario 2)
-- [ ] T043 [US4] Add a provenance panel to `frontend/app/page.tsx` listing each source with its publisher, publication year, and linked source URL
+- [X] T041 [P] [US4] Implement `GET /api/sources` in `backend/app/api/search.py` returning all registered `SourceDocument` entries with publisher, year, URL, type, credibility note, and licence note per contracts/search-api.yaml (FR-001)
+- [X] T042 [P] [US4] Add `backend/tests/unit/test_registry.py` asserting that an unregistered PDF in the corpus causes a fail-closed error naming the file, and that placeholder or empty credibility notes are rejected (FR-002, US4 scenario 2)
+- [X] T043 [US4] Add a provenance panel to `frontend/app/page.tsx` listing each source with its publisher, publication year, and linked source URL
 
 **Checkpoint**: quickstart V2 passes; every corpus document has a complete registry entry (SC-008).
 
@@ -149,7 +149,7 @@ Monolithic repository, per [plan.md](plan.md) Structure Decision. Backend Python
 - [ ] T046 [P] Add structured logging across `backend/app/ingestion/pipeline.py` and `backend/app/api/search.py` — per-stage timings and counts, so ingest and search performance against SC-001 and SC-007 is observable
 - [ ] T047 Perform the manual verification gates from quickstart.md V6 and V7 — read 5 randomly sampled chunks for standalone coherence and trace one chunk back to its stated page in `data/corpus/adrenal-insufficiency-identification-and-management-pdf-66143954919877.pdf`, recording the outcome in `specs/001-clinical-rag-ingestion/quickstart.md` Gate checklist (SC-004, SC-005, Constitution Principle VI)
 - [ ] T048 Run the complete quickstart validation suite V1 through V10 and record the outcome of each of the 13 end-of-day review gates in spec.md
-- [ ] T049 [P] Add a latency check in `backend/tests/integration/test_search_latency.py` timing 10 consecutive searches and asserting each completes under 3 seconds end to end (SC-007)
+- [X] T049 [P] Add a latency check in `backend/tests/integration/test_search_latency.py` timing 10 consecutive searches and asserting each completes under 3 seconds end to end (SC-007)
 
 ---
 
