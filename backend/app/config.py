@@ -70,16 +70,33 @@ class Settings(BaseSettings):
     )
 
     # --- Serving ---
-    # Extra browser origin allowed to call the API directly. In the deployed
-    # setup the frontend proxies /api server-side, so this only matters for
-    # hitting the backend domain straight from a browser.
-    allowed_origin: str = Field(default="", alias="ALLOWED_ORIGIN")
+    # Browser origins permitted to call the API directly. The deployed frontend
+    # calls the backend domain cross-origin, so without a matching entry the
+    # browser blocks every request before it is sent — the backend looks healthy
+    # from curl while the UI reports "cannot reach the backend".
+    #
+    # Comma-separated. ALLOWED_ORIGINS (plural) is canonical; ALLOWED_ORIGIN is
+    # accepted as an alias.
+    allowed_origins: str = Field(
+        default="",
+        validation_alias=AliasChoices("ALLOWED_ORIGINS", "ALLOWED_ORIGIN"),
+    )
+
+    # Any subdomain of the deployment domain is trusted, so the split
+    # frontend/backend hosts work even when the env var is missing. Override by
+    # setting CORS_ORIGIN_REGEX (empty string disables the regex entirely).
+    cors_origin_regex: str = Field(
+        default=r"https://([a-z0-9-]+\.)*dawrly\.space",
+        alias="CORS_ORIGIN_REGEX",
+    )
 
     @property
     def cors_origins(self) -> list[str]:
         origins = ["http://localhost:3000", "http://127.0.0.1:3000"]
-        if self.allowed_origin and self.allowed_origin not in origins:
-            origins.append(self.allowed_origin)
+        for candidate in self.allowed_origins.split(","):
+            cleaned = candidate.strip().rstrip("/")
+            if cleaned and cleaned not in origins:
+                origins.append(cleaned)
         return origins
 
     # ------------------------------------------------------------------

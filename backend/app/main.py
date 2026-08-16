@@ -24,12 +24,18 @@ app = FastAPI(
     version="1.0.0",
 )
 
+_settings = get_settings()
+
+# allow_origin_regex covers the deployed frontend/backend subdomain split, so
+# cross-origin calls keep working even if ALLOWED_ORIGINS is not set on the host.
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=get_settings().cors_origins,
+    allow_origins=_settings.cors_origins,
+    allow_origin_regex=_settings.cors_origin_regex or None,
     allow_credentials=False,
-    allow_methods=["GET", "POST"],
+    allow_methods=["GET", "POST", "OPTIONS"],
     allow_headers=["*"],
+    max_age=600,
 )
 
 app.include_router(search.router)
