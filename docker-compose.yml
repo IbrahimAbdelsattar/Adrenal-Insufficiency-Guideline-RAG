@@ -1,35 +1,51 @@
+# PRODUCTION deployment (VPS).
+#
+# One container: FastAPI serves both the API and the Next.js static export
+# (plan.md Structure Decision). No Node runtime, no bind mounts, no port 3000.
+#
+# Port 3000 is deliberately NOT used — the deployment platform's own dashboard
+# occupies it on the VPS, which is what caused
+#   "Bind for 0.0.0.0:3000 failed: port is already allocated".
+#
+# For local development with hot reload, use the two-container dev stack instead:
+#   docker compose -f docker-compose.dev.yml up
+
 services:
-  backend:
+  app:
     build:
       context: .
-      dockerfile: backend/Dockerfile
+      dockerfile: Dockerfile
+    restart: unless-stopped
+
     ports:
-      - "8000:8000"
-    env_file:
-      - .env
+      # host:container — 8090 chosen to avoid the platform dashboard (3000)
+      # and anything already bound on 8000.
+      - "8090:8000"
+
+    environment:
+      # Set these in the deployment platform's environment settings.
+      # OPENROUTER_API_KEY is REQUIRED: without it the first-boot ingest fails
+      # and search cannot embed queries.
+      - OPENROUTER_API_KEY=${OPENROUTER_API_KEY}
+      - OPENROUTER_BASE_URL=${OPENROUTER_BASE_URL:-https://omniroute.dawrly.space/v1}
+      - EMBEDDING_MODEL=${EMBEDDING_MODEL:-gemini/gemini-embedding-001}
+      - EMBEDDING_BATCH_SIZE=${EMBEDDING_BATCH_SIZE:-32}
+      - TOP_K=${TOP_K:-5}
+      - RELEVANCE_FLOOR=${RELEVANCE_FLOOR:-0.30}
+
     volumes:
-      - ./data/index:/app/data/index
-      - ./data/sources.yaml:/app/data/sources.yaml
-      - ./data/corpus:/app/data/corpus
+      # Named volume, not a bind mount: the VPS build context has no
+      # data/index (it is gitignored). The entrypoint builds the index into
+      # this volume on first boot and reuses it on every restart.
+      - index-data:/app/data/index
+
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/api/health"]
       interval: 30s
       timeout: 5s
       retries: 3
-      start_period: 10s
+      # First boot runs ingest (~35s for NG243); do not mark unhealthy during it.
+      start_period: 120s
 
-  frontend:
-    build:
-      context: ./frontend
-      dockerfile: Dockerfile
-    ports:
-      - "3000:3000"
-    environment:
-      - BACKEND_URL=http://backend:8000
-      - NODE_ENV=development
-    volumes:
-      - ./frontend:/app
-      - /app/node_modules
-      - /app/.next
-    depends_on:
-      - backend
+volumes:
+  index-data:
