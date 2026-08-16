@@ -376,7 +376,22 @@ IndexManifest (1) ── describes ──> whole Chunk collection
 - **Node.js**: `20.x` or `24.x`
 - **OpenRouter API Key**: Obtainable from [OpenRouter AI](https://openrouter.ai/)
 
-### 2. Environment Setup
+### ⚡ One-Click Start (Windows)
+
+Simply double-click or run [start.bat](file:///c:/Users/C-LAB/Videos/ai%20hackthon/start.bat) from the project root. It will automatically:
+1. Create and activate `.venv` (if missing).
+2. Install Python requirements from `requirements.txt`.
+3. Create `.env` from `.env.example` (if missing).
+4. Install frontend packages in `frontend/` (if missing).
+5. Launch FastAPI backend (`:8000`) and Next.js frontend (`:3000`) in separate command prompt windows.
+
+```cmd
+start.bat
+```
+
+---
+
+### 2. Manual Environment Setup
 
 Clone the repository and create the Python virtual environment:
 

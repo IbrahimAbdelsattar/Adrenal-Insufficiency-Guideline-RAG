@@ -11,7 +11,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
-from backend.app.api import search
+from backend.app.api import generate, search
 from backend.app.config import REPO_ROOT
 
 app = FastAPI(
@@ -33,6 +33,7 @@ app.add_middleware(
 )
 
 app.include_router(search.router)
+app.include_router(generate.router)
 
 # Production only: serve the Next.js static export if it has been built.
 _static_dir = REPO_ROOT / "frontend" / "out"

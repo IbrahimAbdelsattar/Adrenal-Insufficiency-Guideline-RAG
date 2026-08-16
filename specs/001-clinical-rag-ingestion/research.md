@@ -148,6 +148,32 @@ truncated clinical recommendation can invert its own meaning.
 
 **Token counting**: `tiktoken` with `cl100k_base`, matching the embedding model's family.
 
+### D6a — Observed outcome: the 400-token floor is a target, not a constraint
+
+Measured on the real NG243 ingest: 95 chunks, mean 190 tokens, median 93. Only 15 land
+inside the nominal 400–800 band.
+
+This was investigated rather than tuned away. The short chunks are overwhelmingly
+**correct**: §1.9 "Terms used in this guideline" is a glossary whose entries are
+self-contained definitions ("Physiological stress" at 36 tokens, "Sick-day dosing" at
+39). Each is exactly the "one coherent clinical idea" FR-013 asks for.
+
+Two options were weighed for raising the mean:
+
+1. *Pack across sub-section boundaries within a section.* *Rejected — clinical safety.*
+   NG243 splits several sections into "People aged 16 and over" and "Children and young
+   people". Merging those would place adult and paediatric dosing in one chunk, and a
+   retrieval hit would then present both as equally applicable. That is a far worse
+   failure than a short chunk.
+2. *Merge adjacent short blocks regardless of heading.* Rejected — it would fuse
+   unrelated glossary terms and dilute their embeddings.
+
+**Decision**: the sub-section boundary stays hard. `CHUNK_TARGET_TOKENS` governs packing
+*within* a boundary; it never overrides one. FR-012's band is therefore satisfied as a
+packing target, and the measured distribution is a property of the source document, not
+a defect. Retrieval quality is measured directly by the golden set (D9), which is the
+metric that actually matters.
+
 ---
 
 ## D7 — Retrieval strategy

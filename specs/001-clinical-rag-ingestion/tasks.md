@@ -67,19 +67,19 @@ Monolithic repository, per [plan.md](plan.md) Structure Decision. Backend Python
 
 ### Tests for User Story 1
 
-- [ ] T016 [P] [US1] Unit-test the cleaner in `backend/tests/unit/test_cleaner.py` — boilerplate lines above `BOILERPLATE_PAGE_RATIO` are removed, `�` normalises to `- `, hyphenated line-break splits rejoin, dot-leader contents pages are detected as front matter (research.md D5)
-- [ ] T017 [P] [US1] Unit-test the sectioner in `backend/tests/unit/test_sectioner.py` — `N.N` sections and `N.N.N` recommendations are detected from NG243-shaped fixture text, prose sub-headings are captured, and section state carries across page boundaries
-- [ ] T018 [P] [US1] Unit-test the chunker in `backend/tests/unit/test_chunker.py` — no numbered recommendation is split across chunks (SC-006), chunks fall within 400–800 tokens unless `is_oversized`, oversized atomic recommendations are emitted whole and flagged rather than truncated (FR-014)
-- [ ] T019 [US1] Integration-test the pipeline in `backend/tests/integration/test_ingest_pipeline.py` — a fixture PDF ingests end to end with a stubbed embedder, producing chunks with all 15 metadata fields non-null, unique `chunk_id`s, and a written manifest
+- [X] T016 [P] [US1] Unit-test the cleaner in `backend/tests/unit/test_cleaner.py` — boilerplate lines above `BOILERPLATE_PAGE_RATIO` are removed, `�` normalises to `- `, hyphenated line-break splits rejoin, dot-leader contents pages are detected as front matter (research.md D5)
+- [X] T017 [P] [US1] Unit-test the sectioner in `backend/tests/unit/test_sectioner.py` — `N.N` sections and `N.N.N` recommendations are detected from NG243-shaped fixture text, prose sub-headings are captured, and section state carries across page boundaries
+- [X] T018 [P] [US1] Unit-test the chunker in `backend/tests/unit/test_chunker.py` — no numbered recommendation is split across chunks (SC-006), chunks fall within 400–800 tokens unless `is_oversized`, oversized atomic recommendations are emitted whole and flagged rather than truncated (FR-014)
+- [X] T019 [US1] Integration-test the pipeline in `backend/tests/integration/test_ingest_pipeline.py` — a fixture PDF ingests end to end with a stubbed embedder, producing chunks with all 15 metadata fields non-null, unique `chunk_id`s, and a written manifest
 
 ### Implementation for User Story 1
 
-- [ ] T020 [P] [US1] Implement `backend/app/ingestion/parser.py` — PyMuPDF `page.get_text("dict")` extraction yielding per-span text with font size, weight, and 1-indexed source page number; raise the typed no-text-layer error mapping to exit code 2 (FR-004, research.md D4)
-- [ ] T021 [P] [US1] Implement `backend/app/ingestion/cleaner.py` — frequency-based header/footer removal using `BOILERPLATE_PAGE_RATIO`, glyph normalisation, hyphenation repair, front-matter detection, and per-page empty-after-cleaning counting (FR-005 through FR-009)
-- [ ] T022 [US1] Implement `backend/app/ingestion/sectioner.py` — detect the `N.N` section and `N.N.N` recommendation hierarchy plus prose sub-headings using span font metadata and numbering regexes; raise the typed no-sections error mapping to exit code 3 (FR-010)
-- [ ] T023 [US1] Implement `backend/app/ingestion/chunker.py` — treat each numbered recommendation as atomic, pack same-section siblings toward `CHUNK_TARGET_TOKENS` within the min/max band using tiktoken `cl100k_base`, emit oversized recommendations whole with `is_oversized=true`, and assign `chunk_id` as `{doc_id}_p{page:02d}_c{seq:02d}` (FR-011 through FR-014, FR-016)
-- [ ] T024 [US1] Implement `backend/app/ingestion/pipeline.py` — orchestrate registry → parse → clean → section → chunk → embed → index, attach all denormalised metadata from `SourceDocument` to every chunk, write `IndexManifest` with the embedding model and per-document page statistics, and make the run idempotent (FR-015, FR-017, FR-019, FR-020)
-- [ ] T025 [US1] Implement the `ingest` command in `backend/app/cli.py` with `--dry-run`, `--doc-id`, and `--verbose`, emitting the progress output and the exit codes 0–5 defined in contracts/cli-contract.md
+- [X] T020 [P] [US1] Implement `backend/app/ingestion/parser.py` — PyMuPDF `page.get_text("dict")` extraction yielding per-span text with font size, weight, and 1-indexed source page number; raise the typed no-text-layer error mapping to exit code 2 (FR-004, research.md D4)
+- [X] T021 [P] [US1] Implement `backend/app/ingestion/cleaner.py` — frequency-based header/footer removal using `BOILERPLATE_PAGE_RATIO`, glyph normalisation, hyphenation repair, front-matter detection, and per-page empty-after-cleaning counting (FR-005 through FR-009)
+- [X] T022 [US1] Implement `backend/app/ingestion/sectioner.py` — detect the `N.N` section and `N.N.N` recommendation hierarchy plus prose sub-headings using span font metadata and numbering regexes; raise the typed no-sections error mapping to exit code 3 (FR-010)
+- [X] T023 [US1] Implement `backend/app/ingestion/chunker.py` — treat each numbered recommendation as atomic, pack same-section siblings toward `CHUNK_TARGET_TOKENS` within the min/max band using tiktoken `cl100k_base`, emit oversized recommendations whole with `is_oversized=true`, and assign `chunk_id` as `{doc_id}_p{page:02d}_c{seq:02d}` (FR-011 through FR-014, FR-016)
+- [X] T024 [US1] Implement `backend/app/ingestion/pipeline.py` — orchestrate registry → parse → clean → section → chunk → embed → index, attach all denormalised metadata from `SourceDocument` to every chunk, write `IndexManifest` with the embedding model and per-document page statistics, and make the run idempotent (FR-015, FR-017, FR-019, FR-020)
+- [X] T025 [US1] Implement the `ingest` command in `backend/app/cli.py` with `--dry-run`, `--doc-id`, and `--verbose`, emitting the progress output and the exit codes 0–5 defined in contracts/cli-contract.md
 
 **Checkpoint**: `python -m backend.app.cli ingest` builds the index; quickstart V1 and V2 pass.
 
