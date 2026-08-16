@@ -18,7 +18,14 @@ FROM node:20-slim AS builder
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
-# BACKEND_URL is read at runtime by the rewrite, not inlined at build time.
+
+# IMPORTANT: Next evaluates next.config.ts `rewrites()` at BUILD time and
+# serializes the result into the build manifest. Setting BACKEND_URL only at
+# runtime has no effect — the proxy target is frozen here. It must therefore be
+# supplied as a build arg, defaulting to the compose service address.
+ARG BACKEND_URL=http://backend:8000
+ENV BACKEND_URL=${BACKEND_URL}
+
 ENV NEXT_TELEMETRY_DISABLED=1
 RUN NODE_ENV=production npm run build
 

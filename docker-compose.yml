@@ -55,6 +55,13 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile
+      args:
+        # MUST be a build arg, not just an environment variable: Next resolves
+        # next.config.ts rewrites at build time and bakes the proxy target into
+        # the manifest. Passing it only via `environment` leaves the image
+        # pointing at the local-dev default and produces
+        #   ECONNREFUSED 127.0.0.1:8010
+        BACKEND_URL: http://backend:8000
     restart: unless-stopped
 
     expose:
@@ -62,8 +69,7 @@ services:
 
     environment:
       - NODE_ENV=production
-      # Container-network address of the backend service, used by the
-      # /api/* rewrite in next.config.ts.
+      # Kept for parity/debugging; the effective proxy target is the build arg.
       - BACKEND_URL=http://backend:8000
 
     depends_on:
