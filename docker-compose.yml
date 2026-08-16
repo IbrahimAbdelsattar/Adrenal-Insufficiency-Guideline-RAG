@@ -1,42 +1,46 @@
-# PRODUCTION deployment (VPS).
+# PRODUCTION deployment (Dokploy + Traefik on the VPS).
 #
-# One container: FastAPI serves both the API and the Next.js static export
-# (plan.md Structure Decision). No Node runtime, no bind mounts, no port 3000.
+# Service names MUST stay `frontend` and `backend` — the Dokploy Domains tab
+# binds each domain to a service by name:
+#   sapphire.dawrly.space      -> frontend : 3000
+#   api-sapphire.dawrly.space  -> backend  : 8000
+# Renaming a service here produces:
+#   'Domain "..." is attached to service "frontend" which does not exist'
 #
-# Port 3000 is deliberately NOT used — the deployment platform's own dashboard
-# occupies it on the VPS, which is what caused
-#   "Bind for 0.0.0.0:3000 failed: port is already allocated".
+# NOTE: no `ports:` anywhere. Traefik reaches the containers over the compose
+# network, so publishing host ports is unnecessary and is exactly what caused
+#   'Bind for 0.0.0.0:3000 failed: port is already allocated'
+# (the Dokploy dashboard itself owns host port 3000).
 #
-# For local development with hot reload, use the two-container dev stack instead:
-#   docker compose -f docker-compose.dev.yml up
+# Local hot-reload development: docker compose -f docker-compose.dev.yml up
 
 services:
-  app:
+  backend:
     build:
       context: .
-      dockerfile: Dockerfile
+      dockerfile: backend/Dockerfile
     restart: unless-stopped
 
-    ports:
-      # host:container — 8090 chosen to avoid the platform dashboard (3000)
-      # and anything already bound on 8000.
-      - "8090:8000"
+    expose:
+      - "8000"
 
     environment:
-      # Set these in the deployment platform's environment settings.
-      # OPENROUTER_API_KEY is REQUIRED: without it the first-boot ingest fails
-      # and search cannot embed queries.
+      # Set these in Dokploy -> Environment. OPENROUTER_API_KEY is REQUIRED:
+      # without it the first-boot ingest aborts and search cannot embed queries.
       - OPENROUTER_API_KEY=${OPENROUTER_API_KEY}
       - OPENROUTER_BASE_URL=${OPENROUTER_BASE_URL:-https://omniroute.dawrly.space/v1}
       - EMBEDDING_MODEL=${EMBEDDING_MODEL:-gemini/gemini-embedding-001}
       - EMBEDDING_BATCH_SIZE=${EMBEDDING_BATCH_SIZE:-32}
       - TOP_K=${TOP_K:-5}
       - RELEVANCE_FLOOR=${RELEVANCE_FLOOR:-0.30}
+      # Browsers hitting sapphire.dawrly.space are same-origin via the frontend
+      # rewrite, so CORS is not needed; this covers direct api-sapphire access.
+      - ALLOWED_ORIGIN=${ALLOWED_ORIGIN:-https://sapphire.dawrly.space}
 
     volumes:
-      # Named volume, not a bind mount: the VPS build context has no
-      # data/index (it is gitignored). The entrypoint builds the index into
-      # this volume on first boot and reuses it on every restart.
+      # Named volume, not a bind mount: data/index is gitignored, so the VPS
+      # build context has no index. The entrypoint builds it here on first boot
+      # and reuses it on every restart.
       - index-data:/app/data/index
 
     healthcheck:
@@ -44,8 +48,27 @@ services:
       interval: 30s
       timeout: 5s
       retries: 3
-      # First boot runs ingest (~35s for NG243); do not mark unhealthy during it.
+      # First boot runs ingest (~35s for NG243) — do not kill it mid-build.
       start_period: 120s
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    restart: unless-stopped
+
+    expose:
+      - "3000"
+
+    environment:
+      - NODE_ENV=production
+      # Container-network address of the backend service, used by the
+      # /api/* rewrite in next.config.ts.
+      - BACKEND_URL=http://backend:8000
+
+    depends_on:
+      backend:
+        condition: service_started
 
 volumes:
   index-data:

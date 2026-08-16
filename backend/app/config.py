@@ -62,6 +62,19 @@ class Settings(BaseSettings):
         default=0.6, alias="BOILERPLATE_PAGE_RATIO"
     )
 
+    # --- Serving ---
+    # Extra browser origin allowed to call the API directly. In the deployed
+    # setup the frontend proxies /api server-side, so this only matters for
+    # hitting the backend domain straight from a browser.
+    allowed_origin: str = Field(default="", alias="ALLOWED_ORIGIN")
+
+    @property
+    def cors_origins(self) -> list[str]:
+        origins = ["http://localhost:3000", "http://127.0.0.1:3000"]
+        if self.allowed_origin and self.allowed_origin not in origins:
+            origins.append(self.allowed_origin)
+        return origins
+
     # ------------------------------------------------------------------
     # Absolute path helpers. Callers should use these, never the raw fields,
     # so behaviour does not depend on the process working directory.

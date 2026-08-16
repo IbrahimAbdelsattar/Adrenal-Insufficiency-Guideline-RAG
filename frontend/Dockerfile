@@ -1,16 +1,51 @@
-# Frontend service (Next.js). Dev image driven by docker-compose, hot-reloading
-# against a bind-mounted source tree. For production, the app collapses into the
-# root Dockerfile instead (static export served by FastAPI) rather than running
-# this container.
-FROM node:20-slim
+# Frontend service (Next.js) — PRODUCTION image.
+#
+# Runs a real Next server rather than a static export, because the VPS puts the
+# frontend and backend behind separate domains and only a server can rewrite
+# /api/* through to the backend.
+#
+# For local hot-reload development use docker-compose.dev.yml, which overrides
+# the command and bind-mounts the source tree.
 
+# --- Stage 1: install dependencies ---
+FROM node:20-slim AS deps
 WORKDIR /app
-
 COPY package.json package-lock.json ./
 RUN npm ci
 
+# --- Stage 2: build ---
+FROM node:20-slim AS builder
+WORKDIR /app
+COPY --from=deps /app/node_modules ./node_modules
 COPY . .
+# BACKEND_URL is read at runtime by the rewrite, not inlined at build time.
+ENV NEXT_TELEMETRY_DISABLED=1
+RUN NODE_ENV=production npm run build
+
+# --- Stage 3: runtime ---
+FROM node:20-slim AS runner
+WORKDIR /app
+
+ENV NODE_ENV=production
+ENV NEXT_TELEMETRY_DISABLED=1
+ENV PORT=3000
+ENV HOSTNAME=0.0.0.0
+
+RUN apt-get update && apt-get install -y --no-install-recommends curl \
+    && rm -rf /var/lib/apt/lists/* \
+    && addgroup --system --gid 1001 nodejs \
+    && adduser --system --uid 1001 nextjs
+
+# `output: "standalone"` emits a self-contained server plus only the modules it
+# actually needs; static/ and public/ are copied alongside it.
+COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
+COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
+
+USER nextjs
 
 EXPOSE 3000
 
-CMD ["npm", "run", "dev"]
+HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
+    CMD curl -f http://localhost:3000/ || exit 1
+
+CMD ["node", "server.js"]

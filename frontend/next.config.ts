@@ -1,22 +1,32 @@
 import type { NextConfig } from "next";
 
 /**
- * Development: proxy /api/* to the FastAPI backend on :8000 so the browser sees a
- * single origin and CORS stays off the critical path (plan.md Structure Decision).
+ * Two deployment shapes are supported.
  *
- * Production: `output: "export"` emits a static bundle that FastAPI serves via
- * StaticFiles, collapsing the app to one deployable process.
+ * 1. Server mode (default, and what the VPS uses). Next runs as a server and
+ *    rewrites /api/* to the backend. Required when the frontend and backend sit
+ *    behind separate domains — a static export cannot proxy anything, so
+ *    sapphire.dawrly.space/api/search would 404.
+ *
+ * 2. Static export (NEXT_OUTPUT=export). Emits frontend/out for the collapsed
+ *    single-process image in the root Dockerfile, where FastAPI serves the SPA
+ *    and the API from one origin and no rewrite is needed.
+ *
+ * BACKEND_URL points at the backend in both dev and container networking:
+ *   local dev  -> http://127.0.0.1:8010
+ *   compose    -> http://backend:8000  (service name on the compose network)
  */
-const isProd = process.env.NODE_ENV === "production";
+const isExport = process.env.NEXT_OUTPUT === "export";
 
-// Override with BACKEND_URL if the default port is taken or blocked.
 const BACKEND_URL = process.env.BACKEND_URL ?? "http://127.0.0.1:8010";
 
 const nextConfig: NextConfig = {
-  ...(isProd ? { output: "export" as const } : {}),
+  // standalone keeps the runtime image small (no full node_modules copy).
+  output: isExport ? "export" : "standalone",
 
   async rewrites() {
-    if (isProd) return [];
+    // A static export has no server, so rewrites cannot apply there.
+    if (isExport) return [];
     return [
       {
         source: "/api/:path*",
