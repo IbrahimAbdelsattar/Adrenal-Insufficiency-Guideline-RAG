@@ -14,8 +14,8 @@ if [ -f "$INDEX_DB" ]; then
     echo "[entrypoint] Existing index found at $INDEX_DB - skipping ingest."
 else
     echo "[entrypoint] No index found. Building it from the registered corpus..."
-    if [ -z "$OPENROUTER_API_KEY" ]; then
-        echo "[entrypoint] ERROR: OPENROUTER_API_KEY is not set." >&2
+    if [ -z "$OMNIROUTE_API_KEY" ] && [ -z "$OPENROUTER_API_KEY" ]; then
+        echo "[entrypoint] ERROR: OMNIROUTE_API_KEY is not set." >&2
         echo "[entrypoint] The index cannot be built and search will not work." >&2
         echo "[entrypoint] Set it in your deployment platform's environment settings." >&2
         exit 5

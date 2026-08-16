@@ -26,6 +26,13 @@ COPY . .
 ARG BACKEND_URL=http://backend:8000
 ENV BACKEND_URL=${BACKEND_URL}
 
+# Browser-side API base. Empty = same-origin (local dev, single-process image).
+# On the split VPS deployment set this to the backend's public domain so POSTs
+# skip the Next rewrite, which Traefik makes Next reject as an invalid host.
+# NEXT_PUBLIC_* is inlined at build time, hence a build arg rather than env.
+ARG NEXT_PUBLIC_API_BASE=""
+ENV NEXT_PUBLIC_API_BASE=${NEXT_PUBLIC_API_BASE}
+
 ENV NEXT_TELEMETRY_DISABLED=1
 RUN NODE_ENV=production npm run build
 

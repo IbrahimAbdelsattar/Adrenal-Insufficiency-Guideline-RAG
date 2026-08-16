@@ -81,10 +81,26 @@ export class ApiError extends Error {
   }
 }
 
+/**
+ * Base URL for API calls.
+ *
+ * Empty (the default) means same-origin, which is what local development and
+ * the single-process production image both want.
+ *
+ * In the split VPS deployment it is set to the backend's own domain so the
+ * browser talks to FastAPI directly. Routing POSTs through the Next rewrite
+ * behind Traefik makes Next reject them with `400 Invalid host header`, so the
+ * proxy is bypassed rather than worked around. CORS is granted to this origin
+ * by the backend's ALLOWED_ORIGIN setting.
+ *
+ * NEXT_PUBLIC_* is inlined at build time, so this must be a Docker build arg.
+ */
+const API_BASE = (process.env.NEXT_PUBLIC_API_BASE ?? "").replace(/\/$/, "");
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   let response: Response;
   try {
-    response = await fetch(path, {
+    response = await fetch(`${API_BASE}${path}`, {
       ...init,
       headers: { "Content-Type": "application/json", ...(init?.headers ?? {}) },
     });

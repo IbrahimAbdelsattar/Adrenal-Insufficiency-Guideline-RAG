@@ -9,7 +9,7 @@ from __future__ import annotations
 from functools import lru_cache
 from pathlib import Path
 
-from pydantic import Field
+from pydantic import AliasChoices, Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 # Repo root = backend/app/config.py -> backend/app -> backend -> root
@@ -25,10 +25,17 @@ class Settings(BaseSettings):
         extra="ignore",
     )
 
-    # --- Model provider ---
-    openrouter_api_key: str = Field(default="", alias="OPENROUTER_API_KEY")
+    # --- Model provider: OmniRoute gateway ---
+    # OMNIROUTE_* is the correct name. OPENROUTER_* is accepted as a legacy
+    # alias because early config used it by mistake — the provider is OmniRoute
+    # (an OpenAI-compatible gateway), not OpenRouter.
+    openrouter_api_key: str = Field(
+        default="",
+        validation_alias=AliasChoices("OMNIROUTE_API_KEY", "OPENROUTER_API_KEY"),
+    )
     openrouter_base_url: str = Field(
-        default="https://openrouter.ai/api/v1", alias="OPENROUTER_BASE_URL"
+        default="https://omniroute.dawrly.space/v1",
+        validation_alias=AliasChoices("OMNIROUTE_BASE_URL", "OPENROUTER_BASE_URL"),
     )
 
     # --- Embeddings ---

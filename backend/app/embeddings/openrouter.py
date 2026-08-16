@@ -26,8 +26,10 @@ class OpenRouterEmbedder:
         self._settings = settings or get_settings()
         if not self._settings.openrouter_api_key:
             raise ConfigurationError(
-                "OPENROUTER_API_KEY is not set. Copy .env.example to .env and add "
-                "your key."
+                "OMNIROUTE_API_KEY is not set — the OmniRoute gateway key is "
+                "required to embed queries. Set it in your deployment platform's "
+                "environment settings, or locally copy .env.example to .env and "
+                "add it. (The legacy name OPENROUTER_API_KEY is also accepted.)"
             )
         self._dimensions = 0
 

@@ -25,10 +25,12 @@ services:
       - "8000"
 
     environment:
-      # Set these in Dokploy -> Environment. OPENROUTER_API_KEY is REQUIRED:
-      # without it the first-boot ingest aborts and search cannot embed queries.
-      - OPENROUTER_API_KEY=${OPENROUTER_API_KEY}
-      - OPENROUTER_BASE_URL=${OPENROUTER_BASE_URL:-https://omniroute.dawrly.space/v1}
+      # Set these in Dokploy -> Environment. OMNIROUTE_API_KEY is REQUIRED:
+      # without it the first-boot ingest aborts AND search cannot embed queries.
+      # The provider is OmniRoute (OpenAI-compatible gateway), not OpenRouter;
+      # the OPENROUTER_* names are kept only as a legacy fallback.
+      - OMNIROUTE_API_KEY=${OMNIROUTE_API_KEY:-${OPENROUTER_API_KEY:-}}
+      - OMNIROUTE_BASE_URL=${OMNIROUTE_BASE_URL:-https://omniroute.dawrly.space/v1}
       - EMBEDDING_MODEL=${EMBEDDING_MODEL:-gemini/gemini-embedding-001}
       - EMBEDDING_BATCH_SIZE=${EMBEDDING_BATCH_SIZE:-32}
       - TOP_K=${TOP_K:-5}
@@ -62,6 +64,9 @@ services:
         # pointing at the local-dev default and produces
         #   ECONNREFUSED 127.0.0.1:8010
         BACKEND_URL: http://backend:8000
+        # Browser calls the backend domain directly, bypassing the Next rewrite.
+        # Traefik makes Next reject proxied POSTs with "400 Invalid host header".
+        NEXT_PUBLIC_API_BASE: ${NEXT_PUBLIC_API_BASE:-https://api-sapphire.dawrly.space}
     restart: unless-stopped
 
     expose:
