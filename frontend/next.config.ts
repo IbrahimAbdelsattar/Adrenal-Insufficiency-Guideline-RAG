@@ -9,6 +9,9 @@ import type { NextConfig } from "next";
  */
 const isProd = process.env.NODE_ENV === "production";
 
+// Override with BACKEND_URL if the default port is taken or blocked.
+const BACKEND_URL = process.env.BACKEND_URL ?? "http://127.0.0.1:8010";
+
 const nextConfig: NextConfig = {
   ...(isProd ? { output: "export" as const } : {}),
 
@@ -17,7 +20,7 @@ const nextConfig: NextConfig = {
     return [
       {
         source: "/api/:path*",
-        destination: "http://localhost:8000/api/:path*",
+        destination: `${BACKEND_URL}/api/:path*`,
       },
     ];
   },
