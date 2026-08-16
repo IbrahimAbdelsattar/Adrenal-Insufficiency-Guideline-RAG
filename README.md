@@ -1,4 +1,4 @@
-# Sapphire VEIL — Clinical Decision Support (Adrenal Insufficiency RAG)
+# Eva AI— Clinical Decision Support (Adrenal Insufficiency RAG)
 
 [![Python Version](https://img.shields.io/badge/python-3.13-blue.svg)](https://www.python.org/)
 [![Node Version](https://img.shields.io/badge/node-24.x-green.svg)](https://nodejs.org/)
