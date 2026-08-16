@@ -192,25 +192,41 @@ pytest backend/tests/ -v
 
 ---
 
-## Gate checklist
+## Gate checklist — RESULTS
 
-Copy into the end-of-day review. All must pass before Day 2.
+Executed 2026-08-16. Index: 82 chunks, `gemini/gemini-embedding-001`, 3072-dim.
 
-| Gate | Scenario |
-|---|---|
-| PDFs official and public | V2 + registry review |
-| Scope narrow, stated in one sentence | spec.md Scope Statement |
-| Source URLs and names recorded | `GET /api/sources` |
-| Licensing addressed | registry `license_note` |
-| Chunks readable standalone | V6 |
-| Page and section preserved | V1, V3 |
-| Recommendations split correctly | V8 |
-| Extraction noise removed | V6 |
-| Embeddings created, model documented | V1 manifest |
-| Metadata returned with chunks | V3, V4 |
-| 10 questions retrieve reasonable evidence | V5 |
-| Weak results visible | V3 |
-| **Demo: question → chunks → page/section** | **V4** |
+| Gate | Scenario | Result |
+|---|---|---|
+| PDFs official and public | V2 + registry review | ✅ NICE NG243 only; WHO 2003 bulletin excluded |
+| Scope narrow, stated in one sentence | spec.md Scope Statement | ✅ |
+| Source URLs and names recorded | `GET /api/sources` | ✅ returns full provenance |
+| Licensing addressed | registry `license_note` | ✅ NICE Notice of Rights recorded |
+| Chunks readable standalone | V6 | ✅ 4/5 clearly coherent; 13 navigational stubs filtered out |
+| Page and section preserved | V1, V3 | ✅ all 82 chunks |
+| Recommendations split correctly | V8 | ✅ zero duplicates across chunks |
+| Extraction noise removed | V6 | ✅ footer, rights notice, `Page N of M`, glyphs |
+| Embeddings created, model documented | V1 manifest | ✅ recorded in manifest.json |
+| Metadata returned with chunks | V3, V4 | ✅ single call, with scores |
+| 10 questions retrieve reasonable evidence | V5 | ✅ **12/12 (100%)**, mean rank 1.4 |
+| Weak results visible | V3 | ✅ flagged `below_floor`, never filtered |
+| **Demo: question → chunks → page/section** | **V4** | ✅ **verified in browser** |
+
+**Supporting evidence**
+
+- **93 tests passing** — 66 unit, 15 integration, 12 golden-set + fixture checks.
+- **SC-003** target ≥80%: achieved 100% (12/12).
+- **SC-004** trace-back: 8/8 sampled chunks found verbatim on their stated PDF page.
+- **SC-006** no split recommendations: verified against the real index, zero duplicates.
+- **SC-007** latency: all 10 timed searches within the 3 s budget.
+- **V9** `POST /api/generate` returns 501 — Principle V holds.
+- **Production build**: static export served by FastAPI as a single process; `/` returns
+  the SPA and `/api/*` still works.
+
+**Known gap**: a handful of low-value narrative fragments remain in the §1.9 back-matter
+(e.g. *"These sections briefly explain why the committee made the recommendations."*).
+They are coherent sentences and harmless, but carry no clinical content. Filtering them
+would need semantic rather than pattern matching — deferred to Day 2.
 
 ---
 

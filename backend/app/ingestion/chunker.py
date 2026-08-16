@@ -9,6 +9,7 @@ truncated recommendation can invert its own meaning.
 
 from __future__ import annotations
 
+import re
 from functools import lru_cache
 
 import tiktoken
@@ -18,6 +19,20 @@ from backend.app.ingestion.sectioner import Block
 from backend.app.models import Chunk, SourceDocument
 
 _ENCODING_NAME = "cl100k_base"  # matches the embedding model family (research.md D6)
+
+# NG243's "Rationale and impact" back-matter is full of bare pointers such as
+# "Recommendations 1.2.1 to 1.2.4". They carry no clinical content, cannot be
+# understood standalone (FR-013), and only dilute retrieval. Matched narrowly so
+# genuine short glossary definitions survive.
+_CROSS_REFERENCE = re.compile(
+    r"^Recommendations?\s+[\d.]+(\s*(?:to|and|,)\s*[\d.]+)*\.?$",
+    re.IGNORECASE,
+)
+
+
+def is_navigational(text: str) -> bool:
+    """True for bare cross-reference pointers that carry no clinical content."""
+    return bool(_CROSS_REFERENCE.match(text.strip()))
 
 
 @lru_cache(maxsize=1)
@@ -91,6 +106,10 @@ def chunk_blocks(
         pending, pending_tokens = [], 0
 
     for block in blocks:
+        # Drop navigational pointers before packing so they never reach the index.
+        if not block.recommendation_id and is_navigational(block.text):
+            continue
+
         block_tokens = count_tokens(block.text)
         key = _group_key(block)
 

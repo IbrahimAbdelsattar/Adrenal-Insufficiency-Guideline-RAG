@@ -144,11 +144,11 @@ Monolithic repository, per [plan.md](plan.md) Structure Decision. Backend Python
 
 ## Phase 7: Polish & Cross-Cutting Concerns
 
-- [ ] T044 [P] Write `README.md` covering the scope statement, architecture overview, setup, the three CLI commands, and a pointer to specs/001-clinical-rag-ingestion/
-- [ ] T045 [P] Add `npm run build` static-export configuration and mount the export via FastAPI `StaticFiles` in `backend/app/main.py`, producing the single-process production deployable described in plan.md Structure Decision
-- [ ] T046 [P] Add structured logging across `backend/app/ingestion/pipeline.py` and `backend/app/api/search.py` — per-stage timings and counts, so ingest and search performance against SC-001 and SC-007 is observable
-- [ ] T047 Perform the manual verification gates from quickstart.md V6 and V7 — read 5 randomly sampled chunks for standalone coherence and trace one chunk back to its stated page in `data/corpus/adrenal-insufficiency-identification-and-management-pdf-66143954919877.pdf`, recording the outcome in `specs/001-clinical-rag-ingestion/quickstart.md` Gate checklist (SC-004, SC-005, Constitution Principle VI)
-- [ ] T048 Run the complete quickstart validation suite V1 through V10 and record the outcome of each of the 13 end-of-day review gates in spec.md
+- [X] T044 [P] Write `README.md` covering the scope statement, architecture overview, setup, the three CLI commands, and a pointer to specs/001-clinical-rag-ingestion/
+- [X] T045 [P] Add `npm run build` static-export configuration and mount the export via FastAPI `StaticFiles` in `backend/app/main.py`, producing the single-process production deployable described in plan.md Structure Decision
+- [X] T046 [P] Add structured logging across `backend/app/ingestion/pipeline.py` and `backend/app/api/search.py` — per-stage timings and counts, so ingest and search performance against SC-001 and SC-007 is observable
+- [X] T047 Perform the manual verification gates from quickstart.md V6 and V7 — read 5 randomly sampled chunks for standalone coherence and trace one chunk back to its stated page in `data/corpus/adrenal-insufficiency-identification-and-management-pdf-66143954919877.pdf`, recording the outcome in `specs/001-clinical-rag-ingestion/quickstart.md` Gate checklist (SC-004, SC-005, Constitution Principle VI)
+- [X] T048 Run the complete quickstart validation suite V1 through V10 and record the outcome of each of the 13 end-of-day review gates in spec.md
 - [X] T049 [P] Add a latency check in `backend/tests/integration/test_search_latency.py` timing 10 consecutive searches and asserting each completes under 3 seconds end to end (SC-007)
 
 ---

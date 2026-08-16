@@ -6,8 +6,10 @@ mid-sentence produces a chunk that is both incoherent and dangerously partial.
 
 from __future__ import annotations
 
+import pytest
+
 from backend.app.config import Settings
-from backend.app.ingestion.chunker import chunk_blocks, count_tokens
+from backend.app.ingestion.chunker import chunk_blocks, count_tokens, is_navigational
 from backend.app.ingestion.sectioner import Block
 from backend.app.models import DocumentType, SourceDocument
 
@@ -86,6 +88,49 @@ class TestOversized:
         # Content preserved in full — truncation can invert clinical meaning.
         assert count_tokens(chunks[0].text) == chunks[0].token_count
         assert chunks[0].text.count("hyperpigmentation") == 2000
+
+
+class TestNavigationalFiltering:
+    """Bare cross-references are not standalone evidence (FR-013, SC-005)."""
+
+    @pytest.mark.parametrize(
+        "text",
+        [
+            "Recommendations 1.1.1 to 1.1.9",
+            "Recommendations 1.4.10 and 1.4.11",
+            "Recommendation 1.7.1",
+            "Recommendations 1.2.1, 1.2.2, 1.2.3",
+        ],
+    )
+    def test_cross_reference_stubs_are_navigational(self, text):
+        assert is_navigational(text)
+
+    @pytest.mark.parametrize(
+        "text",
+        [
+            "Physiological stress is when a person has a fever or physical trauma.",
+            "A set of guidelines for adjusting medication dosages during illness.",
+            "Recommendations should be followed when treating adrenal crisis promptly.",
+        ],
+    )
+    def test_real_content_is_not_navigational(self, text):
+        assert not is_navigational(text)
+
+    def test_navigational_blocks_are_dropped_from_the_index(self):
+        stub = Block(
+            text="Recommendations 1.2.1 to 1.2.4",
+            page_number=55,
+            section_number="1.9",
+            section_title="1.9 Managing glucocorticoid withdrawal",
+            subsection_title="Initial identification and referral",
+            recommendation_id="",
+        )
+        assert chunk_blocks([stub], DOC, SETTINGS) == []
+
+    def test_a_real_recommendation_is_never_dropped(self):
+        """A numbered recommendation survives even if its text looks like a pointer."""
+        block = _block("1.2.1", 50)
+        assert len(chunk_blocks([block], DOC, SETTINGS)) == 1
 
 
 class TestSectionBoundaries:

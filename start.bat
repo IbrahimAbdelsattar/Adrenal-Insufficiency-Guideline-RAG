@@ -2,7 +2,7 @@
 setlocal enabledelayedexpansion
 
 echo ===================================================
-echo   Clinical Decision Support Lite — Project Launcher
+echo   Sapphire VEIL CDS — Fast Windows Launcher
 echo ===================================================
 echo.
 
@@ -18,10 +18,16 @@ if not exist ".venv" (
     )
 )
 
-REM 2. Activate virtual environment and install backend requirements
-echo [INFO] Checking & installing Python dependencies from requirements.txt ...
+REM 2. Activate virtual environment and check if core requirements are installed
 call .venv\Scripts\activate.bat
-pip install -r requirements.txt
+
+python -c "import fastapi, uvicorn, chromadb, fitz, tiktoken" >nul 2>&1
+if errorlevel 1 (
+    echo [INFO] Installing Python dependencies from requirements.txt ...
+    pip install -r requirements.txt
+) else (
+    echo [INFO] Python dependencies already installed. Skipping pip install.
+)
 
 REM 3. Check .env configuration file
 if not exist ".env" (
@@ -36,19 +42,21 @@ if not exist "frontend\node_modules" (
     cd frontend
     call npm install
     cd ..
+) else (
+    echo [INFO] Frontend dependencies already installed. Skipping npm install.
 )
 
 echo.
 echo ===================================================
 echo [1/2] Starting FastAPI Backend on http://localhost:8000 ...
-start "CDS-Lite Backend (FastAPI)" cmd /k "call .venv\Scripts\activate.bat && uvicorn backend.app.main:app --reload --port 8000"
+start "Sapphire VEIL Backend (FastAPI)" cmd /k "call .venv\Scripts\activate.bat && uvicorn backend.app.main:app --reload --port 8000"
 
 echo [2/2] Starting Next.js Frontend on http://localhost:3000 ...
-start "CDS-Lite Frontend (Next.js)" cmd /k "cd frontend && npm run dev"
+start "Sapphire VEIL Frontend (Next.js)" cmd /k "cd frontend && npm run dev"
 
 echo.
 echo ===================================================
-echo   All services launched in separate windows!
+echo   Sapphire VEIL services launched in separate windows!
 echo   -----------------------------------------------
 echo   Web UI:         http://localhost:3000
 echo   API Docs:       http://localhost:8000/docs

@@ -203,6 +203,28 @@ packing target, and the measured distribution is a property of the source docume
 a defect. Retrieval quality is measured directly by the golden set (D9), which is the
 metric that actually matters.
 
+### D6b — Navigational cross-references are filtered out
+
+The manual V6 sample (quickstart) failed SC-005: 2 of 5 sampled chunks were not
+standalone. The worst was a 15-token chunk reading, in full, *"Recommendations 1.7.1 to
+1.7.10"*.
+
+Measurement found **13 of 95 chunks (14%)** were bare cross-reference pointers from
+NG243's "Rationale and impact" back-matter. They carry no clinical content, cannot be
+understood alone, and dilute retrieval.
+
+A blanket minimum-token filter was **rejected**: the same size range contains legitimate
+glossary definitions (*"Information to help people understand how to adjust medication
+during periods of physiological stress"* is 15 tokens and perfectly valid). Filtering on
+length would have destroyed real evidence.
+
+**Decision**: filter narrowly on a cross-reference *pattern*
+(`^Recommendations? <numbers>$`), and only when the block carries no recommendation id of
+its own. Index went 95 → 82 chunks.
+
+**Verified no regression**: golden-set hit rate stayed at 12/12 (100%), mean rank 1.4.
+The removed chunks were contributing nothing.
+
 ---
 
 ## D7 — Retrieval strategy
