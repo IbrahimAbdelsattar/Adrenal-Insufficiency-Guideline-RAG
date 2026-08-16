@@ -444,8 +444,8 @@ cd ..
 # 4. Ingest Guideline Corpus
 python -m backend.app.cli ingest
 
-# 5. Start FastAPI Backend (Port 8000)
-uvicorn backend.app.main:app --reload --port 8000
+# 5. Start FastAPI Backend (Port 8010)
+uvicorn backend.app.main:app --reload --port 8010
 
 # 6. Start Next.js Frontend Inspector (Port 3000)
 cd frontend
@@ -453,6 +453,16 @@ npm run dev
 ```
 
 Open **`http://localhost:3000`** in your browser.
+
+> **Port note.** The backend runs on **8010**, not 8000 — port 8000 is blocked by
+> Windows socket permissions on this machine (`WinError 10013`). `next.config.ts`
+> proxies `/api/*` to `http://127.0.0.1:8010` by default; override with the
+> `BACKEND_URL` environment variable if you use a different port.
+
+> **Do not run `npm run build` while `npm run dev` is running.** Both write to
+> `frontend/.next`, and the production build leaves the dev server with a missing
+> `routes-manifest.json`, which surfaces as a blanket HTTP 500. If it happens, stop the
+> dev server, `rm -rf frontend/.next frontend/out`, and restart it.
 
 ---
 
