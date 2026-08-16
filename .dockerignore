@@ -1,0 +1,16 @@
+.git
+.venv
+.pytest_cache
+.claude
+.specify
+node_modules
+frontend/node_modules
+frontend/.next
+frontend/out
+data/index
+*.pyc
+__pycache__
+.env
+.env.local
+*.log
+17_4_2003.pdf
