@@ -14,7 +14,7 @@ export default function RootLayout({
   const [lang, setLang] = useState<Language>("en");
 
   useEffect(() => {
-    const savedLang = (localStorage.getItem("eva_lang") || localStorage.getItem("sapphire_lang")) as Language | null;
+    const savedLang = localStorage.getItem("eva_lang") as Language | null;
     if (savedLang && (savedLang === "en" || savedLang === "ar")) {
       setLang(savedLang);
     }
@@ -41,7 +41,7 @@ export default function RootLayout({
             __html: `
               (function() {
                 try {
-                  var savedTheme = localStorage.getItem('eva_theme') || localStorage.getItem('sapphire_theme');
+                  var savedTheme = localStorage.getItem('eva_theme');
                   var prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
                   var theme = savedTheme || (prefersDark ? 'dark' : 'light');
                   if (theme === 'dark') {
@@ -52,7 +52,7 @@ export default function RootLayout({
                     document.documentElement.classList.remove('dark');
                   }
 
-                  var savedLang = localStorage.getItem('eva_lang') || localStorage.getItem('sapphire_lang') || 'en';
+                  var savedLang = localStorage.getItem('eva_lang') || 'en';
                   document.documentElement.setAttribute('lang', savedLang);
                   document.documentElement.setAttribute('dir', savedLang === 'ar' ? 'rtl' : 'ltr');
                 } catch (e) {}

@@ -6,7 +6,7 @@ import type { NextConfig } from "next";
  * 1. Server mode (default, and what the VPS uses). Next runs as a server and
  *    rewrites /api/* to the backend. Required when the frontend and backend sit
  *    behind separate domains — a static export cannot proxy anything, so
- *    sapphire.dawrly.space/api/search would 404.
+ *    eva-ai.dawrly.space/api/search would 404.
  *
  * 2. Static export (NEXT_OUTPUT=export). Emits frontend/out for the collapsed
  *    single-process image in the root Dockerfile, where FastAPI serves the SPA

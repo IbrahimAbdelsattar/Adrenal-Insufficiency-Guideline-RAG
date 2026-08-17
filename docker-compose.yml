@@ -2,8 +2,8 @@
 #
 # Service names MUST stay `frontend` and `backend` — the Dokploy Domains tab
 # binds each domain to a service by name:
-#   sapphire.dawrly.space      -> frontend : 3000
-#   api-sapphire.dawrly.space  -> backend  : 8000
+#   eva-ai.dawrly.space      -> frontend : 3000
+#   api-eva-ai.dawrly.space  -> backend  : 8000
 # Renaming a service here produces:
 #   'Domain "..." is attached to service "frontend" which does not exist'
 #

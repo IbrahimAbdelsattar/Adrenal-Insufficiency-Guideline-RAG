@@ -13,7 +13,7 @@ export function LanguageToggle({
 
   useEffect(() => {
     setMounted(true);
-    const savedLang = (localStorage.getItem("eva_lang") || localStorage.getItem("sapphire_lang")) as Language | null;
+    const savedLang = localStorage.getItem("eva_lang") as Language | null;
     if (savedLang && (savedLang === "en" || savedLang === "ar")) {
       setLang(savedLang);
       applyLang(savedLang);

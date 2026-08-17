@@ -8,7 +8,7 @@ export function ThemeToggle() {
 
   useEffect(() => {
     setMounted(true);
-    const savedTheme = (localStorage.getItem("eva_theme") || localStorage.getItem("sapphire_theme")) as "dark" | "light" | null;
+    const savedTheme = localStorage.getItem("eva_theme") as "dark" | "light" | null;
     if (savedTheme) {
       setTheme(savedTheme);
       applyTheme(savedTheme);

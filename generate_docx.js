@@ -21,7 +21,7 @@ const {
   Bookmark
 } = require('docx');
 
-// Colors matching Sapphire VEIL brand system
+// Colors matching Eva AI brand system
 const BRAND_NAVY = "0D2440";
 const BRAND_ROYAL = "2E5E99";
 const BRAND_STEEL = "7BA4D0";

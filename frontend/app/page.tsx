@@ -19,7 +19,7 @@ export default function Page() {
   const [lang, setLang] = useState<Language>("en");
 
   useEffect(() => {
-    const savedLang = (localStorage.getItem("eva_lang") || localStorage.getItem("sapphire_lang")) as Language | null;
+    const savedLang = localStorage.getItem("eva_lang") as Language | null;
     if (savedLang && (savedLang === "en" || savedLang === "ar")) {
       setLang(savedLang);
     }
