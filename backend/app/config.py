@@ -8,6 +8,7 @@ from __future__ import annotations
 
 from functools import lru_cache
 from pathlib import Path
+from typing import Literal
 
 from pydantic import AliasChoices, Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -25,13 +26,12 @@ class Settings(BaseSettings):
         extra="ignore",
     )
 
-    # --- Model provider: OmniRoute gateway ---
-    # OMNIROUTE_* is the correct name. OPENROUTER_* is accepted as a legacy
-    # alias because early config used it by mistake — the provider is OmniRoute
-    # (an OpenAI-compatible gateway), not OpenRouter.
+    # --- Model provider: OmniRoute / OpenRouter gateway ---
     openrouter_api_key: str = Field(
         default="",
-        validation_alias=AliasChoices("OMNIROUTE_API_KEY", "OPENROUTER_API_KEY"),
+        validation_alias=AliasChoices(
+            "OMNIROUTE_API_KEY", "OPENROUTER_API_KEY", "ANTHROPIC_API_KEY"
+        ),
     )
     openrouter_base_url: str = Field(
         default="https://omniroute.dawrly.space/v1",
@@ -39,19 +39,20 @@ class Settings(BaseSettings):
     )
 
     # --- Embeddings ---
-    # Default is the model verified working on the OmniRoute gateway and the one
-    # the shipped index is built with. The former default
-    # (openai/text-embedding-3-small) is NOT routable there — it returns
-    # "No credentials for embedding provider" — so falling back to it produced a
-    # model-mismatch 503 whenever EMBEDDING_MODEL failed to propagate.
     embedding_model: str = Field(
         default="gemini/gemini-embedding-001", alias="EMBEDDING_MODEL"
     )
     embedding_batch_size: int = Field(default=32, alias="EMBEDDING_BATCH_SIZE")
 
-    # --- Generation (Day 2; unused in feature 001) ---
+    # --- Generation (Day 3) ---
     generation_model: str = Field(
         default="anthropic/claude-sonnet-4.5", alias="GENERATION_MODEL"
+    )
+    generation_max_tokens: int = Field(
+        default=1024, alias="GENERATION_MAX_TOKENS"
+    )
+    generation_temperature: float = Field(
+        default=0.1, alias="GENERATION_TEMPERATURE"
     )
 
     # --- Chunking ---
@@ -62,15 +63,15 @@ class Settings(BaseSettings):
     # --- Retrieval ---
     top_k: int = Field(default=5, alias="TOP_K")
     relevance_floor: float = Field(default=0.30, alias="RELEVANCE_FLOOR")
-    retriever_type: str = Field(default="hybrid_rerank", alias="RETRIEVER_TYPE")
+    retriever_type: str = Field(
+        default="hybrid_rerank", alias="RETRIEVER_TYPE"
+    )
     reranker_model: str = Field(
         default="cross-encoder/ms-marco-MiniLM-L-6-v2", alias="RERANKER_MODEL"
     )
     hybrid_candidate_k: int = Field(default=20, alias="HYBRID_CANDIDATE_K")
     # Tuned against the cross-encoder reranker scale, where unrelated queries
-    # score ~0.000 and in-scope queries start around 0.007. This value is tied
-    # to RETRIEVER_TYPE: raw dense scores sit in a 0.4-0.8 band, so switching
-    # retrievers requires re-tuning this (see tests/unit/test_scope.py).
+    # score ~0.000 and in-scope queries start around 0.007.
     scope_threshold: float = Field(default=0.005, alias="SCOPE_THRESHOLD")
 
     # --- Paths (relative values resolve against the repo root) ---
@@ -85,21 +86,11 @@ class Settings(BaseSettings):
     )
 
     # --- Serving ---
-    # Browser origins permitted to call the API directly. The deployed frontend
-    # calls the backend domain cross-origin, so without a matching entry the
-    # browser blocks every request before it is sent — the backend looks healthy
-    # from curl while the UI reports "cannot reach the backend".
-    #
-    # Comma-separated. ALLOWED_ORIGINS (plural) is canonical; ALLOWED_ORIGIN is
-    # accepted as an alias.
     allowed_origins: str = Field(
         default="",
         validation_alias=AliasChoices("ALLOWED_ORIGINS", "ALLOWED_ORIGIN"),
     )
 
-    # Any subdomain of the deployment domain is trusted, so the split
-    # frontend/backend hosts work even when the env var is missing. Override by
-    # setting CORS_ORIGIN_REGEX (empty string disables the regex entirely).
     cors_origin_regex: str = Field(
         default=r"https://([a-z0-9-]+\.)*dawrly\.space",
         alias="CORS_ORIGIN_REGEX",
@@ -113,11 +104,6 @@ class Settings(BaseSettings):
             if cleaned and cleaned not in origins:
                 origins.append(cleaned)
         return origins
-
-    # ------------------------------------------------------------------
-    # Absolute path helpers. Callers should use these, never the raw fields,
-    # so behaviour does not depend on the process working directory.
-    # ------------------------------------------------------------------
 
     def _abs(self, p: Path) -> Path:
         return p if p.is_absolute() else (REPO_ROOT / p)

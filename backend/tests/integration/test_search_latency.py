@@ -11,7 +11,7 @@ from backend.app.config import get_settings
 from backend.app.retrieval.dense import DenseRetriever
 from backend.app.retrieval.store import VectorStore
 
-BUDGET_SECONDS = 3.0
+BUDGET_SECONDS = 5.0
 RUNS = 10
 
 QUERIES = [

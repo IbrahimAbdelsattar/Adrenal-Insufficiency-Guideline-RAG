@@ -1,13 +1,14 @@
-"""Cross-Encoder Reranker (Day 2 Lab, Advanced Retrieval).
+"""Cross-Encoder Reranking module with graceful fallback (Day 2).
 
-Re-scores top candidate chunks from dual retrieval (Dense + BM25) using cross-attention.
-Preserves all provenance citations and constitutional below_floor flags.
-Gracefully falls back to incoming ranking if weights are unavailable offline.
+If the cross-encoder model fails to load or raises at inference time, the
+module falls back to normalised step-decay scoring so the system never
+crashes — Constitution Principle: Fail-Safe Fallback.
 """
 
 from __future__ import annotations
 
 import logging
+import math
 from typing import Sequence
 
 from backend.app.config import Settings, get_settings
@@ -16,26 +17,29 @@ from backend.app.models import Chunk, RetrievalResult
 logger = logging.getLogger(__name__)
 
 
-def _sigmoid(x: float) -> float:
-    import math
-
+def sigmoid(x: float) -> float:
+    """Calibrate logits to [0, 1] range."""
     return 1.0 / (1.0 + math.exp(-x))
 
 
 class CrossEncoderReranker:
-    """Reranks candidate (query, chunk) pairs using a cross-attention transformer."""
+    """Reranks candidate chunks using a cross-attention transformer model."""
 
     def __init__(
         self,
-        model_name: str | None = None,
         settings: Settings | None = None,
+        model_name: str | None = None,
+        disabled: bool = False,
     ) -> None:
         self._settings = settings or get_settings()
-        self._model_name = model_name or "cross-encoder/ms-marco-MiniLM-L-6-v2"
+        self._model_name = model_name or self._settings.reranker_model
+        self._disabled = disabled
         self._model = None
         self._load_attempted = False
 
     def _get_model(self):
+        if self._disabled:
+            return None
         if not self._load_attempted:
             self._load_attempted = True
             try:
@@ -45,54 +49,62 @@ class CrossEncoderReranker:
                 logger.info("CrossEncoder loaded successfully: %s", self._model_name)
             except Exception as exc:
                 logger.warning(
-                    "CrossEncoder '%s' could not be loaded (%s); using fallback score pass-through.",
+                    "Could not initialise CrossEncoder reranker model '%s': %s. "
+                    "Falling back to rank fusion.",
                     self._model_name,
                     exc,
                 )
                 self._model = None
         return self._model
 
+    @property
+    def is_available(self) -> bool:
+        """True when the cross-encoder model was loaded successfully."""
+        return self._get_model() is not None
+
     def rerank(
         self,
         query: str,
-        results: Sequence[RetrievalResult],
+        chunks: Sequence[Chunk | RetrievalResult],
         top_k: int | None = None,
-    ) -> list[RetrievalResult]:
-        """Rerank candidates and return top_k calibrated results."""
-        if not results:
+    ) -> list[tuple[Chunk, float]]:
+        """Score and re-sort *chunks* by relevance to *query*.
+
+        Returns a list of ``(Chunk, score)`` pairs sorted best-first.
+        Scores are normalized to [0, 1] via sigmoid calibration.
+        On any error the input order is preserved with step-decay scoring.
+        """
+        if not chunks:
             return []
 
-        k = top_k or len(results)
-        floor = self._settings.relevance_floor
+        # Extract Chunk objects if RetrievalResult instances were passed
+        extracted_chunks: list[Chunk] = [
+            item.chunk if isinstance(item, RetrievalResult) else item
+            for item in chunks
+        ]
+
+        k = top_k or len(extracted_chunks)
         model = self._get_model()
 
-        if model is None:
-            # Graceful fallback: return top_k candidates with existing scores
-            return list(results)[:k]
-
-        pairs = [[query, f"{r.chunk.section_title}: {r.chunk.text}"] for r in results]
-        try:
-            raw_scores = model.predict(pairs)
-            calibrated_scores = [_sigmoid(float(s)) for s in raw_scores]
-
-            # Re-sort by cross-encoder score descending
-            ranked_indices = sorted(
-                range(len(results)), key=lambda i: calibrated_scores[i], reverse=True
-            )[:k]
-
-            reranked: list[RetrievalResult] = []
-            for rank, idx in enumerate(ranked_indices, start=1):
-                chunk = results[idx].chunk
-                score = calibrated_scores[idx]
-                reranked.append(
-                    RetrievalResult(
-                        chunk=chunk,
-                        score=score,
-                        rank=rank,
-                        below_floor=score < floor,
-                    )
+        if model is not None:
+            try:
+                pairs = [[query, f"{c.section_title}: {c.text}"] for c in extracted_chunks]
+                scores = model.predict(pairs)
+                norm_scores = [sigmoid(float(s)) for s in scores]
+                ranked = sorted(
+                    zip(extracted_chunks, norm_scores), key=lambda x: x[1], reverse=True
                 )
-            return reranked
-        except Exception as exc:
-            logger.warning("Error during reranking (%s); falling back to candidate order.", exc)
-            return list(results)[:k]
+                return list(ranked)[:k]
+            except Exception as exc:
+                logger.error(
+                    "CrossEncoder reranking failed at runtime: %s. Using fallback ordering.",
+                    exc,
+                )
+
+        # Fallback: preserve input order with uniform step-decay scores.
+        n = len(extracted_chunks)
+        fallback = [
+            (c, max(0.1, 1.0 - (i / max(1, n))))
+            for i, c in enumerate(extracted_chunks)
+        ]
+        return fallback[:k]

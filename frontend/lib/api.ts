@@ -26,6 +26,10 @@ export interface RetrievalResult {
   score: number;
   rank: number;
   below_floor: boolean;
+  dense_score?: number;
+  bm25_score?: number;
+  rerank_score?: number;
+  retriever_mode?: string;
 }
 
 /**
@@ -79,6 +83,25 @@ export interface SearchResponse {
   embedding_model: string;
   latency_ms: number;
   disclaimer: string;
+}
+
+export interface Citation {
+  source_id: string;
+  document_name: string;
+  section_title: string;
+  section_number: string;
+  page_number: number;
+  source_url: string;
+}
+
+export interface GenerateResponse {
+  query: string;
+  answer: string;
+  citations: Citation[];
+  evidence_found: boolean;
+  disclaimer: string;
+  model: string;
+  latency_ms: number;
 }
 
 export interface PerDocumentStats {
@@ -193,12 +216,6 @@ async function request<T>(
 
 /**
  * Search the clinical knowledge base.
- *
- * The backend is responsible for:
- * - semantic retrieval
- * - evidence threshold
- * - scope detection
- * - filtering out unrelated results
  */
 export function search(
   query: string,
@@ -234,4 +251,21 @@ export function getSources(): Promise<{
   return request<{
     sources: SourceDocument[];
   }>("/api/sources");
+}
+
+/**
+ * Generate an answer grounded in clinical guidelines.
+ */
+export function generate(query: string, topK: number): Promise<GenerateResponse> {
+  return request<GenerateResponse>("/api/generate", {
+    method: "POST",
+    body: JSON.stringify({ query, top_k: topK }),
+  });
+}
+
+/**
+ * Get service health and active retriever type.
+ */
+export function getHealth(): Promise<{ retriever_type?: string; status?: string }> {
+  return request<{ retriever_type?: string; status?: string }>("/api/health");
 }

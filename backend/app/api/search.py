@@ -30,8 +30,7 @@ def get_health() -> dict:
     """Liveness, index readiness, and configuration state.
 
     Reports whether the gateway key is present and whether the configured model
-    matches the one the index was built with. Both are silent misconfigurations
-    that otherwise only surface as a failed search — never returns the key.
+    matches the one the index was built with.
     """
     settings = get_settings()
     key_configured = bool(settings.openrouter_api_key)
@@ -79,6 +78,7 @@ def get_health() -> dict:
         "embedding_model": settings.embedding_model,
         "index_embedding_model": index_model,
         "model_matches_index": model_matches,
+        "retriever_type": settings.retriever_type,
         "message": "; ".join(problems)
         if problems
         else "Index ready.",
@@ -147,7 +147,6 @@ def search(request: SearchRequest) -> SearchResponse:
             ),
         )
 
-    # An index built with a different model lives in a different vector space.
     manifest = store.read_manifest()
     if manifest and manifest.embedding_model != settings.embedding_model:
         raise HTTPException(

@@ -1,8 +1,8 @@
-"""BM25 Lexical Retriever (Day 2 Lab, Advanced Retrieval).
+"""BM25 Lexical Retriever using BM25Okapi (Day 2 hybrid search).
 
-Provides sparse keyword-based retrieval over ingested chunks with clinical tokenization.
-Excels at exact drug names (e.g., fludrocortisone), numerical dosages (e.g., 100mg),
-and specific section/recommendation identifiers (e.g., 1.7.1).
+Implements the Retriever protocol (base.py) with an in-memory BM25 index
+over stored guideline chunks. Complements DenseRetriever for exact-match
+drug names, dosages, and clinical abbreviations.
 """
 
 from __future__ import annotations
@@ -31,30 +31,34 @@ def tokenize_clinical_text(text: str) -> list[str]:
 
 
 class BM25Retriever:
-    """BM25Okapi sparse lexical retriever over ChromaDB chunks."""
+    """BM25Okapi sparse lexical retriever over ChromaDB or direct chunks."""
 
     def __init__(
         self,
         store: VectorStore | None = None,
+        chunks: list[Chunk] | None = None,
         settings: Settings | None = None,
         k1: float = 1.5,
         b: float = 0.75,
     ) -> None:
         self._settings = settings or get_settings()
-        self._store = store or VectorStore(self._settings)
+        self._store = store or (VectorStore(self._settings) if chunks is None else None)
         self.k1 = k1
         self.b = b
-        self._chunks: list[Chunk] = []
+        self._chunks: list[Chunk] = chunks if chunks is not None else []
         self._corpus_tokens: list[list[str]] = []
         self._doc_lens: list[int] = []
         self._avgdl: float = 0.0
         self._doc_freqs: Counter[str] = Counter()
         self._idf: dict[str, float] = {}
         self._indexed = False
+        self._has_explicit_chunks = chunks is not None
 
     def _build_index(self) -> None:
-        """Build in-memory BM25 inverted index from store chunks."""
-        self._chunks = self._store.all_chunks()
+        """Build in-memory BM25 inverted index from store or direct chunks."""
+        if not self._has_explicit_chunks and self._store is not None:
+            self._chunks = self._store.all_chunks()
+
         if not self._chunks:
             self._indexed = True
             return
@@ -111,7 +115,7 @@ class BM25Retriever:
                 denominator = tf + self.k1 * (1.0 - self.b + self.b * (doc_len / self._avgdl))
                 scores[doc_idx] += term_idf * (numerator / denominator)
 
-        # Normalize BM25 scores to [0, 1] using min-max scaling relative to max possible
+        # Normalize BM25 scores to [0, 1] using max score scaling
         max_score = max(scores) if scores else 0.0
         if max_score > 0:
             norm_scores = [s / max_score for s in scores]
@@ -129,6 +133,8 @@ class BM25Retriever:
                 score=norm_scores[i],
                 rank=rank,
                 below_floor=norm_scores[i] < floor,
+                bm25_score=norm_scores[i],
+                retriever_mode="bm25",
             )
             for rank, i in enumerate(ranked_indices, start=1)
         ]

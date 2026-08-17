@@ -2,20 +2,23 @@
 
 import { useState, useMemo, useEffect } from "react";
 import { ChunkCard } from "@/components/ChunkCard";
+import { AnswerCard } from "@/components/AnswerCard";
 import { IndexStatus } from "@/components/IndexStatus";
 import { SearchBox } from "@/components/SearchBox";
-import { search } from "@/lib/api";
-import type { SearchResponse } from "@/lib/api";
+import { search, generate } from "@/lib/api";
+import type { SearchResponse, GenerateResponse } from "@/lib/api";
 import { translations, type Language } from "@/lib/translations";
 
 type FilterMode = "all" | "high" | "floor" | "caution";
 
 export default function Page() {
   const [response, setResponse] = useState<SearchResponse | null>(null);
+  const [genResponse, setGenResponse] = useState<GenerateResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [topK, setTopK] = useState(5);
   const [filterMode, setFilterMode] = useState<FilterMode>("all");
+  const [mode, setMode] = useState<"search" | "generate">("search");
   const [lang, setLang] = useState<Language>("en");
 
   useEffect(() => {
@@ -44,27 +47,31 @@ export default function Page() {
 
   /*
    * ------------------------------------------------------------
-   * Search
+   * Search & Generate Handler
    * ------------------------------------------------------------
    */
 
   async function runSearch(query: string) {
     setLoading(true);
     setError(null);
+    setResponse(null);
+    setGenResponse(null);
 
     try {
-      const result = await search(query, topK);
-
-      setResponse(result);
-      setFilterMode("all");
+      if (mode === "search") {
+        const result = await search(query, topK);
+        setResponse(result);
+        setFilterMode("all");
+      } else {
+        const result = await generate(query, topK);
+        setGenResponse(result);
+      }
     } catch (e) {
       setError(
         e instanceof Error
           ? e.message
-          : "Search request failed."
+          : "Request failed."
       );
-
-      setResponse(null);
     } finally {
       setLoading(false);
     }
@@ -149,7 +156,7 @@ export default function Page() {
       <div className="min-w-0 space-y-6">
 
         {/* ---------------------------------------------------- */}
-        {/* Search Component                                    */}
+        {/* Search & Mode Switch Component                       */}
         {/* ---------------------------------------------------- */}
 
         <SearchBox
@@ -157,6 +164,8 @@ export default function Page() {
           loading={loading}
           topK={topK}
           onTopKChange={setTopK}
+          mode={mode}
+          onModeChange={setMode}
         />
 
         {/* ---------------------------------------------------- */}
@@ -178,7 +187,7 @@ export default function Page() {
                   strokeLinecap="round"
                   strokeLinejoin="round"
                   strokeWidth={2}
-                  d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+                  d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.33-2.694-1.333-3.464 0L3.34 16c-.77 1.33.192 3 1.732 3z"
                 />
               </svg>
 
@@ -214,16 +223,13 @@ export default function Page() {
         )}
 
         {/* ==================================================== */}
-        {/* Search Results                                       */}
+        {/* Search Results Area                                  */}
         {/* ==================================================== */}
 
-        {!loading && response && (
+        {!loading && mode === "search" && response && (
           <section className="space-y-5 animate-fade-in-up">
 
-            {/* ================================================= */}
-            {/* OUT OF SCOPE                                     */}
-            {/* ================================================= */}
-
+            {/* Out of Scope Banner */}
             {isOutOfScope ? (
               <div className="mono-card rounded-2xl border-caution/40 bg-caution/5 p-6 text-caution animate-fade-in-up">
 
@@ -274,10 +280,7 @@ export default function Page() {
               </div>
             ) : (
               <>
-                {/* ================================================= */}
-                {/* Eva AI Toolbar                                   */}
-                {/* ================================================= */}
-
+                {/* Eva AI Toolbar */}
                 <div className="mono-card flex flex-wrap items-center justify-between gap-4 rounded-2xl p-3.5 text-xs">
 
                   <div className="flex items-center gap-2.5 text-ink-dim">
@@ -302,10 +305,7 @@ export default function Page() {
 
                   </div>
 
-                  {/* ------------------------------------------------ */}
-                  {/* Filter Tabs                                     */}
-                  {/* ------------------------------------------------ */}
-
+                  {/* Filter Tabs */}
                   <div className="mono-inset flex items-center gap-1 rounded-xl p-1">
 
                     <FilterButton
@@ -342,10 +342,7 @@ export default function Page() {
 
                 </div>
 
-                {/* ================================================= */}
-                {/* NO EVIDENCE                                      */}
-                {/* ================================================= */}
-
+                {/* No Evidence Banner */}
                 {hasNoEvidence && (
                   <div className="mono-card rounded-2xl border-caution/40 bg-caution/5 p-5 text-caution">
 
@@ -380,10 +377,7 @@ export default function Page() {
                   </div>
                 )}
 
-                {/* ================================================= */}
-                {/* IN SCOPE STATUS                                  */}
-                {/* ================================================= */}
-
+                {/* In Scope Status */}
                 {isInScope && response.evidence_found && (
                   <div className="mono-inset rounded-xl px-4 py-3 text-xs text-ink-dim">
 
@@ -402,10 +396,7 @@ export default function Page() {
                   </div>
                 )}
 
-                {/* ================================================= */}
-                {/* Retrieved Chunks                                 */}
-                {/* ================================================= */}
-
+                {/* Retrieved Chunks */}
                 <div className="space-y-4">
 
                   {filteredResults.length > 0 ? (
@@ -429,10 +420,20 @@ export default function Page() {
         )}
 
         {/* ==================================================== */}
-        {/* Empty State                                         */}
+        {/* Generation Results Area                              */}
         {/* ==================================================== */}
 
-        {!loading && !response && !error && (
+        {!loading && mode === "generate" && genResponse && (
+          <section className="space-y-5 animate-fade-in-up">
+            <AnswerCard result={genResponse} />
+          </section>
+        )}
+
+        {/* ==================================================== */}
+        {/* Eva AI Empty State                                   */}
+        {/* ==================================================== */}
+
+        {!loading && !response && !genResponse && !error && (
           <div className="mono-card rounded-2xl p-10 text-center animate-fade-in-up">
 
             <div className="mono-button mx-auto flex h-16 w-16 items-center justify-center rounded-2xl text-accent-bright border border-accent-bright/20 shadow-md">

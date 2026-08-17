@@ -60,7 +60,6 @@ def cmd_query(args: argparse.Namespace) -> int:
     import json
 
     from backend.app.models import DISCLAIMER, SearchResponse
-    from backend.app.retrieval.factory import get_retriever
     from backend.app.retrieval.scope import classify_scope
     from backend.app.retrieval.store import VectorStore
 

@@ -179,27 +179,47 @@ export function ChunkCard({ result }: { result: RetrievalResult }) {
         {body}
       </p>
 
+      {expanded && (
+        <div className="mt-4 rounded-xl border border-line bg-surface p-3 text-xs text-ink-dim">
+          <p className="mb-2 font-bold uppercase tracking-wider text-ink-faint">Diagnostics</p>
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+            <div>
+              <span className="block text-[10px] uppercase text-ink-faint">Dense Score</span>
+              <span className="font-mono">{result.dense_score !== undefined ? result.dense_score.toFixed(4) : "N/A"}</span>
+            </div>
+            <div>
+              <span className="block text-[10px] uppercase text-ink-faint">BM25 Score</span>
+              <span className="font-mono">{result.bm25_score !== undefined ? result.bm25_score.toFixed(4) : "N/A"}</span>
+            </div>
+            <div>
+              <span className="block text-[10px] uppercase text-ink-faint">Rerank Score</span>
+              <span className="font-mono">{result.rerank_score !== undefined && result.rerank_score !== null ? result.rerank_score.toFixed(4) : "N/A"}</span>
+            </div>
+            <div>
+              <span className="block text-[10px] uppercase text-ink-faint">Retriever Mode</span>
+              <span className="font-mono">{result.retriever_mode || "N/A"}</span>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Card Footer */}
       <footer className="mt-4 flex items-center justify-between border-t border-line/60 pt-3.5">
-        {isLong ? (
-          <button
-            type="button"
-            onClick={() => setExpanded((v) => !v)}
-            className="mono-button flex items-center gap-1.5 rounded-xl px-3 py-1 text-xs font-extrabold text-accent-bright cursor-pointer"
+        <button
+          type="button"
+          onClick={() => setExpanded((v) => !v)}
+          className="mono-button flex items-center gap-1.5 rounded-xl px-3 py-1 text-xs font-extrabold text-accent-bright cursor-pointer"
+        >
+          <span>{expanded ? t.showExcerpt : t.showFull}</span>
+          <svg
+            className={`h-3.5 w-3.5 transition-transform ${expanded ? "rotate-180" : ""}`}
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
           >
-            <span>{expanded ? t.showExcerpt : t.showFull}</span>
-            <svg
-              className={`h-3.5 w-3.5 transition-transform ${expanded ? "rotate-180" : ""}`}
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 9l-7 7-7-7" />
-            </svg>
-          </button>
-        ) : (
-          <div />
-        )}
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 9l-7 7-7-7" />
+          </svg>
+        </button>
 
         <div className="flex items-center gap-2 font-mono text-[11px] text-ink-faint">
           <span className="mono-inset px-2 py-0.5 rounded-md font-semibold text-accent-bright">{chunk.chunk_id}</span>

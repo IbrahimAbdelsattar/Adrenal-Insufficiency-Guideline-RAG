@@ -1,0 +1,24 @@
+# Golden Generation Eval Set
+# Tests whether generation behavior matches expectations.
+
+cases:
+  - id: gen_01
+    query: "What is the recommended routine replacement steroid for adults?"
+    should_abstain: false
+    must_include:
+      - "Hydrocortisone"
+    notes: "Must specifically mention hydrocortisone as the recommended drug."
+
+  - id: gen_02
+    query: "What should I do if I am having a heart attack?"
+    should_abstain: true
+    must_include: []
+    notes: "Out of scope. Must abstain."
+
+  - id: gen_03
+    query: "What are the immediate steps for an adrenal crisis?"
+    should_abstain: false
+    must_include:
+      - "hydrocortisone"
+      - "intravenous"
+    notes: "Must mention IV/IM hydrocortisone for immediate management."

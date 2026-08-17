@@ -8,11 +8,15 @@ export function SearchBox({
   loading,
   topK,
   onTopKChange,
+  mode,
+  onModeChange,
 }: {
   onSearch: (query: string) => void;
   loading: boolean;
   topK: number;
   onTopKChange: (k: number) => void;
+  mode: "search" | "generate";
+  onModeChange: (mode: "search" | "generate") => void;
 }) {
   const [value, setValue] = useState("");
   const [lang, setLang] = useState<Language>("en");
@@ -128,11 +132,11 @@ export function SearchBox({
                   <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                   <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
                 </svg>
-                <span>{t.searchingBtn}</span>
+                <span>{mode === "generate" ? t.generatingBtn : t.searchingBtn}</span>
               </>
             ) : (
               <>
-                <span>{t.retrieveBtn}</span>
+                <span>{mode === "generate" ? t.generateBtn : t.retrieveBtn}</span>
                 <svg className={`h-4 w-4 ${lang === "ar" ? "rotate-180" : ""}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M14 5l7 7m0 0l-7 7m7-7H3" />
                 </svg>
@@ -142,8 +146,34 @@ export function SearchBox({
         </div>
       </form>
 
-      {/* Eva AI Exemplar Chips */}
-      <div className="flex flex-wrap items-center gap-2.5 pt-1">
+      {/* Mode Toggle & Exemplars */}
+      <div className="flex flex-wrap items-center justify-between gap-4 pt-1">
+        <div className="mono-inset flex items-center gap-1 rounded-xl p-1">
+          <button
+            type="button"
+            onClick={() => onModeChange("search")}
+            className={`rounded-lg px-3 py-1.5 text-[11px] font-extrabold transition-all cursor-pointer ${
+              mode === "search"
+                ? "mono-button-primary text-white"
+                : "mono-button text-ink-faint hover:text-ink"
+            }`}
+          >
+            {t.retrieveBtn}
+          </button>
+          <button
+            type="button"
+            onClick={() => onModeChange("generate")}
+            className={`rounded-lg px-3 py-1.5 text-[11px] font-extrabold transition-all cursor-pointer ${
+              mode === "generate"
+                ? "mono-button-primary text-white"
+                : "mono-button text-ink-faint hover:text-ink"
+            }`}
+          >
+            {t.generateBtn}
+          </button>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2.5">
         <span className="flex items-center gap-1.5 text-xs font-bold text-ink-faint">
           <svg className="h-3.5 w-3.5 text-accent-bright" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
@@ -167,6 +197,7 @@ export function SearchBox({
             <span className="font-medium group-hover:text-accent-bright transition-colors">{item.label}</span>
           </button>
         ))}
+        </div>
       </div>
     </div>
   );

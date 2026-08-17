@@ -120,6 +120,11 @@ class RetrievalResult(BaseModel):
     score: float
     rank: int
     below_floor: bool
+    
+    dense_score: float | None = None
+    bm25_score: float | None = None
+    rerank_score: float | None = None
+    retriever_mode: str = "dense"
 
 
 class PerDocumentStats(BaseModel):
@@ -173,6 +178,24 @@ class SearchResponse(BaseModel):
     embedding_model: str = ""
     latency_ms: int = 0
     disclaimer: str
+
+
+class GenerateRequest(BaseModel):
+    """Request body for POST /api/generate."""
+    query: str
+    top_k: int | None = Field(default=None)
+
+
+class GenerateResponse(BaseModel):
+    """Response body for POST /api/generate."""
+    query: str
+    answer: str
+    citations: list[dict]
+    evidence_found: bool
+    disclaimer: str
+    model: str
+    latency_ms: int
+
 
 
 class GoldenQuestion(BaseModel):
