@@ -12,7 +12,7 @@ export function IndexStatus() {
   const [lang, setLang] = useState<Language>("en");
 
   useEffect(() => {
-    const savedLang = localStorage.getItem("sapphire_lang") as Language | null;
+    const savedLang = (localStorage.getItem("eva_lang") || localStorage.getItem("sapphire_lang")) as Language | null;
     if (savedLang && (savedLang === "en" || savedLang === "ar")) {
       setLang(savedLang);
     }
@@ -68,7 +68,7 @@ export function IndexStatus() {
 
   return (
     <aside className="mono-card space-y-5 rounded-2xl p-5">
-      {/* Sapphire Store Header & Monomorphic Pulse Badge */}
+      {/* Eva AI Store Header & Monomorphic Pulse Badge */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <svg className="h-4 w-4 text-accent-bright" fill="none" stroke="currentColor" viewBox="0 0 24 24">

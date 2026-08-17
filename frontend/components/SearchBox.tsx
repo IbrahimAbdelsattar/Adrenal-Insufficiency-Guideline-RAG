@@ -19,7 +19,7 @@ export function SearchBox({
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    const savedLang = localStorage.getItem("sapphire_lang") as Language | null;
+    const savedLang = (localStorage.getItem("eva_lang") || localStorage.getItem("sapphire_lang")) as Language | null;
     if (savedLang && (savedLang === "en" || savedLang === "ar")) {
       setLang(savedLang);
     }
@@ -52,7 +52,7 @@ export function SearchBox({
 
   return (
     <div className="space-y-4">
-      {/* Sapphire VEIL Monomorphic Search Input */}
+      {/* Eva AI Monomorphic Search Input */}
       <form
         onSubmit={(e) => {
           e.preventDefault();
@@ -97,7 +97,7 @@ export function SearchBox({
           )}
         </div>
 
-        {/* Top-K Selector & Primary Sapphire Button */}
+        {/* Top-K Selector & Primary Eva AI Button */}
         <div className="flex items-center gap-2.5">
           <div className="mono-inset flex items-center gap-2 rounded-xl px-3 py-2.5 text-xs text-ink-dim">
             <span className="font-mono text-[10px] font-bold text-ink-faint uppercase tracking-wider">
@@ -142,7 +142,7 @@ export function SearchBox({
         </div>
       </form>
 
-      {/* Sapphire VEIL Exemplar Chips */}
+      {/* Eva AI Exemplar Chips */}
       <div className="flex flex-wrap items-center gap-2.5 pt-1">
         <span className="flex items-center gap-1.5 text-xs font-bold text-ink-faint">
           <svg className="h-3.5 w-3.5 text-accent-bright" fill="none" stroke="currentColor" viewBox="0 0 24 24">

@@ -4,7 +4,7 @@
 @import "tailwindcss";
 
 /* 
-  SAPPHIRE VEIL BRAND SYSTEM & ARABIC LOCALIZATION
+  EVA AI BRAND SYSTEM & ARABIC LOCALIZATION
   Palette:
   - Pale Ice: #E7F0FA
   - Steel Sky: #7BA4D0
@@ -127,7 +127,7 @@ code, kbd, samp, .font-mono {
 
 /* 
   =========================================
-  SAPPHIRE VEIL MONOMORPHIC UI UTILITY CLASSES
+  EVA AI MONOMORPHIC UI UTILITY CLASSES
   =========================================
 */
 
@@ -186,7 +186,7 @@ code, kbd, samp, .font-mono {
   transform: translateY(1px);
 }
 
-/* Primary Sapphire VEIL Button */
+/* Primary Eva AI Button */
 .mono-button-primary {
   background: linear-gradient(145deg, #2E5E99, #1c4273);
   color: #FFFFFF;

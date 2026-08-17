@@ -7,11 +7,11 @@ export const translations = {
     modeLabel: "Mode:",
     modeValue: "Evidence Retrieval",
     shortcutHint: "to search",
-    disclaimerTitle: "Sapphire VEIL Decision Aid:",
+    disclaimerTitle: "Eva AI Decision Aid:",
     disclaimerBody:
       "This clinical research prototype retrieves evidence strictly from registered official guidelines (NICE NG243). It is not a diagnostic service or emergency triage system. Qualified clinicians must evaluate all retrieved findings prior to clinical application.",
     searchPlaceholder:
-      "Ask Sapphire VEIL a clinical question about adrenal insufficiency...",
+      "Ask Eva AI a clinical question about adrenal insufficiency...",
     topKLabel: "TOP-K",
     chunksSuffix: "Chunks",
     retrieveBtn: "Retrieve Evidence",
@@ -63,7 +63,7 @@ export const translations = {
     feat3Desc:
       "Atomic recommendations are preserved without cross-boundary chunk splitting.",
     rankPrefix: "#",
-    metricLabel: "Sapphire Metric",
+    metricLabel: "Eva AI Metric",
     belowFloorBadge: "Below Floor",
     cautionBadge: "Non-Current Source",
     oversizedBadge: "Oversized Recommendation",
@@ -74,7 +74,7 @@ export const translations = {
     showFull: "Show Full Chunk",
     showExcerpt: "Show Excerpt",
     tokSuffix: "tok",
-    storeTitle: "Sapphire Knowledge Store",
+    storeTitle: "Eva AI Knowledge Store",
     activeBadge: "Active",
     docsStat: "Documents",
     docsSub: "Registered PDF",
@@ -87,7 +87,7 @@ export const translations = {
     registeredGuidelines: "Registered Guidelines",
     indexNotReady: "Index Not Ready",
     runIngestHint: "Run `python -m backend.app.cli ingest` to build.",
-    loadingMeta: "Loading Sapphire metadata…",
+    loadingMeta: "Loading Eva AI metadata…",
     footerText:
       "Monomorphic Soft UI · Structural Provenance · Page-Level Citations",
     footerSub:
@@ -99,11 +99,11 @@ export const translations = {
     modeLabel: "الوضع:",
     modeValue: "استرجاع الأدلة الطبية",
     shortcutHint: "للبحث",
-    disclaimerTitle: "أداة سافاير فيل لدعم القرار الطبي:",
+    disclaimerTitle: "أداة Eva AI لدعم القرار الطبي:",
     disclaimerBody:
       "يقوم هذا النموذج الأولي للأبحاث الطبية باسترجاع الأدلة حصرياً من الإرشادات الرسمية المسجلة (NICE NG243). وهي ليست خدمة تشخيصية أو نظام فرز طوارئ. يجب على الأطباء المؤهلين تقييم جميع النتائج المسترجعة قبل التطبيق السريري.",
     searchPlaceholder:
-      "اطرح سؤالاً طبياً على سافاير فيل حول قصور الغدة الكظرية...",
+      "اطرح سؤالاً طبياً على Eva AI حول قصور الغدة الكظرية...",
     topKLabel: "عدد النتائج",
     chunksSuffix: "قطع طبية",
     retrieveBtn: "استرجاع الأدلة الطبية",
@@ -155,7 +155,7 @@ export const translations = {
     feat3Desc:
       "يتم الحفاظ على التوصيات الطبية الذرية كاملة دون تقسيم عبر حدود القطع.",
     rankPrefix: "#",
-    metricLabel: "مقياس التطابق",
+    metricLabel: "مقياس Eva AI",
     belowFloorBadge: "أقل من حد الملاءمة",
     cautionBadge: "مصدر غير حالي",
     oversizedBadge: "توصية كبيرة الحجم",
@@ -166,7 +166,7 @@ export const translations = {
     showFull: "عرض النص كاملاً",
     showExcerpt: "عرض المقتطف",
     tokSuffix: "رمز",
-    storeTitle: "مخزن المعرفة السريرية",
+    storeTitle: "مخزن معرفة Eva AI",
     activeBadge: "نشط",
     docsStat: "المستندات",
     docsSub: "ملفات PDF مسجلة",
@@ -179,7 +179,7 @@ export const translations = {
     registeredGuidelines: "الإرشادات السريرية المسجلة",
     indexNotReady: "الفهرس غير جاهز",
     runIngestHint: "قم بتشغيل `python -m backend.app.cli ingest` للبناء.",
-    loadingMeta: "جاري تحميل البيانات الطبية...",
+    loadingMeta: "جاري تحميل بيانات Eva AI الطبية...",
     footerText:
       "تصميم مونومورفيك ناعم · موثوقية الهيكلية · اقتباسات دقيقة على مستوى الصفحة",
     footerSub:

@@ -2,7 +2,7 @@
 setlocal enabledelayedexpansion
 
 echo ===================================================
-echo   Sapphire VEIL CDS — Fast Windows Launcher
+echo   Eva AI CDS — Fast Windows Launcher
 echo ===================================================
 echo.
 
@@ -49,14 +49,14 @@ if not exist "frontend\node_modules" (
 echo.
 echo ===================================================
 echo [1/2] Starting FastAPI Backend on http://localhost:8000 ...
-start "Sapphire VEIL Backend (FastAPI)" cmd /k "call .venv\Scripts\activate.bat && uvicorn backend.app.main:app --reload --port 8000"
+start "Eva AI Backend (FastAPI)" cmd /k "call .venv\Scripts\activate.bat && uvicorn backend.app.main:app --reload --port 8000"
 
 echo [2/2] Starting Next.js Frontend on http://localhost:3000 ...
-start "Sapphire VEIL Frontend (Next.js)" cmd /k "cd frontend && npm run dev"
+start "Eva AI Frontend (Next.js)" cmd /k "cd frontend && npm run dev"
 
 echo.
 echo ===================================================
-echo   Sapphire VEIL services launched in separate windows!
+echo   Eva AI services launched in separate windows!
 echo   -----------------------------------------------
 echo   Web UI:         http://localhost:3000
 echo   API Docs:       http://localhost:8000/docs

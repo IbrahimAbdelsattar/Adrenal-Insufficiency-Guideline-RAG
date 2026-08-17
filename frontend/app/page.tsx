@@ -19,7 +19,7 @@ export default function Page() {
   const [lang, setLang] = useState<Language>("en");
 
   useEffect(() => {
-    const savedLang = localStorage.getItem("sapphire_lang") as Language | null;
+    const savedLang = (localStorage.getItem("eva_lang") || localStorage.getItem("sapphire_lang")) as Language | null;
     if (savedLang && (savedLang === "en" || savedLang === "ar")) {
       setLang(savedLang);
     }
@@ -67,7 +67,7 @@ export default function Page() {
 
   return (
     <div className="grid gap-8 lg:grid-cols-[1fr_22rem]">
-      {/* Main Sapphire Area */}
+      {/* Main Eva AI Area */}
       <div className="min-w-0 space-y-6">
         {/* Search Component */}
         <SearchBox
@@ -105,7 +105,7 @@ export default function Page() {
         {/* Search Results Area */}
         {!loading && response && (
           <section className="space-y-5 animate-fade-in-up">
-            {/* Sapphire Toolbar */}
+            {/* Eva AI Toolbar */}
             <div className="mono-card flex flex-wrap items-center justify-between gap-4 rounded-2xl p-3.5 text-xs">
               <div className="flex items-center gap-2.5 text-ink-dim">
                 <span className="mono-pill px-2.5 py-1 font-mono font-extrabold text-ink">
@@ -171,16 +171,16 @@ export default function Page() {
           </section>
         )}
 
-        {/* Sapphire VEIL Empty State */}
+        {/* Eva AI Empty State */}
         {!loading && !response && !error && (
           <div className="mono-card rounded-2xl p-10 text-center animate-fade-in-up">
             <div className="mono-button mx-auto flex h-16 w-16 items-center justify-center rounded-2xl text-accent-bright border border-accent-bright/20 shadow-md">
-              <span className="font-brand-cursive text-3xl text-accent-bright drop-shadow">S</span>
-              <span className="font-brand-serif text-sm font-bold text-accent-bright -ml-1">V</span>
+              <span className="font-brand-cursive text-3xl text-accent-bright drop-shadow">E</span>
+              <span className="font-brand-serif text-sm font-bold text-accent-bright -ml-0.5">A</span>
             </div>
             <h2 className="mt-5 text-lg font-extrabold text-ink tracking-wide">
-              <span className="font-brand-cursive text-2xl font-normal text-accent-bright me-1">Sapphire</span>
-              <span className="font-brand-serif text-accent-bright me-2">VEIL</span> {t.inspectorReadyTitle}
+              <span className="font-brand-cursive text-2xl font-normal text-accent-bright me-1">Eva</span>
+              <span className="font-brand-serif text-accent-bright me-2">AI</span> {t.inspectorReadyTitle}
             </h2>
             <p className="mt-1.5 max-w-md mx-auto text-xs leading-relaxed text-ink-dim">
               {t.inspectorReadyBody}

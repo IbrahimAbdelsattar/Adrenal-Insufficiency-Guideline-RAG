@@ -25,7 +25,7 @@ export function ChunkCard({ result }: { result: RetrievalResult }) {
   const { chunk, score, rank, below_floor: belowFloor } = result;
 
   useEffect(() => {
-    const savedLang = localStorage.getItem("sapphire_lang") as Language | null;
+    const savedLang = (localStorage.getItem("eva_lang") || localStorage.getItem("sapphire_lang")) as Language | null;
     if (savedLang && (savedLang === "en" || savedLang === "ar")) {
       setLang(savedLang);
     }
@@ -62,7 +62,7 @@ export function ChunkCard({ result }: { result: RetrievalResult }) {
         belowFloor ? "opacity-75" : ""
       }`}
     >
-      {/* Monomorphic Sapphire Header */}
+      {/* Monomorphic Eva AI Header */}
       <header className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-3">
           {/* Monomorphic Extruded Rank Badge */}
@@ -131,7 +131,7 @@ export function ChunkCard({ result }: { result: RetrievalResult }) {
         </div>
       </header>
 
-      {/* Monomorphic Sapphire Section Banner */}
+      {/* Monomorphic Eva AI Section Banner */}
       <div className="mono-inset mb-4 rounded-xl border-s-4 border-accent-bright p-4">
         <div className="flex items-center gap-2">
           <svg className="h-4 w-4 text-accent-bright shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">

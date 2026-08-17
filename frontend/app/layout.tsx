@@ -14,7 +14,7 @@ export default function RootLayout({
   const [lang, setLang] = useState<Language>("en");
 
   useEffect(() => {
-    const savedLang = localStorage.getItem("sapphire_lang") as Language | null;
+    const savedLang = (localStorage.getItem("eva_lang") || localStorage.getItem("sapphire_lang")) as Language | null;
     if (savedLang && (savedLang === "en" || savedLang === "ar")) {
       setLang(savedLang);
     }
@@ -31,17 +31,17 @@ export default function RootLayout({
   return (
     <html lang={lang} dir={lang === "ar" ? "rtl" : "ltr"} className="dark">
       <head>
-        <title>Sapphire VEIL — Clinical Decision Support</title>
+        <title>Eva AI — Clinical Decision Support</title>
         <meta
           name="description"
-          content="Sapphire VEIL evidence retrieval over official NICE clinical guidelines with page-level citation traceability."
+          content="Eva AI evidence retrieval over official NICE clinical guidelines with page-level citation traceability."
         />
         <script
           dangerouslySetInnerHTML={{
             __html: `
               (function() {
                 try {
-                  var savedTheme = localStorage.getItem('sapphire_theme');
+                  var savedTheme = localStorage.getItem('eva_theme') || localStorage.getItem('sapphire_theme');
                   var prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
                   var theme = savedTheme || (prefersDark ? 'dark' : 'light');
                   if (theme === 'dark') {
@@ -52,7 +52,7 @@ export default function RootLayout({
                     document.documentElement.classList.remove('dark');
                   }
 
-                  var savedLang = localStorage.getItem('sapphire_lang') || 'en';
+                  var savedLang = localStorage.getItem('eva_lang') || localStorage.getItem('sapphire_lang') || 'en';
                   document.documentElement.setAttribute('lang', savedLang);
                   document.documentElement.setAttribute('dir', savedLang === 'ar' ? 'rtl' : 'ltr');
                 } catch (e) {}
@@ -62,14 +62,14 @@ export default function RootLayout({
         />
       </head>
       <body className="min-h-screen bg-ground text-ink antialiased selection:bg-accent-deep selection:text-white">
-        {/* Sapphire VEIL Header */}
+        {/* Eva AI Header */}
         <header className="sticky top-0 z-40 border-b border-line/60 bg-ground/90 backdrop-blur-md transition-colors duration-300">
           <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-x-6 gap-y-3 px-4 py-3.5 sm:px-6">
-            {/* Sapphire VEIL Brand Identity */}
+            {/* Eva AI Brand Identity */}
             <div className="flex items-center gap-4">
               <div className="mono-card relative flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-surface-2 to-surface text-accent-bright shadow-lg border border-accent-bright/20">
-                <span className="font-brand-cursive text-2xl text-accent-bright drop-shadow">S</span>
-                <span className="font-brand-serif text-xs font-bold tracking-widest text-accent-bright -ml-1">V</span>
+                <span className="font-brand-cursive text-2xl text-accent-bright drop-shadow">E</span>
+                <span className="font-brand-serif text-xs font-bold tracking-widest text-accent-bright -ml-0.5">A</span>
                 <span className="absolute -bottom-0.5 -right-0.5 flex h-3 w-3">
                   <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-accent-bright opacity-75"></span>
                   <span className="relative inline-flex rounded-full h-3 w-3 bg-accent-bright"></span>
@@ -78,8 +78,8 @@ export default function RootLayout({
               <div>
                 <div className="flex items-baseline gap-2">
                   <h1 className="text-xl tracking-wide text-ink">
-                    <span className="font-brand-cursive text-2xl font-normal text-accent-bright me-1.5">Sapphire</span>
-                    <span className="font-brand-serif font-bold text-accent-bright tracking-widest text-lg">VEIL</span>
+                    <span className="font-brand-cursive text-2xl font-normal text-accent-bright me-1.5">Eva</span>
+                    <span className="font-brand-serif font-bold text-accent-bright tracking-widest text-lg">AI</span>
                   </h1>
                   <span className="mono-pill px-2.5 py-0.5 text-[10px] font-mono font-bold text-accent-bright uppercase tracking-wider">
                     {t.tagline}
@@ -146,12 +146,12 @@ export default function RootLayout({
         {/* Main Monomorphic Layout Container */}
         <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6">{children}</main>
 
-        {/* Sapphire VEIL Monomorphic Footer */}
+        {/* Eva AI Monomorphic Footer */}
         <footer className="mt-16 border-t border-line/60 bg-ground/80 py-8 text-center text-xs text-ink-faint">
           <div className="mx-auto max-w-7xl px-4 sm:px-6">
             <p className="font-semibold text-ink-dim">
-              <span className="font-brand-cursive text-sm text-accent-bright me-1">Sapphire</span>
-              <span className="font-brand-serif text-accent-bright font-bold me-2">VEIL</span>
+              <span className="font-brand-cursive text-sm text-accent-bright me-1">Eva</span>
+              <span className="font-brand-serif text-accent-bright font-bold me-2">AI</span>
               · {t.footerText}
             </p>
             <p className="mt-1 text-ink-faint">

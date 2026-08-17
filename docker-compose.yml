@@ -24,33 +24,24 @@ services:
     expose:
       - "8000"
 
-    environment:
-      # Use single-level ${VAR:-default} interpolation.
-      #
-      # Two forms that do NOT work here, both learned the hard way:
-      #   - `VAR` (bare)                  reads the SHELL environment only.
-      #                                   Dokploy supplies variables through a
-      #                                   .env file, which bare names never see.
-      #   - `VAR=${VAR:-${OTHER:-}}`      Compose does not reliably expand a
-      #                                   nested ${}; it collapses to empty and
-      #                                   overrides the injected value.
-      #
-      # Defaults below are the values verified working on the OmniRoute gateway,
-      # so a missing variable degrades to something functional rather than to a
-      # model that 503s.
-      - OMNIROUTE_API_KEY=${OMNIROUTE_API_KEY:-}
-      - OPENROUTER_API_KEY=${OPENROUTER_API_KEY:-}
-      - OMNIROUTE_BASE_URL=${OMNIROUTE_BASE_URL:-https://omniroute.dawrly.space/v1}
-      # MUST match the model the index was built with, or /api/search returns a
-      # model-mismatch 503. Verified on this gateway: 3072 dims.
-      - EMBEDDING_MODEL=${EMBEDDING_MODEL:-gemini/gemini-embedding-001}
-      - EMBEDDING_BATCH_SIZE=${EMBEDDING_BATCH_SIZE:-32}
-      - TOP_K=${TOP_K:-5}
-      - RELEVANCE_FLOOR=${RELEVANCE_FLOOR:-0.30}
-      # CORS for browsers calling the backend domain directly. The backend also
-      # trusts *.dawrly.space via CORS_ORIGIN_REGEX, so this is belt-and-braces.
-      - ALLOWED_ORIGINS=${ALLOWED_ORIGINS:-https://sapphire.dawrly.space}
-      - ALLOWED_ORIGIN=${ALLOWED_ORIGIN:-}
+    # Dokploy writes its Environment tab to a .env file beside this compose file.
+    # env_file loads that straight into the container, which is the only form
+    # that works reliably here.
+    #
+    # There is deliberately NO `environment:` block. Every alternative failed:
+    #   - `VAR` (bare)              reads the SHELL env; never sees Dokploy's .env
+    #   - `VAR=${VAR:-}`            resolves to "" and OVERRIDES the injected
+    #                               value — this is what kept wiping the API key
+    #   - `VAR=${VAR:-${OTHER:-}}`  Compose does not expand nested ${}
+    #
+    # `environment:` takes precedence over `env_file:`, so re-adding entries here
+    # would clobber Dokploy's values again. Defaults live in backend/app/config.py
+    # instead, which is the single source of truth.
+    #
+    # required: false keeps local `docker compose up` working with no .env file.
+    env_file:
+      - path: .env
+        required: false
 
     volumes:
       # Named volume, not a bind mount: data/index is gitignored, so the VPS

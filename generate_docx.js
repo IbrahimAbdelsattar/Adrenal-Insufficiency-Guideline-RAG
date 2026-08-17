@@ -49,8 +49,8 @@ function createTitle() {
     alignment: AlignmentType.CENTER,
     spacing: { before: 360, after: 120 },
     children: [
-      new TextRun({ text: "Sapphire ", font: "Arial", size: 44, bold: true, color: BRAND_ROYAL }),
-      new TextRun({ text: "VEIL", font: "Arial", size: 44, bold: true, color: BRAND_NAVY }),
+      new TextRun({ text: "Eva ", font: "Arial", size: 44, bold: true, color: BRAND_ROYAL }),
+      new TextRun({ text: "AI", font: "Arial", size: 44, bold: true, color: BRAND_NAVY }),
     ]
   });
 }
@@ -182,7 +182,7 @@ const doc = new Document({
               tabStops: [{ type: "right", position: 9360 }],
               border: { bottom: { style: BorderStyle.SINGLE, size: 4, color: BRAND_STEEL, space: 4 } },
               children: [
-                new TextRun({ text: "Sapphire VEIL — Clinical Decision Support", font: "Arial", size: 18, bold: true, color: BRAND_ROYAL }),
+                new TextRun({ text: "Eva AI — Clinical Decision Support", font: "Arial", size: 18, bold: true, color: BRAND_ROYAL }),
                 new TextRun({ text: "\tSystem Documentation & Blueprint", font: "Arial", size: 18, color: BRAND_TEXT_MUTED })
               ]
             })
@@ -223,8 +223,8 @@ const doc = new Document({
         createHeading2("1.1 The Clinical Challenge"),
         createBody("Adrenal insufficiency (including Primary Addison's Disease and Secondary Adrenal Suppression) is a life-threatening endocrine disorder requiring rapid, highly precise diagnosis, emergency adrenal crisis management, and strict sick-day dosing protocols. Clinicians and trainees face complex, multi-page clinical guidelines (such as NICE NG243, published August 2024), where looking up specific dosage adjustments or diagnostic criteria during clinical rounds can be time-consuming and error-prone."),
 
-        createHeading2("1.2 What is Sapphire VEIL?"),
-        createBody("Sapphire VEIL (Clinical Decision Support Lite) is an advanced Retrieval-Augmented Generation (RAG) platform. Unlike generic AI chatbots that guess or synthesize answers with a risk of clinical hallucinations, Sapphire VEIL functions as a zero-hallucination evidence search engine. It ingests official clinical guideline PDFs, strips extraction noise while preserving page numbers, and retrieves the most relevant, un-altered clinical recommendation text."),
+        createHeading2("1.2 What is Eva AI?"),
+        createBody("Eva AI (Clinical Decision Support Lite) is an advanced Retrieval-Augmented Generation (RAG) platform. Unlike generic AI chatbots that guess or synthesize answers with a risk of clinical hallucinations, Eva AI functions as a zero-hallucination evidence search engine. It ingests official clinical guideline PDFs, strips extraction noise while preserving page numbers, and retrieves the most relevant, un-altered clinical recommendation text."),
 
         createHeading2("1.3 Core Non-Technical Capabilities"),
         new Paragraph({ numbering: { reference: "bullets", level: 0 }, children: [new TextRun({ text: "100% Traceable Citations: Every answer card displays the document name, exact page number, section title, and recommendation ID (e.g. Rec 1.2.1).", font: "Arial", size: 22 })] }),
@@ -358,9 +358,9 @@ const doc = new Document({
         new Paragraph({ spacing: { before: 180, after: 180 } }),
 
         // 5. USER INTERFACE & BRAND IDENTITY
-        createHeading1("5. Sapphire VEIL Visual System & User Experience", "sec5"),
+        createHeading1("5. Eva AI Visual System & User Experience", "sec5"),
         createHeading2("5.1 Monomorphic Soft-UI (Neumorphic Dark/Light)"),
-        createBody("Sapphire VEIL introduces a custom Monomorphic Design System. Elements appear sculpted directly out of a single continuous canvas (#0D2440 in Dark Mode, #F0F5FA in Light Mode) using dual offset drop-shadows and debossed inner tracks."),
+        createBody("Eva AI introduces a custom Monomorphic Design System. Elements appear sculpted directly out of a single continuous canvas (#0D2440 in Dark Mode, #F0F5FA in Light Mode) using dual offset drop-shadows and debossed inner tracks."),
 
         createHeading2("5.2 Internationalization & Bilingual Arabic Support"),
         createBody("The platform provides full bilingual English and Arabic support:"),
@@ -473,7 +473,7 @@ const doc = new Document({
 
 // Write .docx File
 Packer.toBuffer(doc).then(buffer => {
-  const outputPath = path.join(__dirname, 'Sapphire_VEIL_Comprehensive_Documentation.docx');
+  const outputPath = path.join(__dirname, 'Eva_AI_Comprehensive_Documentation.docx');
   fs.writeFileSync(outputPath, buffer);
-  console.log('Successfully generated Sapphire_VEIL_Comprehensive_Documentation.docx at:', outputPath);
+  console.log('Successfully generated Eva_AI_Comprehensive_Documentation.docx at:', outputPath);
 });

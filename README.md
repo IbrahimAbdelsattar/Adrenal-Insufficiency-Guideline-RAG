@@ -1,4 +1,4 @@
-# Sapphire VEIL — Clinical Decision Support (Adrenal Insufficiency RAG)
+# Eva AI — Clinical Decision Support (Adrenal Insufficiency RAG)
 
 [![Python Version](https://img.shields.io/badge/python-3.13-blue.svg)](https://www.python.org/)
 [![Node Version](https://img.shields.io/badge/node-24.x-green.svg)](https://nodejs.org/)
@@ -12,7 +12,7 @@
 
 ## 📌 Executive Summary & Clinical Scope
 
-**Sapphire VEIL (Clinical Decision Support Lite)** is an evidence-grounded Retrieval-Augmented Generation (RAG) platform designed to assist **clinicians, general practitioners, and clinical trainees** in making informed clinical decisions regarding **adrenal insufficiency identification, diagnosis, emergency crisis management, and sick-day dosing rules**.
+**Eva AI (Clinical Decision Support Lite)** is an evidence-grounded Retrieval-Augmented Generation (RAG) platform designed to assist **clinicians, general practitioners, and clinical trainees** in making informed clinical decisions regarding **adrenal insufficiency identification, diagnosis, emergency crisis management, and sick-day dosing rules**.
 
 > **Scope Statement**:
 > *"This system helps clinicians and clinical trainees answer questions about **adrenal insufficiency identification and management** using **NICE guideline NG243** and registered supporting official sources."*
@@ -204,7 +204,7 @@ graph LR
         Evaluator["Quality Evaluator"]
     end
 
-    subgraph SystemBoundary["Sapphire VEIL Clinical Decision Support System"]
+    subgraph SystemBoundary["Eva AI Clinical Decision Support System"]
         UC1["Query Adrenal Insufficiency Guidance"]
         UC2["Inspect Retrieved Evidence & Source Attribution"]
         UC3["Toggle Bilingual English / Arabic Layout"]
@@ -348,9 +348,9 @@ stateDiagram-v2
 
 ---
 
-## 🎨 Sapphire VEIL Visual System & Internationalization
+## 🎨 Eva AI Visual System & Internationalization
 
-The user interface implements the **Sapphire VEIL Design System**, engineered specifically for high visual comfort during clinical operations:
+The user interface implements the **Eva AI Design System**, engineered specifically for high visual comfort during clinical operations:
 
 1. **Brand Identity Palette**:
    - **Soft Pale Ice (`#E7F0FA`)**: Primary typography highlights, light mode background elements.
@@ -550,7 +550,7 @@ pytest backend/tests/ -v
 ```text
 ai-hackthon/
 ├── README.md                                  # Full system specification & architecture guide
-├── Sapphire_VEIL_Comprehensive_Documentation.docx  # Generated Word document specification
+├── Eva_AI_Comprehensive_Documentation.docx  # Generated Word document specification
 ├── start.bat                                  # Fast 1-click Windows project launcher
 ├── generate_docx.js                           # Node script to build Word documentation
 ├── requirements.txt                           # Backend Python dependencies

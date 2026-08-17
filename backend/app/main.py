@@ -15,7 +15,7 @@ from backend.app.api import generate, search
 from backend.app.config import REPO_ROOT, get_settings
 
 app = FastAPI(
-    title="Clinical Decision Support Lite",
+    title="Eva AI Clinical Decision Support",
     description=(
         "Retrieval over official clinical guidelines. Day 1 scope: ingestion and "
         "retrieval only — generation is intentionally unimplemented "
