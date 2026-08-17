@@ -493,16 +493,27 @@ python -m backend.app.cli ingest [--dry-run] [--doc-id DOC_ID] [--verbose]
 ### 2. Query Evidence (`query`)
 
 ```bash
-python -m backend.app.cli query "What is the emergency management of adrenal crisis?" --top-k 5 --full-text
+# Query with hybrid search & top-k
+python -m backend.app.cli query "What is the emergency management of adrenal crisis?" --top-k 5 --retriever-type hybrid --full-text
 ```
 
 ### 3. Golden Evaluation (`eval`)
 
 ```bash
-python -m backend.app.cli eval [--top-k 5] [--json]
+# Run golden evaluation with Precision@3, Precision@5, and Hit Rate
+python -m backend.app.cli eval [--retriever-type {dense,bm25,hybrid,hybrid_rerank}] [--top-k 5] [--matrix] [--json]
 ```
 
-Runs the retrieval quality suite over the golden question set in [backend/tests/eval/golden_questions.yaml](file:///c:/Users/C-LAB/Videos/ai%20hackthon/backend/tests/eval/golden_questions.yaml). Target: $\ge 80\%$ hit rate in top-5 results.
+Runs the retrieval quality suite over the 18 golden clinical queries in [backend/tests/eval/golden_questions.yaml](file:///c:/Users/C-LAB/Videos/ai%20hackthon/backend/tests/eval/golden_questions.yaml). Target: $\ge 80\%$ hit rate, high Precision@3 and Precision@5.
+
+### 4. Comparative Benchmark Suite (`benchmark`)
+
+```bash
+# Run full automated benchmark across strategies and depths (Top-3, Top-5, Top-10)
+python -m backend.app.cli benchmark --output DAY2_RETRIEVAL_OPTIMIZATION.md
+```
+
+Generates the complete Day 2 Evaluation Tracking Matrix comparing Dense Cosine, BM25 Lexical, Hybrid RRF, and Cross-Encoder Reranker. For full experimental details, see [DAY2_RETRIEVAL_OPTIMIZATION.md](file:///c:/Users/C-LAB/Videos/ai%20hackthon/DAY2_RETRIEVAL_OPTIMIZATION.md).
 
 ---
 
@@ -550,6 +561,7 @@ pytest backend/tests/ -v
 ```text
 ai-hackthon/
 ├── README.md                                  # Full system specification & architecture guide
+├── DAY2_RETRIEVAL_OPTIMIZATION.md             # Day 2 Retrieval Evaluation & Optimization Report
 ├── Eva_AI_Comprehensive_Documentation.docx  # Generated Word document specification
 ├── start.bat                                  # Fast 1-click Windows project launcher
 ├── generate_docx.js                           # Node script to build Word documentation
@@ -564,7 +576,8 @@ ai-hackthon/
 │   │   ├── main.py                            # FastAPI app entry & static mount
 │   │   ├── config.py                          # Pydantic-settings configuration
 │   │   ├── models.py                          # Pydantic data schemas
-│   │   ├── cli.py                             # CLI interface (ingest, query, eval)
+│   │   ├── cli.py                             # CLI interface (ingest, query, eval, benchmark)
+│   │   ├── evaluation.py                      # Retrieval metrics (Precision@3/5, Hit Rate)
 │   │   ├── errors.py                          # Typed system errors & exit codes
 │   │   ├── api/
 │   │   │   ├── search.py                      # Search, health, index & sources endpoints
@@ -574,21 +587,27 @@ ai-hackthon/
 │   │   │   ├── parser.py                      # PyMuPDF span-level PDF extractor
 │   │   │   ├── cleaner.py                     # Frequency boilerplate cleaner & glyph repair
 │   │   │   ├── sectioner.py                   # NICE hierarchy detector (1.1 / 1.1.1)
-│   │   │   ├── chunker.py                     # Atomic recommendation chunker
+│   │   │   ├── chunker.py                     # Atomic recommendation chunker (Section & Fixed)
 │   │   │   └── pipeline.py                    # Pipeline orchestrator
 │   │   ├── retrieval/
 │   │   │   ├── base.py                        # Retriever protocol seam
 │   │   │   ├── dense.py                       # Cosine top-K ChromaDB retriever
+│   │   │   ├── bm25.py                        # BM25 lexical retriever with clinical tokenizer
+│   │   │   ├── hybrid.py                      # Hybrid Dense + BM25 Reciprocal Rank Fusion
+│   │   │   ├── reranker.py                    # Cross-Encoder transformer reranker
+│   │   │   ├── factory.py                     # Retriever factory (pluggable strategies)
 │   │   │   └── store.py                       # ChromaDB persistent store client
 │   │   └── embeddings/
 │   │       ├── base.py                        # Embedder protocol seam
-│   │       └── openrouter.py                  # OpenRouter batched embedding client
+│   │       └── openrouter.py                  # OpenRouter batched embedding client with query cache
 │   └── tests/
-│       ├── unit/                              # Cleaner, sectioner, chunker unit tests
+│       ├── unit/                              # Cleaner, sectioner, chunker, bm25, hybrid unit tests
+│       │   ├── test_bm25.py                   # BM25 tokenizer and search unit tests
+│       │   └── test_hybrid.py                 # Hybrid RRF fusion & reranker fallback tests
 │       ├── integration/                       # Pipeline & search latency integration tests
 │       └── eval/
-│           ├── golden_questions.yaml          # Golden clinical question dataset
-│           └── test_retrieval_quality.py      # Automated retrieval hit-rate test
+│           ├── golden_questions.yaml          # Golden clinical question dataset (18 queries)
+│           └── test_retrieval_quality.py      # Automated retrieval hit-rate & Precision@k test
 ├── frontend/
 │   ├── app/
 │   │   ├── layout.tsx                         # Root layout with persistent disclaimer banner & header
