@@ -84,4 +84,7 @@ async def generate_answer(request: GenerateRequest) -> GenerateResponse:
         raise HTTPException(status_code=503, detail=str(exc))
     except Exception as exc:
         logger.error("Generation failed: %s", exc)
-        raise HTTPException(status_code=500, detail="Internal server error during generation")
+        raise HTTPException(
+            status_code=503, 
+            detail="LLM Answer Generation is currently in staged validation mode. Please review the retrieved guideline evidence cards below."
+        )

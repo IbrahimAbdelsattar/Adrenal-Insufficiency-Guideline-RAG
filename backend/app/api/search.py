@@ -68,6 +68,7 @@ def get_health() -> dict:
         "embedding_model": settings.embedding_model,
         "index_embedding_model": index_model,
         "model_matches_index": model_matches,
+        "retriever_type": settings.retriever_type,
         "message": "; ".join(problems) if problems else "Index ready.",
     }
 

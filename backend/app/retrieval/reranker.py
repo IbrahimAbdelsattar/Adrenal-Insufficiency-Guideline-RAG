@@ -74,12 +74,13 @@ class CrossEncoderReranker:
 
         if self._model is not None:
             try:
+                import math
                 pairs = [[query, c.text] for c in chunks]
                 scores = self._model.predict(pairs)
-                min_s = float(min(scores))
-                max_s = float(max(scores))
-                denom = (max_s - min_s) if max_s > min_s else 1.0
-                norm_scores = [(float(s) - min_s) / denom for s in scores]
+                # Use sigmoid normalization to compress raw logits to [0, 1] 
+                # This ensures truly low/negative scores stay low, 
+                # instead of forcing the top score to 1.0 (Fixes out-of-domain issue).
+                norm_scores = [1.0 / (1.0 + math.exp(-float(s))) for s in scores]
                 ranked = sorted(
                     zip(chunks, norm_scores), key=lambda x: x[1], reverse=True
                 )

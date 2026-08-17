@@ -29,7 +29,7 @@ export default function RootLayout({
   const t = translations[lang];
 
   return (
-    <html lang={lang} dir={lang === "ar" ? "rtl" : "ltr"} className="dark">
+    <html lang={lang} dir={lang === "ar" ? "rtl" : "ltr"} className="dark" suppressHydrationWarning>
       <head>
         <title>Eva AI — Clinical Decision Support</title>
         <meta
@@ -61,7 +61,7 @@ export default function RootLayout({
           }}
         />
       </head>
-      <body className="min-h-screen bg-ground text-ink antialiased selection:bg-accent-deep selection:text-white">
+      <body className="min-h-screen bg-ground text-ink antialiased selection:bg-accent-deep selection:text-white" suppressHydrationWarning>
         {/* Eva AI Header */}
         <header className="sticky top-0 z-40 border-b border-line/60 bg-ground/90 backdrop-blur-md transition-colors duration-300">
           <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-x-6 gap-y-3 px-4 py-3.5 sm:px-6">

@@ -26,6 +26,10 @@ export interface RetrievalResult {
   score: number;
   rank: number;
   below_floor: boolean;
+  dense_score?: number;
+  bm25_score?: number;
+  rerank_score?: number;
+  retriever_mode?: string;
 }
 
 export interface SearchResponse {
@@ -164,4 +168,8 @@ export function generate(query: string, topK: number): Promise<GenerateResponse>
     method: "POST",
     body: JSON.stringify({ query, top_k: topK }),
   });
+}
+
+export function getHealth(): Promise<{ retriever_type?: string }> {
+  return request<{ retriever_type?: string }>("/api/health");
 }

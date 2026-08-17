@@ -100,13 +100,26 @@ class HybridRetriever:
                 (chunks_map[cid], s / max_rrf) for cid, s in fused_sorted[:k]
             ]
 
+        dense_map = {res.chunk.chunk_id: res.score for res in dense_results}
+        bm25_map = {res.chunk.chunk_id: res.score for res in bm25_results}
+
         # --- Stage 4: Construct results with below_floor flags ---
-        return [
-            RetrievalResult(
-                chunk=chunk,
-                score=score,
-                rank=rank,
-                below_floor=score < floor,
+        results = []
+        for rank, (chunk, score) in enumerate(ranked_pairs, start=1):
+            cid = chunk.chunk_id
+            
+            # For dense/bm25, we know the raw score if it was in their candidates. 
+            # Otherwise we assign 0.
+            results.append(
+                RetrievalResult(
+                    chunk=chunk,
+                    score=score,
+                    rank=rank,
+                    below_floor=score < floor,
+                    dense_score=dense_map.get(cid, 0.0),
+                    bm25_score=bm25_map.get(cid, 0.0),
+                    rerank_score=score if self._reranker is not None else None,
+                    retriever_mode="hybrid_rerank" if self._reranker is not None else "hybrid"
+                )
             )
-            for rank, (chunk, score) in enumerate(ranked_pairs, start=1)
-        ]
+        return results

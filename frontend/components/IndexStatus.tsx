@@ -8,6 +8,7 @@ import { translations, type Language } from "@/lib/translations";
 export function IndexStatus() {
   const [manifest, setManifest] = useState<IndexManifest | null>(null);
   const [sources, setSources] = useState<SourceDocument[]>([]);
+  const [retrieverMode, setRetrieverMode] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [lang, setLang] = useState<Language>("en");
 
@@ -27,6 +28,11 @@ export function IndexStatus() {
   const t = translations[lang];
 
   useEffect(() => {
+    import("@/lib/api").then(({ getHealth }) => {
+      getHealth()
+        .then((h) => setRetrieverMode(h.retriever_type || null))
+        .catch(() => {});
+    });
     getIndexStatus()
       .then(setManifest)
       .catch((e) => setError(e.message));
@@ -78,10 +84,17 @@ export function IndexStatus() {
             {t.storeTitle}
           </h2>
         </div>
-        <span className="mono-pill flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[10px] font-mono font-bold text-accent-bright uppercase tracking-wider">
-          <span className="h-1.5 w-1.5 rounded-full bg-accent-bright animate-mono-pulse" />
-          {t.activeBadge}
-        </span>
+        <div className="flex items-center gap-2">
+          {retrieverMode && (
+            <span className="mono-pill px-2.5 py-0.5 text-[10px] font-mono font-bold text-ink-dim uppercase tracking-wider">
+              Mode: {retrieverMode}
+            </span>
+          )}
+          <span className="mono-pill flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[10px] font-mono font-bold text-accent-bright uppercase tracking-wider">
+            <span className="h-1.5 w-1.5 rounded-full bg-accent-bright animate-mono-pulse" />
+            {t.activeBadge}
+          </span>
+        </div>
       </div>
 
       {/* Extruded Metrics Grid */}

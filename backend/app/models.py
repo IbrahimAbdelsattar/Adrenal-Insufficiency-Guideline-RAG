@@ -115,6 +115,11 @@ class RetrievalResult(BaseModel):
     score: float
     rank: int
     below_floor: bool
+    
+    dense_score: float | None = None
+    bm25_score: float | None = None
+    rerank_score: float | None = None
+    retriever_mode: str = "dense"
 
 
 class PerDocumentStats(BaseModel):

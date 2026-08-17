@@ -62,19 +62,24 @@ class BM25Retriever:
             return []
 
         raw_scores = self._bm25.get_scores(tokens)
-        max_s = float(max(raw_scores)) if len(raw_scores) > 0 and max(raw_scores) > 0 else 1.0
+        max_s = float(max(raw_scores)) if len(raw_scores) > 0 else 0.0
 
         # Sort by score descending, take top-k
         ranked = sorted(
             zip(self._chunks, raw_scores), key=lambda x: x[1], reverse=True
         )[:k]
 
+        def normalize(score: float) -> float:
+            if max_s <= 0:
+                return 0.0
+            return min(1.0, max(0.0, float(score) / max_s))
+
         return [
             RetrievalResult(
                 chunk=chunk,
-                score=min(1.0, max(0.0, float(score) / max_s)),
+                score=normalize(score),
                 rank=rank,
-                below_floor=(float(score) / max_s) < floor,
+                below_floor=normalize(score) < floor,
             )
             for rank, (chunk, score) in enumerate(ranked, start=1)
         ]
