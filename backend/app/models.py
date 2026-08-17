@@ -11,7 +11,7 @@ from __future__ import annotations
 
 from datetime import datetime
 from enum import Enum
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import BaseModel, Field, field_validator
 
@@ -103,7 +103,12 @@ class Chunk(BaseModel):
         }
 
     @classmethod
-    def from_stored(cls, chunk_id: str, text: str, metadata: dict[str, Any]) -> Chunk:
+    def from_stored(
+        cls,
+        chunk_id: str,
+        text: str,
+        metadata: dict[str, Any],
+    ) -> Chunk:
         """Rebuild a Chunk from what ChromaDB gives back."""
         return cls(chunk_id=chunk_id, text=text, **metadata)
 
@@ -140,12 +145,31 @@ class IndexManifest(BaseModel):
 
 
 class SearchResponse(BaseModel):
-    """Response body for POST /api/search (contracts/search-api.yaml)."""
+    """Response body for POST /api/search."""
 
     query: str
+
+    # Only populated when useful evidence is available.
     results: list[RetrievalResult]
+
     result_count: int
+
+    # True only when at least one result is above the evidence floor.
     evidence_found: bool
+
+    # New scope classification:
+    # - in_scope: question is related to the system's topic
+    # - no_evidence: likely related, but no strong evidence was found
+    # - out_of_scope: question is unrelated to the system's topic
+    scope_status: Literal[
+        "in_scope",
+        "no_evidence",
+        "out_of_scope",
+    ]
+
+    # Human-readable message for the frontend.
+    scope_message: str = ""
+
     embedding_model: str = ""
     latency_ms: int = 0
     disclaimer: str
