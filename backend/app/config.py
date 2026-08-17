@@ -8,6 +8,7 @@ from __future__ import annotations
 
 from functools import lru_cache
 from pathlib import Path
+from typing import Literal
 
 from pydantic import AliasChoices, Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -62,6 +63,38 @@ class Settings(BaseSettings):
     # --- Retrieval ---
     top_k: int = Field(default=5, alias="TOP_K")
     relevance_floor: float = Field(default=0.30, alias="RELEVANCE_FLOOR")
+
+    # --- Hybrid retrieval (Day 2) ---
+    retriever_type: Literal["dense", "hybrid", "hybrid_rerank"] = Field(
+        default="hybrid_rerank",
+        alias="RETRIEVER_TYPE",
+    )
+    reranker_model: str = Field(
+        default="cross-encoder/ms-marco-MiniLM-L-6-v2",
+        alias="RERANKER_MODEL",
+    )
+    hybrid_candidate_k: int = Field(
+        default=20,
+        alias="HYBRID_CANDIDATE_K",
+    )
+
+    # --- Generation (Day 3) ---
+    generation_model: str = Field(
+        default="anthropic/claude-sonnet-4.5",
+        alias="GENERATION_MODEL",
+    )
+    generation_max_tokens: int = Field(
+        default=1024,
+        alias="GENERATION_MAX_TOKENS",
+    )
+    generation_temperature: float = Field(
+        default=0.1,
+        alias="GENERATION_TEMPERATURE",
+    )
+    anthropic_api_key: str = Field(
+        default="",
+        alias="ANTHROPIC_API_KEY",
+    )
 
     # --- Paths (relative values resolve against the repo root) ---
     corpus_dir: Path = Field(default=Path("data/corpus"), alias="CORPUS_DIR")

@@ -57,7 +57,7 @@ def cmd_query(args: argparse.Namespace) -> int:
     import json
 
     from backend.app.models import DISCLAIMER, SearchResponse
-    from backend.app.retrieval.dense import DenseRetriever
+    from backend.app.retrieval.factory import get_retriever
     from backend.app.retrieval.store import VectorStore
 
     settings = get_settings()
@@ -68,7 +68,7 @@ def cmd_query(args: argparse.Namespace) -> int:
         return 0
 
     top_k = args.top_k or settings.top_k
-    results = DenseRetriever(store=store, settings=settings).search(args.query, top_k)
+    results = get_retriever(settings).search(args.query, top_k)
 
     if args.json:
         payload = SearchResponse(
@@ -118,7 +118,7 @@ def cmd_eval(args: argparse.Namespace) -> int:
     import json
 
     from backend.app.evaluation import TARGET_HIT_RATE, evaluate
-    from backend.app.retrieval.dense import DenseRetriever
+    from backend.app.retrieval.factory import get_retriever
     from backend.app.retrieval.store import VectorStore
 
     settings = get_settings()
@@ -129,7 +129,7 @@ def cmd_eval(args: argparse.Namespace) -> int:
 
     top_k = args.top_k or settings.top_k
     report = evaluate(
-        DenseRetriever(store=store, settings=settings),
+        get_retriever(settings),
         top_k=top_k,
         settings=settings,
     )

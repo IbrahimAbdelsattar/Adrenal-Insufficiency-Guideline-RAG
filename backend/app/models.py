@@ -151,6 +151,24 @@ class SearchResponse(BaseModel):
     disclaimer: str
 
 
+class GenerateRequest(BaseModel):
+    """Request body for POST /api/generate."""
+    query: str
+    top_k: int | None = Field(default=None)
+
+
+class GenerateResponse(BaseModel):
+    """Response body for POST /api/generate."""
+    query: str
+    answer: str
+    citations: list[dict]
+    evidence_found: bool
+    disclaimer: str
+    model: str
+    latency_ms: int
+
+
+
 class GoldenQuestion(BaseModel):
     """Evaluation fixture (backend/tests/eval/golden_questions.yaml)."""
 

@@ -2,20 +2,23 @@
 
 import { useState, useMemo, useEffect } from "react";
 import { ChunkCard } from "@/components/ChunkCard";
+import { AnswerCard } from "@/components/AnswerCard";
 import { IndexStatus } from "@/components/IndexStatus";
 import { SearchBox } from "@/components/SearchBox";
-import { search } from "@/lib/api";
-import type { SearchResponse } from "@/lib/api";
+import { search, generate } from "@/lib/api";
+import type { SearchResponse, GenerateResponse } from "@/lib/api";
 import { translations, type Language } from "@/lib/translations";
 
 type FilterMode = "all" | "high" | "floor" | "caution";
 
 export default function Page() {
   const [response, setResponse] = useState<SearchResponse | null>(null);
+  const [genResponse, setGenResponse] = useState<GenerateResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [topK, setTopK] = useState(5);
   const [filterMode, setFilterMode] = useState<FilterMode>("all");
+  const [mode, setMode] = useState<"search" | "generate">("search");
   const [lang, setLang] = useState<Language>("en");
 
   useEffect(() => {
@@ -36,12 +39,17 @@ export default function Page() {
   async function runSearch(query: string) {
     setLoading(true);
     setError(null);
+    setResponse(null);
+    setGenResponse(null);
     try {
-      setResponse(await search(query, topK));
-      setFilterMode("all");
+      if (mode === "search") {
+        setResponse(await search(query, topK));
+        setFilterMode("all");
+      } else {
+        setGenResponse(await generate(query, topK));
+      }
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Search request failed.");
-      setResponse(null);
+      setError(e instanceof Error ? e.message : "Request failed.");
     } finally {
       setLoading(false);
     }
@@ -75,6 +83,8 @@ export default function Page() {
           loading={loading}
           topK={topK}
           onTopKChange={setTopK}
+          mode={mode}
+          onModeChange={setMode}
         />
 
         {/* Error Surface */}
@@ -103,7 +113,7 @@ export default function Page() {
         )}
 
         {/* Search Results Area */}
-        {!loading && response && (
+        {!loading && mode === "search" && response && (
           <section className="space-y-5 animate-fade-in-up">
             {/* Eva AI Toolbar */}
             <div className="mono-card flex flex-wrap items-center justify-between gap-4 rounded-2xl p-3.5 text-xs">
@@ -171,8 +181,15 @@ export default function Page() {
           </section>
         )}
 
+        {/* Generation Results Area */}
+        {!loading && mode === "generate" && genResponse && (
+          <section className="space-y-5 animate-fade-in-up">
+            <AnswerCard result={genResponse} />
+          </section>
+        )}
+
         {/* Eva AI Empty State */}
-        {!loading && !response && !error && (
+        {!loading && !response && !genResponse && !error && (
           <div className="mono-card rounded-2xl p-10 text-center animate-fade-in-up">
             <div className="mono-button mx-auto flex h-16 w-16 items-center justify-center rounded-2xl text-accent-bright border border-accent-bright/20 shadow-md">
               <span className="font-brand-cursive text-3xl text-accent-bright drop-shadow">E</span>

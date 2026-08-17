@@ -38,6 +38,25 @@ export interface SearchResponse {
   disclaimer: string;
 }
 
+export interface Citation {
+  source_id: string;
+  document_name: string;
+  section_title: string;
+  section_number: string;
+  page_number: number;
+  source_url: string;
+}
+
+export interface GenerateResponse {
+  query: string;
+  answer: string;
+  citations: Citation[];
+  evidence_found: boolean;
+  disclaimer: string;
+  model: string;
+  latency_ms: number;
+}
+
 export interface PerDocumentStats {
   doc_id: string;
   pages_processed: number;
@@ -138,4 +157,11 @@ export function getIndexStatus(): Promise<IndexManifest> {
 
 export function getSources(): Promise<{ sources: SourceDocument[] }> {
   return request<{ sources: SourceDocument[] }>("/api/sources");
+}
+
+export function generate(query: string, topK: number): Promise<GenerateResponse> {
+  return request<GenerateResponse>("/api/generate", {
+    method: "POST",
+    body: JSON.stringify({ query, top_k: topK }),
+  });
 }

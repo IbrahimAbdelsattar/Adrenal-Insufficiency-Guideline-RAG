@@ -16,6 +16,11 @@ export const translations = {
     chunksSuffix: "Chunks",
     retrieveBtn: "Retrieve Evidence",
     searchingBtn: "Searching...",
+    generateBtn: "Generate Answer",
+    generatingBtn: "Generating...",
+    aiAnswerLabel: "AI Answer",
+    insufficientEvidenceBadge: "Insufficient Evidence",
+    citationsLabel: "Sources Cited",
     quickExemplars: "Quick Exemplars:",
     exemplars: [
       {
@@ -108,6 +113,11 @@ export const translations = {
     chunksSuffix: "قطع طبية",
     retrieveBtn: "استرجاع الأدلة الطبية",
     searchingBtn: "جاري البحث...",
+    generateBtn: "إنشاء إجابة",
+    generatingBtn: "جاري الإنشاء...",
+    aiAnswerLabel: "إجابة الذكاء الاصطناعي",
+    insufficientEvidenceBadge: "أدلة غير كافية",
+    citationsLabel: "المصادر المقتبسة",
     quickExemplars: "أمثلة سريرية شائعة:",
     exemplars: [
       {
