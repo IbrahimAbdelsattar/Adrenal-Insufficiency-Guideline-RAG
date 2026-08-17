@@ -163,3 +163,14 @@ class TestMetadata:
     def test_no_metadata_value_is_none(self):
         chunks = chunk_blocks([_block("1.2.1", 50)], DOC, SETTINGS)
         assert all(v is not None for v in chunks[0].to_metadata().values())
+
+
+class TestFixedSizeChunking:
+    def test_fixed_size_chunks_generated(self):
+        blocks = [_block(f"1.2.{i}", 100) for i in range(1, 10)]
+        chunks = chunk_blocks(blocks, DOC, SETTINGS, strategy="fixed")
+        assert len(chunks) > 1
+        for chunk in chunks:
+            assert chunk.token_count <= 256
+            assert chunk.chunk_id.startswith("nice_ng243_fixed_c")
+            assert chunk.doc_id == "nice_ng243"

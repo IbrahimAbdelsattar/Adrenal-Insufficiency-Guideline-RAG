@@ -11,7 +11,7 @@ from pydantic import BaseModel, Field
 from backend.app.config import get_settings
 from backend.app.errors import PipelineError
 from backend.app.models import DISCLAIMER, IndexManifest, SearchResponse
-from backend.app.retrieval.dense import DenseRetriever
+from backend.app.retrieval.factory import get_retriever
 from backend.app.retrieval.store import VectorStore
 
 logger = logging.getLogger(__name__)
@@ -131,7 +131,8 @@ def search(request: SearchRequest) -> SearchResponse:
 
     started = time.perf_counter()
     try:
-        results = DenseRetriever(store=store, settings=settings).search(
+        retriever = get_retriever(settings=settings, store=store)
+        results = retriever.search(
             request.query, request.top_k or settings.top_k
         )
     except PipelineError as exc:

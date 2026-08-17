@@ -62,6 +62,11 @@ class Settings(BaseSettings):
     # --- Retrieval ---
     top_k: int = Field(default=5, alias="TOP_K")
     relevance_floor: float = Field(default=0.30, alias="RELEVANCE_FLOOR")
+    retriever_type: str = Field(default="hybrid_rerank", alias="RETRIEVER_TYPE")
+    reranker_model: str = Field(
+        default="cross-encoder/ms-marco-MiniLM-L-6-v2", alias="RERANKER_MODEL"
+    )
+    hybrid_candidate_k: int = Field(default=20, alias="HYBRID_CANDIDATE_K")
 
     # --- Paths (relative values resolve against the repo root) ---
     corpus_dir: Path = Field(default=Path("data/corpus"), alias="CORPUS_DIR")

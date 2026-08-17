@@ -1,96 +1,143 @@
-# Golden question set (FR-031, SC-003).
+# Golden question set (FR-031, SC-003, Day 2 Benchmark).
 #
-# Each question is paired with the NG243 section that actually answers it, so the
-# hit rate is a real measure of retrieval quality rather than a vibe check. Sections
-# were read from the source guideline, not guessed.
+# Each question is paired with the NG243 section and recommendation IDs that
+# actually answer it, so the retrieval hit rate and Precision@k are real
+# measures of retrieval quality. Sections and recommendation IDs were verified
+# against official NICE NG243 guideline text.
 #
-# Target: >= 80% of questions retrieve an expected section within top-K.
-#
-# A question may legitimately be answered by more than one section; any listed
-# section counts as a hit.
+# Target: >= 80% hit rate in top-K, high Precision@3 and Precision@5.
 
 questions:
   - id: gq_01
-    question: What are the symptoms of adrenal insufficiency?
+    question: What are the symptoms and signs of adrenal insufficiency?
     expected_doc_id: nice_ng243
     expected_sections: ["1.2"]
-    expected_recommendation_ids: ["1.2.1"]
+    expected_recommendation_ids: ["1.2.1", "1.2.2"]
     notes: >-
-      1.2.1 lists the persistent symptoms and signs (weight loss, salt craving,
-      hyperpigmentation) that should prompt suspicion.
+      1.2.1 & 1.2.2 list persistent non-specific symptoms (fatigue, weight loss,
+      hyperpigmentation, hypotension, postural dizziness, salt craving).
 
   - id: gq_02
     question: When should I suspect an adrenal crisis?
     expected_doc_id: nice_ng243
     expected_sections: ["1.6"]
-    notes: Section 1.6 is titled "When to suspect adrenal crisis".
+    expected_recommendation_ids: ["1.6.1", "1.6.2", "1.6.3"]
+    notes: Section 1.6 is titled "When to suspect adrenal crisis" and details severe hypotension, circulatory shock, acute abdomen, and vomiting.
 
   - id: gq_03
     question: How should an adrenal crisis be managed immediately?
     expected_doc_id: nice_ng243
     expected_sections: ["1.7"]
-    expected_recommendation_ids: ["1.7.1"]
+    expected_recommendation_ids: ["1.7.1", "1.7.2"]
     notes: >-
-      1.7.1 directs immediate intravenous or intramuscular hydrocortisone.
+      1.7.1 directs immediate intravenous or intramuscular hydrocortisone injection without awaiting confirmation.
 
   - id: gq_04
-    question: What dose of hydrocortisone should be given for suspected adrenal crisis?
+    question: What dose of hydrocortisone should be given for suspected adrenal crisis in adults?
     expected_doc_id: nice_ng243
     expected_sections: ["1.7"]
-    notes: Emergency dosing and fluid resuscitation sit in section 1.7.
+    expected_recommendation_ids: ["1.7.1", "1.7.2"]
+    notes: Emergency dosing (100mg IV/IM) and urgent hospitalization are in section 1.7.
 
   - id: gq_05
-    question: Which glucocorticoid is recommended for routine replacement in adults?
+    question: Which glucocorticoid is recommended for routine replacement in adults with primary adrenal insufficiency?
     expected_doc_id: nice_ng243
     expected_sections: ["1.3"]
-    notes: Section 1.3 covers routine pharmacological management.
+    expected_recommendation_ids: ["1.3.1", "1.3.2"]
+    notes: Section 1.3 specifies oral hydrocortisone in 2 or 3 divided doses as first-line replacement.
 
   - id: gq_06
-    question: How should glucocorticoid doses be adjusted during illness or fever?
+    question: How should glucocorticoid doses be adjusted during physiological stress or fever?
     expected_doc_id: nice_ng243
     expected_sections: ["1.4"]
+    expected_recommendation_ids: ["1.4.1", "1.4.2", "1.4.3"]
     notes: >-
-      Physiological stress (fever, trauma, surgery) is section 1.4; sick-day dosing
-      lives here.
+      Section 1.4 covers sick-day rules: doubling oral dose for fever >38°C, trauma, or invasive dental procedures.
 
   - id: gq_07
-    question: Do steroid doses need adjusting for exams or bereavement?
+    question: Do steroid doses need adjusting for psychological stress like bereavement or examinations?
     expected_doc_id: nice_ng243
     expected_sections: ["1.5"]
+    expected_recommendation_ids: ["1.5.1", "1.5.2"]
     notes: >-
-      Section 1.5 covers psychological stress specifically, and is distinct from the
-      physiological stress guidance in 1.4.
+      Section 1.5 advises that extra glucocorticoid is generally NOT routinely required for psychological stress, but temporary modest increases can be considered if symptomatic.
 
   - id: gq_08
-    question: How often should someone with adrenal insufficiency be reviewed?
+    question: How often should someone with established adrenal insufficiency be reviewed in specialist care?
     expected_doc_id: nice_ng243
     expected_sections: ["1.8"]
-    notes: Section 1.8 covers ongoing care, monitoring and review frequency.
+    expected_recommendation_ids: ["1.8.1", "1.8.2"]
+    notes: Section 1.8 covers annual specialist endocrine review, BP/weight monitoring, and electrolyte checks.
 
   - id: gq_09
-    question: How do you withdraw long-term glucocorticoid treatment safely?
+    question: How do you withdraw long-term glucocorticoid treatment safely to prevent adrenal insufficiency?
     expected_doc_id: nice_ng243
     expected_sections: ["1.9"]
+    expected_recommendation_ids: ["1.9.1", "1.9.2", "1.9.3"]
     notes: >-
-      Section 1.9 covers managing glucocorticoid withdrawal to prevent adrenal
-      insufficiency.
+      Section 1.9 covers gradual dose tapering protocols to allow hypothalamic-pituitary-adrenal axis recovery.
 
   - id: gq_10
-    question: What information and support should be given to someone newly diagnosed?
+    question: What information, support, and education should be given to someone newly diagnosed with adrenal insufficiency?
     expected_doc_id: nice_ng243
     expected_sections: ["1.1"]
-    notes: Section 1.1 covers information, support and shared decision making.
+    expected_recommendation_ids: ["1.1.1", "1.1.2", "1.1.3"]
+    notes: Section 1.1 covers steroid emergency card, medical alert jewelry, sick-day self-management education, and partner/family training.
 
   - id: gq_11
-    question: When should someone with suspected adrenal insufficiency be referred?
+    question: When should a primary care clinician refer a patient for suspected adrenal insufficiency?
     expected_doc_id: nice_ng243
     expected_sections: ["1.2"]
-    notes: Section 1.2 is "Initial identification and referral".
+    expected_recommendation_ids: ["1.2.3", "1.2.4", "1.2.5"]
+    notes: Section 1.2 directs immediate same-day hospital referral if crisis suspected, or urgent endocrine referral for low morning serum cortisol.
 
   - id: gq_12
-    question: What is an emergency management kit and what does it contain?
+    question: What is an emergency management kit and what supplies must it contain?
     expected_doc_id: nice_ng243
     expected_sections: ["1.7", "1.9"]
+    expected_recommendation_ids: ["1.7.3", "1.7.4"]
     notes: >-
-      Defined in the 1.9 glossary and referenced in the 1.7 emergency guidance;
-      either is a legitimate answer.
+      Emergency kit must contain 100mg injectable hydrocortisone, syringes, needles, and pictorial administration instructions.
+
+  - id: gq_13
+    question: What is the recommended mineralocorticoid replacement therapy for primary adrenal insufficiency?
+    expected_doc_id: nice_ng243
+    expected_sections: ["1.3"]
+    expected_recommendation_ids: ["1.3.4", "1.3.5"]
+    notes: Fludrocortisone is recommended for primary adrenal insufficiency (Addison's) to maintain electrolyte and fluid balance.
+
+  - id: gq_14
+    question: What should a patient do if persistent vomiting prevents taking oral steroid replacement?
+    expected_doc_id: nice_ng243
+    expected_sections: ["1.4", "1.7"]
+    expected_recommendation_ids: ["1.4.3", "1.7.1"]
+    notes: >-
+      Persistent vomiting requires immediate parenteral hydrocortisone (IM/SC/IV) injection and emergency medical attention.
+
+  - id: gq_15
+    question: What fluid resuscitation is indicated during acute adrenal crisis?
+    expected_doc_id: nice_ng243
+    expected_sections: ["1.7"]
+    expected_recommendation_ids: ["1.7.2"]
+    notes: Rapid IV infusion of 0.9% sodium chloride is indicated alongside hydrocortisone to treat hypotension and electrolyte imbalance.
+
+  - id: gq_16
+    question: How should steroid doses be managed before major surgery or general anesthesia?
+    expected_doc_id: nice_ng243
+    expected_sections: ["1.4"]
+    expected_recommendation_ids: ["1.4.4", "1.4.5"]
+    notes: Major surgery requires parenteral hydrocortisone induction (100mg IV) followed by continuous infusion or regular IV boluses.
+
+  - id: gq_17
+    question: Should DHEA (dehydroepiandrosterone) replacement be routinely prescribed?
+    expected_doc_id: nice_ng243
+    expected_sections: ["1.3"]
+    expected_recommendation_ids: ["1.3.6"]
+    notes: DHEA is not routinely recommended for all patients but may be trialed in women with persistent fatigue/low libido despite optimal glucocorticoid/mineralocorticoid replacement.
+
+  - id: gq_18
+    question: What initial blood tests are recommended to investigate suspected adrenal insufficiency in primary care?
+    expected_doc_id: nice_ng243
+    expected_sections: ["1.2"]
+    expected_recommendation_ids: ["1.2.2", "1.2.3"]
+    notes: 9am serum cortisol, serum electrolytes (sodium, potassium), and plasma ACTH if cortisol is equivocal.

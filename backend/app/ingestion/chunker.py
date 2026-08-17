@@ -1,16 +1,20 @@
-"""Section-aware chunking with token packing (FR-011 through FR-014, FR-016).
+"""Chunking strategies (FR-011 through FR-014, FR-016, Day 2 Lab).
 
-The load-bearing invariant: a numbered recommendation is atomic. Blocks are packed
+Supports two distinct chunking configurations for comparative empirical benchmarking:
+- Config A (Fixed-size): Small fixed token windows (e.g. 256 tokens, 10% overlap)
+- Config B (Section-aware): Atomic recommendation packing respecting guideline structure (600-800 tokens)
+
+The load-bearing invariant of Config B: a numbered recommendation is atomic. Blocks are packed
 toward the target size, but a recommendation is never divided — splitting one
 mid-sentence yields a chunk that is incoherent and clinically partial. An oversized
-recommendation is emitted whole and flagged rather than truncated, because a
-truncated recommendation can invert its own meaning.
+recommendation is emitted whole and flagged rather than truncated.
 """
 
 from __future__ import annotations
 
 import re
 from functools import lru_cache
+from typing import Literal
 
 import tiktoken
 
@@ -45,7 +49,7 @@ def count_tokens(text: str) -> int:
 
 
 def _group_key(block: Block) -> tuple[str, str]:
-    """Chunks never span a section or sub-section boundary."""
+    """Chunks never span a section or sub-section boundary in section-aware mode."""
     return (block.section_number, block.subsection_title)
 
 
@@ -80,12 +84,12 @@ def _build_chunk(
     )
 
 
-def chunk_blocks(
+def chunk_blocks_section(
     blocks: list[Block],
     doc: SourceDocument,
     settings: Settings | None = None,
 ) -> list[Chunk]:
-    """Pack atomic blocks into section-aware chunks within the configured band."""
+    """Config B: Pack atomic blocks into section-aware chunks within the configured band."""
     settings = settings or get_settings()
     target = settings.chunk_target_tokens
     maximum = settings.chunk_max_tokens
@@ -133,3 +137,76 @@ def chunk_blocks(
 
     flush()
     return chunks
+
+
+def chunk_blocks_fixed(
+    blocks: list[Block],
+    doc: SourceDocument,
+    chunk_size: int = 256,
+    overlap_pct: float = 0.10,
+) -> list[Chunk]:
+    """Config A: Fixed-size chunking (e.g. 256 tokens, 10% overlap)."""
+    enc = _encoding()
+    caution = doc.requires_caution()
+    overlap_tokens = int(chunk_size * overlap_pct)
+    step = max(1, chunk_size - overlap_tokens)
+
+    # Collect cleaned textual blocks
+    filtered_blocks = [
+        b for b in blocks if b.recommendation_id or not is_navigational(b.text)
+    ]
+    if not filtered_blocks:
+        return []
+
+    full_text = "\n\n".join(b.text for b in filtered_blocks)
+    tokens = enc.encode(full_text)
+
+    chunks: list[Chunk] = []
+    sequence = 0
+
+    for start in range(0, len(tokens), step):
+        chunk_token_ids = tokens[start : start + chunk_size]
+        if not chunk_token_ids:
+            break
+        sequence += 1
+        chunk_text = enc.decode(chunk_token_ids)
+        token_count = len(chunk_token_ids)
+
+        # Attribute to nearest block for provenance metadata
+        approx_pos = start / max(len(tokens), 1)
+        block_idx = min(int(approx_pos * len(filtered_blocks)), len(filtered_blocks) - 1)
+        ref_block = filtered_blocks[block_idx]
+
+        chunks.append(
+            Chunk(
+                chunk_id=f"{doc.doc_id}_fixed_c{sequence:03d}",
+                text=chunk_text,
+                document_name=doc.document_name,
+                doc_id=doc.doc_id,
+                source_url=doc.source_url,
+                document_type=doc.document_type.value,
+                publication_year=doc.publication_year,
+                requires_caution=caution,
+                page_number=ref_block.page_number,
+                section_title=ref_block.section_title,
+                section_number=ref_block.section_number,
+                subsection_title=ref_block.subsection_title,
+                recommendation_ids=ref_block.recommendation_id or "",
+                token_count=token_count,
+                is_oversized=token_count > chunk_size,
+            )
+        )
+
+    return chunks
+
+
+def chunk_blocks(
+    blocks: list[Block],
+    doc: SourceDocument,
+    settings: Settings | None = None,
+    strategy: Literal["section", "fixed"] = "section",
+) -> list[Chunk]:
+    """Pack blocks into chunks according to chosen strategy."""
+    if strategy == "fixed":
+        return chunk_blocks_fixed(blocks, doc)
+    return chunk_blocks_section(blocks, doc, settings)

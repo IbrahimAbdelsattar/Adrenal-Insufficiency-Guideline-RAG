@@ -1,4 +1,4 @@
-"""Golden-set retrieval quality regression test (T038, FR-032, FR-033, SC-003).
+"""Golden-set retrieval quality regression test (T038, FR-032, FR-033, SC-003, Day 2 Lab).
 
 Requires a built index and a reachable embedding gateway; skipped otherwise so the
 rest of the suite stays runnable offline.
@@ -14,7 +14,7 @@ from backend.app.evaluation import (
     evaluate,
     load_golden_questions,
 )
-from backend.app.retrieval.dense import DenseRetriever
+from backend.app.retrieval.factory import get_retriever
 from backend.app.retrieval.store import VectorStore
 
 
@@ -28,23 +28,26 @@ def report():
     if not settings.openrouter_api_key:
         pytest.skip("No API key configured; retrieval needs to embed the query.")
 
-    retriever = DenseRetriever(store=store, settings=settings)
-    result = evaluate(retriever, settings=settings)
+    retriever = get_retriever(retriever_type="hybrid", store=store, settings=settings)
+    result = evaluate(retriever, settings=settings, retriever_name="Hybrid", chunking_config="Section-Aware")
 
     # Printed so a failing run shows which questions regressed.
     print(f"\nGolden set: {result.total} questions | top_k={result.top_k}\n")
     for outcome in result.outcomes:
         rank = f"rank {outcome.rank}" if outcome.rank else "--"
         print(
-            f"  {outcome.question.id}  {outcome.status:<4}  {rank:<8}"
+            f"  {outcome.question.id}  {outcome.status:<4}  {rank:<8}  "
+            f"P@3: {outcome.precision_at_3:.2f}  P@5: {outcome.precision_at_5:.2f}  "
             f"expected {','.join(outcome.question.expected_sections):<9}"
-            f"{outcome.question.question[:44]}"
+            f"{outcome.question.question[:38]}"
         )
     print(
         f"\nHit rate: {result.hits}/{result.total} ({result.hit_rate:.1%})   "
         f"target >= {TARGET_HIT_RATE:.0%}   "
         f"{'PASS' if result.passed else 'FAIL'}"
     )
+    print(f"Mean Precision@3: {result.mean_precision_at_3:.2f}")
+    print(f"Mean Precision@5: {result.mean_precision_at_5:.2f}")
     if result.hits:
         print(f"Mean rank of hits: {result.mean_hit_rank:.1f}")
 
@@ -54,8 +57,8 @@ def report():
 class TestGoldenSetIntegrity:
     """These run without an index — they validate the fixture itself."""
 
-    def test_at_least_ten_questions(self):
-        assert len(load_golden_questions()) >= 10  # FR-031
+    def test_at_least_fifteen_questions(self):
+        assert len(load_golden_questions()) >= 15  # Day 2 Lab Requirement (15-20 questions)
 
     def test_every_question_declares_an_expected_section(self):
         assert all(q.expected_sections for q in load_golden_questions())
@@ -86,3 +89,7 @@ class TestRetrievalQuality:
     def test_hits_rank_highly(self, report):
         """A hit buried at rank 5 is barely a hit; the mean should be near the top."""
         assert report.mean_hit_rank <= 3.0
+
+    def test_precision_metrics_calculated(self, report):
+        assert report.mean_precision_at_3 >= 0.33
+        assert report.mean_precision_at_5 >= 0.20

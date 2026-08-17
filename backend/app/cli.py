@@ -1,14 +1,17 @@
-"""Command-line interface (contracts/cli-contract.md).
+"""Command-line interface (contracts/cli-contract.md, Day 2 Lab).
 
-    python -m backend.app.cli ingest [--dry-run] [--doc-id ID] [--verbose]
-    python -m backend.app.cli query "..." [--top-k 5] [--json] [--full-text]
-    python -m backend.app.cli eval [--top-k 5] [--json]
+    python -m backend.app.cli ingest [--dry-run] [--doc-id ID] [--strategy {section,fixed}] [--verbose]
+    python -m backend.app.cli query "..." [--top-k 5] [--retriever-type {dense,bm25,hybrid,hybrid_rerank}] [--json] [--full-text]
+    python -m backend.app.cli eval [--top-k 5] [--retriever-type {dense,bm25,hybrid,hybrid_rerank}] [--matrix] [--json]
+    python -m backend.app.cli benchmark [--output FILE] [--json]
 """
 
 from __future__ import annotations
 
 import argparse
 import sys
+from pathlib import Path
+from typing import Any
 
 from backend.app.config import get_settings
 from backend.app.errors import PipelineError
@@ -57,7 +60,7 @@ def cmd_query(args: argparse.Namespace) -> int:
     import json
 
     from backend.app.models import DISCLAIMER, SearchResponse
-    from backend.app.retrieval.dense import DenseRetriever
+    from backend.app.retrieval.factory import get_retriever
     from backend.app.retrieval.store import VectorStore
 
     settings = get_settings()
@@ -68,7 +71,9 @@ def cmd_query(args: argparse.Namespace) -> int:
         return 0
 
     top_k = args.top_k or settings.top_k
-    results = DenseRetriever(store=store, settings=settings).search(args.query, top_k)
+    retriever_type = args.retriever_type or settings.retriever_type
+    retriever = get_retriever(retriever_type=retriever_type, store=store, settings=settings)
+    results = retriever.search(args.query, top_k)
 
     if args.json:
         payload = SearchResponse(
@@ -84,7 +89,7 @@ def cmd_query(args: argparse.Namespace) -> int:
 
     _echo(f"Query: {args.query}")
     _echo(
-        f"Model: {settings.embedding_model} | top_k={top_k} | "
+        f"Retriever: {retriever_type} | Model: {settings.embedding_model} | top_k={top_k} | "
         f"floor={settings.relevance_floor:.2f}"
     )
     _echo("")
@@ -95,7 +100,7 @@ def cmd_query(args: argparse.Namespace) -> int:
         caution = "   [CAUTION: non-current source]" if chunk.requires_caution else ""
         _echo(
             f"#{result.rank}  {result.score:.3f}  {chunk.document_name[:40]}  "
-            f"p.{chunk.page_number}  {chunk.section_title[:48]}{flag}{caution}"
+            f"p.{chunk.page_number}  sec {chunk.section_number} - {chunk.section_title[:38]}{flag}{caution}"
         )
         if chunk.subsection_title:
             rec = f"  [rec {chunk.recommendation_ids}]" if chunk.recommendation_ids else ""
@@ -118,7 +123,7 @@ def cmd_eval(args: argparse.Namespace) -> int:
     import json
 
     from backend.app.evaluation import TARGET_HIT_RATE, evaluate
-    from backend.app.retrieval.dense import DenseRetriever
+    from backend.app.retrieval.factory import get_retriever
     from backend.app.retrieval.store import VectorStore
 
     settings = get_settings()
@@ -128,47 +133,40 @@ def cmd_eval(args: argparse.Namespace) -> int:
         return 1
 
     top_k = args.top_k or settings.top_k
+    retriever_type = args.retriever_type or settings.retriever_type
+    retriever = get_retriever(retriever_type=retriever_type, store=store, settings=settings)
+
     report = evaluate(
-        DenseRetriever(store=store, settings=settings),
+        retriever,
         top_k=top_k,
         settings=settings,
+        retriever_name=retriever_type.upper(),
+        chunking_config=getattr(args, "chunking_config", "Section-Aware"),
     )
 
-    if args.json:
-        print(
-            json.dumps(
-                {
-                    "top_k": report.top_k,
-                    "total": report.total,
-                    "hits": report.hits,
-                    "hit_rate": round(report.hit_rate, 4),
-                    "mean_hit_rank": round(report.mean_hit_rank, 2),
-                    "target": TARGET_HIT_RATE,
-                    "passed": report.passed,
-                    "questions": [
-                        {
-                            "id": o.question.id,
-                            "status": o.status,
-                            "rank": o.rank,
-                            "expected_sections": o.question.expected_sections,
-                            "retrieved_sections": o.retrieved_sections,
-                        }
-                        for o in report.outcomes
-                    ],
-                },
-                indent=2,
-            )
-        )
+    if getattr(args, "matrix", False):
+        print(report.to_markdown_matrix())
         return 0 if report.passed else 1
 
-    _echo(f"Golden set: {report.total} questions | top_k={report.top_k}")
+    if args.json:
+        print(json.dumps(report.to_dict(), indent=2))
+        return 0 if report.passed else 1
+
+    _echo(
+        f"Golden set: {report.total} questions | Retriever: {retriever_type} | top_k={report.top_k}"
+    )
     _echo("")
+    _echo(
+        f"{'ID':<7} {'Status':<6} {'Rank':<8} {'P@3':<7} {'P@5':<7} {'Expected':<12} {'Question'}"
+    )
+    _echo("-" * 80)
     for outcome in report.outcomes:
         rank = f"rank {outcome.rank}" if outcome.rank else "--"
+        p3 = f"{outcome.precision_at_3:.2f}"
+        p5 = f"{outcome.precision_at_5:.2f}"
+        exp = ",".join(outcome.question.expected_sections)
         _echo(
-            f"  {outcome.question.id}  {outcome.status:<4}  {rank:<8}"
-            f"expected {','.join(outcome.question.expected_sections):<9}"
-            f"{outcome.question.question[:46]}"
+            f"{outcome.question.id:<7} {outcome.status:<6} {rank:<8} {p3:<7} {p5:<7} {exp:<12} {outcome.question.question[:40]}"
         )
 
     _echo("")
@@ -177,8 +175,10 @@ def cmd_eval(args: argparse.Namespace) -> int:
         f"target >= {TARGET_HIT_RATE:.0%}   "
         f"{'PASS' if report.passed else 'FAIL'}"
     )
+    _echo(f"Mean Precision@3: {report.mean_precision_at_3:.2f}")
+    _echo(f"Mean Precision@5: {report.mean_precision_at_5:.2f}")
     if report.hits:
-        _echo(f"Mean rank of hits: {report.mean_hit_rank:.1f}")
+        _echo(f"Mean rank of hits: {report.mean_hit_rank:.2f}")
     if report.misses:
         _echo("")
         _echo("Misses (retrieved sections shown for diagnosis):")
@@ -186,10 +186,126 @@ def cmd_eval(args: argparse.Namespace) -> int:
             _echo(
                 f"  {outcome.question.id}  expected "
                 f"{','.join(outcome.question.expected_sections)}  "
-                f"got {','.join(outcome.retrieved_sections)}"
+                f"got {','.join(outcome.retrieved_sections[:3])}"
             )
 
     return 0 if report.passed else 1
+
+
+# ----------------------------------------------------------------------
+# benchmark (Day 2 Comparative Matrix)
+# ----------------------------------------------------------------------
+
+
+def cmd_benchmark(args: argparse.Namespace) -> int:
+    import json
+
+    from backend.app.evaluation import evaluate, load_golden_questions
+    from backend.app.retrieval.factory import get_retriever
+    from backend.app.retrieval.store import VectorStore
+
+    settings = get_settings()
+    store = VectorStore(settings)
+    if not store.is_ready():
+        _echo("No index built. Run: python -m backend.app.cli ingest")
+        return 1
+
+    questions = load_golden_questions()
+    _echo(f"Running Day 2 Benchmark across {len(questions)} queries...")
+
+    configs = [
+        ("dense", "Dense (Cosine)", "Section-Aware"),
+        ("bm25", "BM25 (Lexical)", "Section-Aware"),
+        ("hybrid", "Hybrid (Dense+BM25)", "Section-Aware"),
+        ("hybrid_rerank", "Hybrid + Reranker", "Section-Aware"),
+    ]
+    depths = [3, 5, 10]
+
+    comparison_results: list[dict] = []
+    reports_map: dict[str, Any] = {}
+
+    for rtype, rname, cconfig in configs:
+        retriever = get_retriever(retriever_type=rtype, store=store, settings=settings)
+        for depth in depths:
+            rep = evaluate(
+                retriever,
+                questions=questions,
+                top_k=depth,
+                settings=settings,
+                retriever_name=rname,
+                chunking_config=cconfig,
+            )
+            key = f"{rtype}_k{depth}"
+            reports_map[key] = rep
+            comparison_results.append(
+                {
+                    "retriever": rname,
+                    "type": rtype,
+                    "depth": depth,
+                    "hit_rate": rep.hit_rate,
+                    "mean_hit_rank": rep.mean_hit_rank,
+                    "mean_p3": rep.mean_precision_at_3,
+                    "mean_p5": rep.mean_precision_at_5,
+                    "passed": rep.passed,
+                }
+            )
+
+    if args.json:
+        payload = {
+            "summary": comparison_results,
+            "reports": {k: v.to_dict() for k, v in reports_map.items()},
+        }
+        output_str = json.dumps(payload, indent=2)
+        if args.output:
+            Path(args.output).write_text(output_str, encoding="utf-8")
+            _echo(f"Benchmark written to {args.output}")
+        else:
+            print(output_str)
+        return 0
+
+    # Print summary table
+    _echo("")
+    _echo("=" * 80)
+    _echo("DAY 2 RETRIEVAL BENCHMARK: COMPARATIVE SUMMARY")
+    _echo("=" * 80)
+    _echo(
+        f"{'Retriever Strategy':<25} {'Top-k':<7} {'Hit Rate':<10} {'Mean Rank':<11} {'Mean P@3':<10} {'Mean P@5':<10} {'Status'}"
+    )
+    _echo("-" * 80)
+    for res in comparison_results:
+        status = "PASS" if res["passed"] else "FAIL"
+        _echo(
+            f"{res['retriever']:<25} {res['depth']:<7} {res['hit_rate']:<10.1%} {res['mean_hit_rank']:<11.2f} {res['mean_p3']:<10.2f} {res['mean_p5']:<10.2f} {status}"
+        )
+
+    # Detailed matrix for the primary hybrid_rerank configuration
+    best_report = reports_map.get("hybrid_rerank_k5") or reports_map.get("hybrid_k5")
+    if best_report:
+        _echo("")
+        _echo("=" * 80)
+        _echo("EVALUATION TRACKING MATRIX (HYBRID + RERANK, TOP-5)")
+        _echo("=" * 80)
+        matrix_md = best_report.to_markdown_matrix()
+        _echo(matrix_md)
+
+        if args.output:
+            full_md = (
+                "# Retrieval Evaluation & Benchmark Report\n\n"
+                "## Summary Comparison Table\n\n"
+                "| Strategy | Top-$k$ | Hit Rate | Mean Hit Rank | Mean Precision@3 | Mean Precision@5 | Status |\n"
+                "| :--- | :---: | :---: | :---: | :---: | :---: | :---: |\n"
+            )
+            for res in comparison_results:
+                full_md += (
+                    f"| {res['retriever']} | {res['depth']} | {res['hit_rate']:.1%} | "
+                    f"{res['mean_hit_rank']:.2f} | {res['mean_p3']:.2f} | {res['mean_p5']:.2f} | "
+                    f"{'PASS' if res['passed'] else 'FAIL'} |\n"
+                )
+            full_md += f"\n\n## Primary Evaluation Tracking Matrix\n\n{matrix_md}\n"
+            Path(args.output).write_text(full_md, encoding="utf-8")
+            _echo(f"\nMarkdown benchmark report written to {args.output}")
+
+    return 0
 
 
 # ----------------------------------------------------------------------
@@ -198,7 +314,7 @@ def cmd_eval(args: argparse.Namespace) -> int:
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="python -m backend.app.cli",
-        description="Clinical Decision Support Lite — ingestion and retrieval.",
+        description="Clinical Decision Support Lite — ingestion, retrieval & evaluation.",
     )
     sub = parser.add_subparsers(dest="command", required=True)
 
@@ -215,6 +331,12 @@ def build_parser() -> argparse.ArgumentParser:
     query = sub.add_parser("query", help="Retrieve chunks for a clinical question.")
     query.add_argument("query", help="The clinical question.")
     query.add_argument("--top-k", type=int, default=0, help="Results to return.")
+    query.add_argument(
+        "--retriever-type",
+        choices=["dense", "bm25", "hybrid", "hybrid_rerank"],
+        default=None,
+        help="Retrieval strategy (default: configured in settings).",
+    )
     query.add_argument("--json", action="store_true", help="Emit SearchResponse JSON.")
     query.add_argument(
         "--full-text", action="store_true", help="Print whole chunks, not excerpts."
@@ -222,11 +344,27 @@ def build_parser() -> argparse.ArgumentParser:
     query.set_defaults(func=cmd_query)
 
     evaluate_cmd = sub.add_parser(
-        "eval", help="Run the golden question set and report retrieval hit rate."
+        "eval", help="Run golden questions and report hit rate, Precision@3, and Precision@5."
     )
     evaluate_cmd.add_argument("--top-k", type=int, default=0, help="Retrieval depth.")
-    evaluate_cmd.add_argument("--json", action="store_true", help="Emit JSON.")
+    evaluate_cmd.add_argument(
+        "--retriever-type",
+        choices=["dense", "bm25", "hybrid", "hybrid_rerank"],
+        default=None,
+        help="Retrieval strategy.",
+    )
+    evaluate_cmd.add_argument(
+        "--matrix", action="store_true", help="Emit markdown evaluation matrix table."
+    )
+    evaluate_cmd.add_argument("--json", action="store_true", help="Emit JSON report.")
     evaluate_cmd.set_defaults(func=cmd_eval)
+
+    benchmark_cmd = sub.add_parser(
+        "benchmark", help="Run comprehensive multi-strategy, multi-depth evaluation benchmark."
+    )
+    benchmark_cmd.add_argument("--output", "-o", help="File path to save markdown or JSON report.")
+    benchmark_cmd.add_argument("--json", action="store_true", help="Emit JSON instead of Markdown.")
+    benchmark_cmd.set_defaults(func=cmd_benchmark)
 
     return parser
 

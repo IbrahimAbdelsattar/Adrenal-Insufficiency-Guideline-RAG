@@ -32,6 +32,7 @@ class OpenRouterEmbedder:
                 "add it. (The legacy name OPENROUTER_API_KEY is also accepted.)"
             )
         self._dimensions = 0
+        self._query_cache: dict[str, list[float]] = {}
 
     @property
     def model_id(self) -> str:
@@ -56,8 +57,12 @@ class OpenRouterEmbedder:
         return vectors
 
     def embed_query(self, text: str) -> list[float]:
+        if text in self._query_cache:
+            return self._query_cache[text]
         with httpx.Client(timeout=REQUEST_TIMEOUT_SECONDS) as client:
-            return self._embed_batch(client, [text])[0]
+            vec = self._embed_batch(client, [text])[0]
+            self._query_cache[text] = vec
+            return vec
 
     # ------------------------------------------------------------------
 
