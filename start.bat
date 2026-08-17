@@ -2,7 +2,7 @@
 setlocal enabledelayedexpansion
 
 echo ===================================================
-echo   Eva AI CDS — Fast Windows Launcher
+echo   Eva AI CDS - Fast Windows Launcher
 echo ===================================================
 echo.
 
@@ -38,7 +38,7 @@ if not exist ".env" (
 
 REM 4. Check frontend dependencies
 if not exist "frontend\node_modules" (
-    echo [INFO] Installing frontend dependencies (npm install) ...
+    echo [INFO] Installing frontend dependencies - npm install ...
     cd frontend
     call npm install
     cd ..
@@ -48,8 +48,8 @@ if not exist "frontend\node_modules" (
 
 echo.
 echo ===================================================
-echo [1/2] Starting FastAPI Backend on http://localhost:8000 ...
-start "Eva AI Backend (FastAPI)" cmd /k "call .venv\Scripts\activate.bat && uvicorn backend.app.main:app --reload --port 8000"
+echo [1/2] Starting FastAPI Backend on http://localhost:8010 ...
+start "Eva AI Backend (FastAPI)" cmd /k "call .venv\Scripts\activate.bat && uvicorn backend.app.main:app --reload --port 8010"
 
 echo [2/2] Starting Next.js Frontend on http://localhost:3000 ...
 start "Eva AI Frontend (Next.js)" cmd /k "cd frontend && npm run dev"
@@ -59,8 +59,8 @@ echo ===================================================
 echo   Eva AI services launched in separate windows!
 echo   -----------------------------------------------
 echo   Web UI:         http://localhost:3000
-echo   API Docs:       http://localhost:8000/docs
-echo   Health Check:   http://localhost:8000/api/health
+echo   API Docs:       http://localhost:8010/docs
+echo   Health Check:   http://localhost:8010/api/health
 echo ===================================================
 echo.
 pause

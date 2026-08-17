@@ -106,7 +106,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     });
   } catch {
     throw new ApiError(
-      "Cannot reach the backend. Is it running on port 8000?",
+      "Cannot reach the backend. Is it running on port 8010?",
       0,
     );
   }
