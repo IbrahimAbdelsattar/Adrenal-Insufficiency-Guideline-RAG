@@ -47,8 +47,9 @@ The system is structured as a **monolithic repository** with strict internal mod
 ```mermaid
 graph TD
     subgraph ClientLayer["Frontend (Next.js 15 / React 19)"]
-        UI["Retrieval Inspector UI (app/page.tsx)"]
-        SearchComp["SearchBox Component"]
+        UI["Retrieval & Answer Inspector (app/page.tsx)"]
+        SearchComp["SearchBox (Mode Toggle: Retrieve / Generate)"]
+        AnswerComp["AnswerCard Component"]
         CardComp["ChunkCard Component"]
         StatusComp["IndexStatus Component"]
         LangToggle["LanguageToggle (EN / العربية)"]
@@ -59,7 +60,7 @@ graph TD
     subgraph ServerLayer["Backend (FastAPI Monolith)"]
         AppMain["FastAPI App Entry (backend/app/main.py)"]
         SearchApi["Search & Health API (api/search.py)"]
-        GenStub["Generate API 501 Stub (api/generate.py)"]
+        GenApi["Generate API (api/generate.py)"]
         CliApp["CLI Interface (cli.py)"]
         
         subgraph PipelineLayer["Ingestion Pipeline"]
@@ -71,13 +72,20 @@ graph TD
             Pipeline["Pipeline Orchestrator (ingestion/pipeline.py)"]
         end
         
-        subgraph AbstractionSeams["Protocol Seams"]
-            RetrieverProto["Retriever Protocol (retrieval/base.py)"]
-            EmbedderProto["Embedder Protocol (embeddings/base.py)"]
+        subgraph RetrievalEngine["Retrieval Engine"]
+            DenseRetriever["Dense Cosine Retriever (retrieval/dense.py)"]
+            BM25Retriever["BM25 Lexical Retriever (retrieval/bm25.py)"]
+            HybridRetriever["Hybrid RRF Retriever (retrieval/hybrid.py)"]
+            Reranker["Cross-Encoder Reranker (retrieval/reranker.py)"]
+            ScopeGuard["Scope Classifier (retrieval/scope.py)"]
         end
 
-        DenseRetriever["Dense Cosine Retriever (retrieval/dense.py)"]
-        OpenRouterEmbed["OpenRouter Embedding Client (embeddings/openrouter.py)"]
+        subgraph GenerationEngine["Generation Engine"]
+            Assembler["Context Assembler (generation/assembler.py)"]
+            PromptEng["Prompt Engine (generation/prompt.py)"]
+            OmniClient["OmniRoute Async LLM Client (generation/client.py)"]
+            CitationParser["Citation Extractor (generation/citations.py)"]
+        end
     end
 
     subgraph StorageLayer["Data & Persistence"]
@@ -88,28 +96,35 @@ graph TD
     end
 
     subgraph ExternalProvider["External APIs"]
-        OpenRouter["OpenRouter / OmniRoute Gateway API"]
+        OmniRoute["OmniRoute / OpenRouter Gateway API"]
     end
 
     %% Client Interactions
     UI --> SearchComp
+    UI --> AnswerComp
     UI --> CardComp
     UI --> StatusComp
     UI --> LangToggle
     UI --> ThemeToggle
     SearchComp --> ApiClient
-    ApiClient -->|"HTTP /api/search"| SearchApi
-    StatusComp -->|"HTTP /api/index"| SearchApi
+    ApiClient -->|"POST /api/search"| SearchApi
+    ApiClient -->|"POST /api/generate"| GenApi
+    StatusComp -->|"GET /api/index"| SearchApi
 
     %% Server Internal Routing
     AppMain --> SearchApi
-    AppMain --> GenStub
-    SearchApi --> RetrieverProto
-    RetrieverProto -.-> DenseRetriever
-    DenseRetriever --> EmbedderProto
-    EmbedderProto -.-> OpenRouterEmbed
-    OpenRouterEmbed -->|"POST /api/v1/embeddings"| OpenRouter
-    DenseRetriever --> ChromaDB
+    AppMain --> GenApi
+    SearchApi --> HybridRetriever
+    GenApi --> HybridRetriever
+    HybridRetriever --> ScopeGuard
+    ScopeGuard --> Assembler
+    Assembler --> PromptEng
+    PromptEng --> OmniClient
+    OmniClient --> OmniRoute
+    OmniRoute --> OmniClient
+    OmniClient --> CitationParser
+    CitationParser --> GenApi
+    HybridRetriever --> ChromaDB
 
     %% CLI and Pipeline Connections
     CliApp --> Pipeline
@@ -541,16 +556,44 @@ Returns index metadata (`built_at`, `embedding_model`, `chunk_count`, `document_
 Returns all registered source documents and credibility justifications.
 
 #### 5. `POST /api/generate`
-Returns **`501 Not Implemented`** stub by design (Constitution Principle V).
+Generates an evidence-grounded clinical answer using the OmniRoute LLM gateway with structured inline `[Source N]` citations and scope guardrails.
+
+```json
+// Request
+{
+  "query": "What dose of hydrocortisone should be given for suspected adrenal crisis in adults?",
+  "top_k": 5
+}
+
+// Response (200 OK)
+{
+  "query": "What dose of hydrocortisone should be given for suspected adrenal crisis in adults?",
+  "answer": "For adults with suspected adrenal crisis, administer 100 mg hydrocortisone immediately via IV or IM injection [Source 1]. Do not delay treatment to perform diagnostic investigations.\n\nDisclaimer: This information is for educational purposes and should not replace clinical judgment.",
+  "citations": [
+    {
+      "source_id": "1",
+      "document_name": "NICE NG243",
+      "section_title": "Emergency management of adrenal crisis",
+      "section_number": "1.7",
+      "page_number": 14,
+      "source_url": "https://www.nice.org.uk/guidance/ng243"
+    }
+  ],
+  "evidence_found": true,
+  "disclaimer": "Decision-support aid for qualified clinical users...",
+  "model": "anthropic/claude-sonnet-4.5",
+  "latency_ms": 1240
+}
+```
 
 ---
 
 ## 🧪 Testing & Quality Verification
 
-Run the test suite using `pytest`:
+Run the full test suite using `pytest`:
 
 ```bash
-# Run unit, integration, and golden evaluation tests
+# Run all unit, integration, and golden evaluation tests (151 tests)
 pytest backend/tests/ -v
 ```
 
@@ -562,6 +605,7 @@ pytest backend/tests/ -v
 ai-hackthon/
 ├── README.md                                  # Full system specification & architecture guide
 ├── DAY2_RETRIEVAL_OPTIMIZATION.md             # Day 2 Retrieval Evaluation & Optimization Report
+├── DAY3_GENERATION_AND_INTEGRATION.md         # Day 3 Evidence-Grounded Generation Specification
 ├── Eva_AI_Comprehensive_Documentation.docx  # Generated Word document specification
 ├── start.bat                                  # Fast 1-click Windows project launcher
 ├── generate_docx.js                           # Node script to build Word documentation
@@ -581,7 +625,12 @@ ai-hackthon/
 │   │   ├── errors.py                          # Typed system errors & exit codes
 │   │   ├── api/
 │   │   │   ├── search.py                      # Search, health, index & sources endpoints
-│   │   │   └── generate.py                    # 501 Stub for Day 2 generation
+│   │   │   └── generate.py                    # Evidence-grounded generation endpoint
+│   │   ├── generation/
+│   │   │   ├── client.py                      # OmniRoute / OpenRouter async LLM client
+│   │   │   ├── prompt.py                      # NICE NG243 clinical system prompt
+│   │   │   ├── assembler.py                   # Context evidence assembler
+│   │   │   └── citations.py                   # Citation extractor & abstention logic
 │   │   ├── ingestion/
 │   │   │   ├── registry.py                    # Sources.yaml validator
 │   │   │   ├── parser.py                      # PyMuPDF span-level PDF extractor
@@ -596,27 +645,38 @@ ai-hackthon/
 │   │   │   ├── hybrid.py                      # Hybrid Dense + BM25 Reciprocal Rank Fusion
 │   │   │   ├── reranker.py                    # Cross-Encoder transformer reranker
 │   │   │   ├── factory.py                     # Retriever factory (pluggable strategies)
+│   │   │   ├── scope.py                       # Clinical scope classifier & guardrail
 │   │   │   └── store.py                       # ChromaDB persistent store client
 │   │   └── embeddings/
 │   │       ├── base.py                        # Embedder protocol seam
 │   │       └── openrouter.py                  # OpenRouter batched embedding client with query cache
 │   └── tests/
-│       ├── unit/                              # Cleaner, sectioner, chunker, bm25, hybrid unit tests
+│       ├── unit/                              # Cleaner, sectioner, chunker, bm25, hybrid, generation unit tests
+│       │   ├── test_assembly.py               # Context assembly unit tests
 │       │   ├── test_bm25.py                   # BM25 tokenizer and search unit tests
-│       │   └── test_hybrid.py                 # Hybrid RRF fusion & reranker fallback tests
-│       ├── integration/                       # Pipeline & search latency integration tests
+│       │   ├── test_citations.py              # Citation extraction and abstention tests
+│       │   ├── test_config.py                 # Configuration settings tests
+│       │   ├── test_hybrid.py                 # Hybrid RRF fusion & reranker fallback tests
+│       │   ├── test_reranker.py               # Cross-Encoder sigmoid calibration tests
+│       │   └── test_scope.py                  # Scope classification threshold tests
+│       ├── integration/                       # Pipeline, generate API, and latency integration tests
+│       │   ├── test_generate_api.py           # Generation API integration tests
+│       │   └── test_hybrid_api.py             # Hybrid search API integration tests
 │       └── eval/
 │           ├── golden_questions.yaml          # Golden clinical question dataset (18 queries)
-│           └── test_retrieval_quality.py      # Automated retrieval hit-rate & Precision@k test
+│           ├── golden_generation.yaml         # Golden generation evaluation test cases
+│           ├── test_retrieval_quality.py      # Automated retrieval hit-rate & Precision@k test
+│           └── test_generation_quality.py     # Automated generation quality & abstention test
 ├── frontend/
 │   ├── app/
 │   │   ├── layout.tsx                         # Root layout with persistent disclaimer banner & header
-│   │   ├── page.tsx                           # Retrieval Inspector UI page
+│   │   ├── page.tsx                           # Dual-mode Search & AI Answer Inspector UI
 │   │   └── globals.css                        # Monomorphic CSS styling & theme variables
 │   ├── components/
-│   │   ├── SearchBox.tsx                      # Query input component with exemplars
-│   │   ├── ChunkCard.tsx                      # Ranked evidence card with citation copy
-│   │   ├── IndexStatus.tsx                    # Index status & document counter
+│   │   ├── SearchBox.tsx                      # Query input with Search / Generate mode toggle
+│   │   ├── AnswerCard.tsx                     # AI synthesized answer card with source badges
+│   │   ├── ChunkCard.tsx                      # Ranked evidence card with diagnostics panel
+│   │   ├── IndexStatus.tsx                    # Index status, mode badge & document counter
 │   │   ├── ThemeToggle.tsx                    # Light/Dark mode switcher
 │   │   └── LanguageToggle.tsx                 # Bilingual EN / العربية toggle
 │   ├── lib/
