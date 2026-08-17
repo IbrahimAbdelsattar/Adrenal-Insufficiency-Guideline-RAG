@@ -70,7 +70,7 @@ services:
         BACKEND_URL: http://backend:8000
         # Browser calls the backend domain directly, bypassing the Next rewrite.
         # Traefik makes Next reject proxied POSTs with "400 Invalid host header".
-        NEXT_PUBLIC_API_BASE: ${NEXT_PUBLIC_API_BASE:-https://api-sapphire.dawrly.space}
+        NEXT_PUBLIC_API_BASE: ${NEXT_PUBLIC_API_BASE:-}
     restart: unless-stopped
 
     expose:
