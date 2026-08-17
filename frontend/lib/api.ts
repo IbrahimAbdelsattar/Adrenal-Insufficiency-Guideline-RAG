@@ -1,6 +1,6 @@
 /**
  * Typed client for the FastAPI backend.
- * Shapes mirror specs/001-clinical-rag-ingestion/contracts/search-api.yaml.
+ * Shapes mirror the FastAPI response models.
  */
 
 export interface Chunk {
@@ -28,11 +28,54 @@ export interface RetrievalResult {
   below_floor: boolean;
 }
 
+/**
+ * Scope classification returned by the backend.
+ *
+ * in_scope:
+ *   The question is related to the current clinical topic
+ *   and relevant evidence was found.
+ *
+ * no_evidence:
+ *   The question appears related to the topic, but the
+ *   retrieved evidence is not strong enough.
+ *
+ * out_of_scope:
+ *   The question is outside the current scope of Eva AI.
+ */
+export type ScopeStatus =
+  | "in_scope"
+  | "no_evidence"
+  | "out_of_scope";
+
 export interface SearchResponse {
   query: string;
+
+  /**
+   * Retrieved chunks.
+   *
+   * For out_of_scope queries this will be an empty array,
+   * because unrelated evidence should not be shown to the user.
+   */
   results: RetrievalResult[];
+
   result_count: number;
+
+  /**
+   * True only when strong evidence was found.
+   */
   evidence_found: boolean;
+
+  /**
+   * Indicates whether the query is inside or outside
+   * the current knowledge scope.
+   */
+  scope_status: ScopeStatus;
+
+  /**
+   * Human-readable explanation of the scope/evidence state.
+   */
+  scope_message: string;
+
   embedding_model: string;
   latency_ms: number;
   disclaimer: string;
@@ -70,7 +113,10 @@ export interface SourceDocument {
   requires_caution: boolean;
 }
 
-/** Thrown with the backend's own `detail` message so the UI can show it verbatim. */
+/**
+ * Thrown with the backend's own `detail` message
+ * so the UI can show it verbatim.
+ */
 export class ApiError extends Error {
   constructor(
     message: string,
@@ -84,26 +130,36 @@ export class ApiError extends Error {
 /**
  * Base URL for API calls.
  *
- * Empty (the default) means same-origin, which is what local development and
- * the single-process production image both want.
+ * Empty (the default) means same-origin, which is what local
+ * development and the single-process production image both want.
  *
- * In the split VPS deployment it is set to the backend's own domain so the
- * browser talks to FastAPI directly. Routing POSTs through the Next rewrite
- * behind Traefik makes Next reject them with `400 Invalid host header`, so the
- * proxy is bypassed rather than worked around. CORS is granted to this origin
- * by the backend's ALLOWED_ORIGIN setting.
- *
- * NEXT_PUBLIC_* is inlined at build time, so this must be a Docker build arg.
+ * In the split VPS deployment it is set to the backend's own
+ * domain so the browser talks to FastAPI directly.
  */
-const API_BASE = (process.env.NEXT_PUBLIC_API_BASE ?? "").replace(/\/$/, "");
+const API_BASE = (
+  process.env.NEXT_PUBLIC_API_BASE ?? ""
+).replace(/\/$/, "");
 
-async function request<T>(path: string, init?: RequestInit): Promise<T> {
+/**
+ * Generic API request helper.
+ */
+async function request<T>(
+  path: string,
+  init?: RequestInit,
+): Promise<T> {
   let response: Response;
+
   try {
-    response = await fetch(`${API_BASE}${path}`, {
-      ...init,
-      headers: { "Content-Type": "application/json", ...(init?.headers ?? {}) },
-    });
+    response = await fetch(
+      `${API_BASE}${path}`,
+      {
+        ...init,
+        headers: {
+          "Content-Type": "application/json",
+          ...(init?.headers ?? {}),
+        },
+      },
+    );
   } catch {
     throw new ApiError(
       "Cannot reach the backend. Is it running on port 8010?",
@@ -113,29 +169,69 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 
   if (!response.ok) {
     let detail = `Request failed (${response.status}).`;
+
     try {
       const body = await response.json();
-      if (typeof body?.detail === "string") detail = body.detail;
+
+      if (
+        typeof body?.detail === "string"
+      ) {
+        detail = body.detail;
+      }
     } catch {
-      /* keep the fallback message */
+      /* Keep fallback message */
     }
-    throw new ApiError(detail, response.status);
+
+    throw new ApiError(
+      detail,
+      response.status,
+    );
   }
 
   return response.json() as Promise<T>;
 }
 
-export function search(query: string, topK: number): Promise<SearchResponse> {
-  return request<SearchResponse>("/api/search", {
-    method: "POST",
-    body: JSON.stringify({ query, top_k: topK }),
-  });
+/**
+ * Search the clinical knowledge base.
+ *
+ * The backend is responsible for:
+ * - semantic retrieval
+ * - evidence threshold
+ * - scope detection
+ * - filtering out unrelated results
+ */
+export function search(
+  query: string,
+  topK: number,
+): Promise<SearchResponse> {
+  return request<SearchResponse>(
+    "/api/search",
+    {
+      method: "POST",
+      body: JSON.stringify({
+        query,
+        top_k: topK,
+      }),
+    },
+  );
 }
 
+/**
+ * Get information about the current vector index.
+ */
 export function getIndexStatus(): Promise<IndexManifest> {
-  return request<IndexManifest>("/api/index");
+  return request<IndexManifest>(
+    "/api/index",
+  );
 }
 
-export function getSources(): Promise<{ sources: SourceDocument[] }> {
-  return request<{ sources: SourceDocument[] }>("/api/sources");
+/**
+ * Get registered clinical sources.
+ */
+export function getSources(): Promise<{
+  sources: SourceDocument[];
+}> {
+  return request<{
+    sources: SourceDocument[];
+  }>("/api/sources");
 }

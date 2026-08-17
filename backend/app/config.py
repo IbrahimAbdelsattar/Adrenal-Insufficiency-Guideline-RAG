@@ -67,6 +67,11 @@ class Settings(BaseSettings):
         default="cross-encoder/ms-marco-MiniLM-L-6-v2", alias="RERANKER_MODEL"
     )
     hybrid_candidate_k: int = Field(default=20, alias="HYBRID_CANDIDATE_K")
+    # Tuned against the cross-encoder reranker scale, where unrelated queries
+    # score ~0.000 and in-scope queries start around 0.007. This value is tied
+    # to RETRIEVER_TYPE: raw dense scores sit in a 0.4-0.8 band, so switching
+    # retrievers requires re-tuning this (see tests/unit/test_scope.py).
+    scope_threshold: float = Field(default=0.005, alias="SCOPE_THRESHOLD")
 
     # --- Paths (relative values resolve against the repo root) ---
     corpus_dir: Path = Field(default=Path("data/corpus"), alias="CORPUS_DIR")

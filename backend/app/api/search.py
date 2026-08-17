@@ -12,6 +12,7 @@ from backend.app.config import get_settings
 from backend.app.errors import PipelineError
 from backend.app.models import DISCLAIMER, IndexManifest, SearchResponse
 from backend.app.retrieval.factory import get_retriever
+from backend.app.retrieval.scope import classify_scope
 from backend.app.retrieval.store import VectorStore
 
 logger = logging.getLogger(__name__)
@@ -39,7 +40,7 @@ def get_health() -> dict:
         store = VectorStore(settings)
         ready = store.is_ready()
         manifest = store.read_manifest()
-    except Exception as exc:  # an unavailable store is degraded, not fatal
+    except Exception as exc:
         return {
             "status": "degraded",
             "index_ready": False,
@@ -48,13 +49,23 @@ def get_health() -> dict:
         }
 
     index_model = manifest.embedding_model if manifest else ""
-    model_matches = (not index_model) or index_model == settings.embedding_model
+    model_matches = (
+        (not index_model)
+        or index_model == settings.embedding_model
+    )
 
     problems = []
+
     if not ready:
-        problems.append("No index built - run: python -m backend.app.cli ingest")
+        problems.append(
+            "No index built - run: python -m backend.app.cli ingest"
+        )
+
     if not key_configured:
-        problems.append("OMNIROUTE_API_KEY is not set - search cannot embed queries")
+        problems.append(
+            "OMNIROUTE_API_KEY is not set - search cannot embed queries"
+        )
+
     if not model_matches:
         problems.append(
             f"Index was built with '{index_model}' but EMBEDDING_MODEL is "
@@ -68,36 +79,51 @@ def get_health() -> dict:
         "embedding_model": settings.embedding_model,
         "index_embedding_model": index_model,
         "model_matches_index": model_matches,
-        "message": "; ".join(problems) if problems else "Index ready.",
+        "message": "; ".join(problems)
+        if problems
+        else "Index ready.",
     }
 
 
 @router.get("/index", response_model=IndexManifest)
 def get_index_status() -> IndexManifest:
     """The manifest describing how the current index was built (FR-030)."""
+
     manifest = VectorStore().read_manifest()
+
     if manifest is None:
         raise HTTPException(
             status_code=404,
-            detail="No index has been built. Run: python -m backend.app.cli ingest",
+            detail=(
+                "No index has been built. "
+                "Run: python -m backend.app.cli ingest"
+            ),
         )
+
     return manifest
 
 
 @router.get("/sources")
 def list_sources() -> dict:
     """Provenance registry, for review (FR-001, User Story 4)."""
+
     from backend.app.ingestion.registry import load_registry
 
     try:
         documents = load_registry()
     except PipelineError as exc:
-        raise HTTPException(status_code=503, detail=str(exc)) from exc
+        raise HTTPException(
+            status_code=503,
+            detail=str(exc),
+        ) from exc
 
     return {
         "sources": [
             {
-                **doc.model_dump(mode="json", exclude={"filename"}),
+                **doc.model_dump(
+                    mode="json",
+                    exclude={"filename"},
+                ),
                 "requires_caution": doc.requires_caution(),
             }
             for doc in documents
@@ -107,15 +133,18 @@ def list_sources() -> dict:
 
 @router.post("/search", response_model=SearchResponse)
 def search(request: SearchRequest) -> SearchResponse:
-    """Dense top-K retrieval with full citation metadata (FR-021 to FR-025)."""
+    """Top-K retrieval with scope detection and citation metadata."""
+
     settings = get_settings()
     store = VectorStore(settings)
 
     if not store.is_ready():
         raise HTTPException(
             status_code=503,
-            detail="No evidence is available: the index is empty. "
-            "Run: python -m backend.app.cli ingest",
+            detail=(
+                "No evidence is available: the index is empty. "
+                "Run: python -m backend.app.cli ingest"
+            ),
         )
 
     # An index built with a different model lives in a different vector space.
@@ -124,8 +153,8 @@ def search(request: SearchRequest) -> SearchResponse:
         raise HTTPException(
             status_code=503,
             detail=(
-                f"Index was built with '{manifest.embedding_model}' but the app is "
-                f"configured for '{settings.embedding_model}'. Re-run ingest."
+                f"Index was built with '{manifest.embedding_model}' but the app "
+                f"is configured for '{settings.embedding_model}'. Re-run ingest."
             ),
         )
 
@@ -139,20 +168,29 @@ def search(request: SearchRequest) -> SearchResponse:
         raise HTTPException(status_code=503, detail=str(exc)) from exc
 
     latency_ms = int((time.perf_counter() - started) * 1000)
-    above_floor = sum(1 for r in results if not r.below_floor)
+
+    above_floor = sum(1 for result in results if not result.below_floor)
+    top_score = results[0].score if results else 0.0
+
     logger.info(
         "search results=%d above_floor=%d top_score=%.3f latency_ms=%d",
         len(results),
         above_floor,
-        results[0].score if results else 0.0,
+        top_score,
         latency_ms,
+    )
+
+    scope_status, scope_message, filtered_results = classify_scope(
+        results, settings.scope_threshold
     )
 
     return SearchResponse(
         query=request.query,
-        results=results,
-        result_count=len(results),
-        evidence_found=above_floor > 0,
+        results=filtered_results,
+        result_count=len(filtered_results),
+        evidence_found=scope_status == "in_scope",
+        scope_status=scope_status,
+        scope_message=scope_message,
         embedding_model=settings.embedding_model,
         latency_ms=latency_ms,
         disclaimer=DISCLAIMER,

@@ -61,6 +61,7 @@ def cmd_query(args: argparse.Namespace) -> int:
 
     from backend.app.models import DISCLAIMER, SearchResponse
     from backend.app.retrieval.factory import get_retriever
+    from backend.app.retrieval.scope import classify_scope
     from backend.app.retrieval.store import VectorStore
 
     settings = get_settings()
@@ -76,11 +77,16 @@ def cmd_query(args: argparse.Namespace) -> int:
     results = retriever.search(args.query, top_k)
 
     if args.json:
+        scope_status, scope_message, shown = classify_scope(
+            results, settings.scope_threshold
+        )
         payload = SearchResponse(
             query=args.query,
-            results=results,
-            result_count=len(results),
-            evidence_found=any(not r.below_floor for r in results),
+            results=shown,
+            result_count=len(shown),
+            evidence_found=scope_status == "in_scope",
+            scope_status=scope_status,
+            scope_message=scope_message,
             embedding_model=settings.embedding_model,
             disclaimer=DISCLAIMER,
         )

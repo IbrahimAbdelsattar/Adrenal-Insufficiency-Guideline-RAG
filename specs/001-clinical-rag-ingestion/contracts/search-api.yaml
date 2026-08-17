@@ -123,12 +123,16 @@ components:
   schemas:
     SearchResponse:
       type: object
-      required: [query, results, result_count, evidence_found, disclaimer]
+      required:
+        [query, results, result_count, evidence_found, scope_status, disclaimer]
       properties:
         query:
           type: string
         results:
           type: array
+          description: >
+            Always empty when scope_status is out_of_scope, so an unrelated question
+            is never answered with unrelated guideline text.
           items:
             $ref: "#/components/schemas/RetrievalResult"
         result_count:
@@ -138,6 +142,17 @@ components:
           description: >
             False when no result meets the relevance floor. Consumers MUST NOT present
             clinical guidance when this is false (FR-025, Principle I).
+        scope_status:
+          type: string
+          enum: [in_scope, no_evidence, out_of_scope]
+          description: >
+            in_scope: at least one result meets the relevance floor.
+            no_evidence: related to the corpus, but nothing meets the floor; results
+            are still returned.
+            out_of_scope: top score is below the scope threshold; results are withheld.
+        scope_message:
+          type: string
+          description: Human-readable explanation of scope_status, for display.
         embedding_model:
           type: string
         latency_ms:
