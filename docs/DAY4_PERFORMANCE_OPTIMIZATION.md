@@ -245,6 +245,7 @@ crisis dosing next to sick-day rules.
 | `frontend/lib/api.ts` | `generateStream()` SSE client, stream types, `cache_hit` field |
 | `frontend/app/page.tsx` | Progressive rendering of streamed answers, `streaming` state |
 | `frontend/components/AnswerCard.tsx` | “cached” badge |
+| `frontend/package-lock.json` | Regenerated — was out of sync with `package.json` (`npm ci` failed in Docker with missing `@emnapi/*` entries); fixed via `npm install --package-lock-only` |
 
 ### Tests
 
