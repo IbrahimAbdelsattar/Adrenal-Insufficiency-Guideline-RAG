@@ -19,6 +19,39 @@ def mock_llm(monkeypatch):
     monkeypatch.setattr(LLMClient, "generate_completion", mock_generate)
 
 
+@pytest.fixture
+def mock_retriever(monkeypatch):
+    """Mocks get_shared_retriever for generation integration tests."""
+    import backend.app.api.generate as generate_module
+    from backend.app.models import Chunk, RetrievalResult
+
+    c = Chunk.from_stored(
+        "c1",
+        "Hydrocortisone should be given immediately for suspected adrenal crisis.",
+        {
+            "doc_id": "ng243",
+            "document_name": "NICE NG243 — Adrenal insufficiency",
+            "source_url": "https://www.nice.org.uk/guidance/ng243",
+            "document_type": "guideline",
+            "publication_year": 2024,
+            "requires_caution": False,
+            "page_number": 27,
+            "section_title": "1.7 Emergency management of adrenal crisis",
+            "section_number": "1.7",
+            "subsection_title": "",
+            "recommendation_ids": "1.7.1",
+            "token_count": 20,
+            "is_oversized": False,
+        },
+    )
+
+    class FixedRetriever:
+        def search(self, query: str, top_k: int) -> list:
+            return [RetrievalResult(chunk=c, score=0.95, rank=1, below_floor=False)]
+
+    monkeypatch.setattr(generate_module, "get_shared_retriever", lambda s: FixedRetriever())
+
+
 def test_generate_api_abstains_when_no_evidence(monkeypatch):
     """When no evidence is found or out of scope, the endpoint should return an abstention message without calling LLM."""
     import backend.app.api.generate as generate_module
@@ -59,7 +92,7 @@ def test_generate_api_abstains_when_no_evidence(monkeypatch):
     assert not called
 
 
-def test_generate_api_with_evidence(mock_llm):
+def test_generate_api_with_evidence(mock_llm, mock_retriever):
     """When evidence is found, the endpoint should call the LLM and extract citations."""
     response = client.post(
         "/api/generate",
@@ -79,7 +112,7 @@ def test_generate_api_with_evidence(mock_llm):
     assert "document_name" in data["citations"][0]
 
 
-def test_generate_response_cache_avoids_second_llm_call(monkeypatch):
+def test_generate_response_cache_avoids_second_llm_call(monkeypatch, mock_retriever):
     """An identical repeat query must be served from cache without another LLM call."""
     from backend.app.generation.client import LLMClient
 
@@ -109,7 +142,7 @@ def test_generate_response_cache_avoids_second_llm_call(monkeypatch):
     assert calls["n"] == 1, "cached response must not call the LLM again"
 
 
-def test_generate_stream_emits_meta_token_done(monkeypatch):
+def test_generate_stream_emits_meta_token_done(monkeypatch, mock_retriever):
     """The SSE endpoint streams meta -> token(s) -> done with citations."""
     import json
 
@@ -155,7 +188,7 @@ def test_generate_stream_emits_meta_token_done(monkeypatch):
     assert done["disclaimer"]
 
 
-def test_generate_stream_cache_hit(monkeypatch):
+def test_generate_stream_cache_hit(monkeypatch, mock_retriever):
     """A streamed repeat query is served from cache as a single token event."""
     import json
 

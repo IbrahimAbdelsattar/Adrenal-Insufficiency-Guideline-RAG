@@ -25,6 +25,7 @@ from backend.app.generation.citations import (
     strip_trailing_disclaimer,
 )
 from backend.app.generation.client import LLMClient
+from backend.app.generation.guardrails import detect_prompt_injection
 from backend.app.generation.prompt import SYSTEM_PROMPT, construct_user_prompt
 from backend.app.models import DISCLAIMER, GenerateRequest, GenerateResponse, RetrievalResult
 from backend.app.retrieval.factory import get_shared_retriever, get_shared_store
@@ -113,14 +114,34 @@ def _sse(event: str, data: dict) -> str:
     return f"event: {event}\ndata: {json.dumps(data, ensure_ascii=False)}\n\n"
 
 
+INJECTION_REFUSAL_MESSAGE = (
+    "This request cannot be processed. Eva AI only answers clinical questions "
+    "about adrenal insufficiency based on NICE NG243. Please rephrase your question."
+)
+
+
 @router.post("/generate")
 async def generate_answer(request: GenerateRequest) -> GenerateResponse:
     """Generate an answer grounded in retrieved clinical guidelines.
 
-    Abstains immediately if the query is out of scope or lacks supporting evidence.
+    Abstains immediately if the query is an adversarial prompt injection,
+    out of scope, or lacks supporting evidence.
     """
     settings = get_settings()
     started = time.perf_counter()
+
+    # Stage 0: Prompt Injection / Adversarial Guardrail
+    if detect_prompt_injection(request.query):
+        elapsed_ms = int((time.perf_counter() - started) * 1000)
+        return GenerateResponse(
+            query=request.query,
+            answer=INJECTION_REFUSAL_MESSAGE,
+            citations=[],
+            evidence_found=False,
+            disclaimer=DISCLAIMER,
+            model=settings.generation_model,
+            latency_ms=elapsed_ms,
+        )
 
     try:
         # 1. Retrieve candidate evidence (shared retriever: no per-request rebuild)
@@ -199,6 +220,30 @@ async def generate_answer_stream(request: GenerateRequest) -> StreamingResponse:
 
     async def events():
         started = time.perf_counter()
+        settings = get_settings()
+        model = settings.generation_model
+
+        # Stage 0: Prompt Injection / Adversarial Guardrail
+        if detect_prompt_injection(request.query):
+            yield _sse(
+                "meta",
+                {
+                    "query": request.query,
+                    "model": model,
+                    "evidence_found": False,
+                    "cache_hit": False,
+                },
+            )
+            yield _sse("token", {"text": INJECTION_REFUSAL_MESSAGE})
+            yield _sse(
+                "done",
+                {
+                    "citations": [],
+                    "latency_ms": int((time.perf_counter() - started) * 1000),
+                    "disclaimer": DISCLAIMER,
+                },
+            )
+            return
 
         try:
             settings, top_k, results, scope_status, _, filtered_results = await _retrieve_and_scope(
@@ -211,8 +256,6 @@ async def generate_answer_stream(request: GenerateRequest) -> StreamingResponse:
             logger.error("Stream retrieval failed: %s", exc)
             yield _sse("error", {"detail": f"Retrieval failed: {exc}"})
             return
-
-        model = settings.generation_model
 
         # Abstention paths short-circuit with a single token event.
         if scope_status in ("out_of_scope", "no_evidence") or should_abstain(results):
