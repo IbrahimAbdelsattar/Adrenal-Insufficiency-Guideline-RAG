@@ -1,0 +1,4 @@
+#!/usr/bin/env bash
+# Git pre-push hook: run the full local CI gate before anything reaches GitHub.
+# Enable once per clone with:  scripts/install-hooks.sh   (or install-hooks.bat)
+exec "$(git rev-parse --show-toplevel)/scripts/validate-ci.sh"
