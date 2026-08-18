@@ -75,7 +75,7 @@ cd ..
 echo [PASS] Frontend production build succeeded.
 echo.
 
-echo [7/7] Docker Build & Healthcheck Smoke Test...
+echo [7/7] Docker Build ^& Healthcheck Smoke Test...
 where docker >nul 2>&1
 if %ERRORLEVEL% NEQ 0 (
     echo [SKIP] Docker not available - skipping smoke test.

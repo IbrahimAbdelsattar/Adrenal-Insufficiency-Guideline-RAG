@@ -151,7 +151,7 @@ jobs:
       - name: Install minimal ingest dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install chromadb pymupdf tiktoken pyyaml pydantic pydantic-settings python-dotenv httpx
+          pip install -r requirements.txt
 
       - name: Build stub index for smoke test
         run: python scripts/build_stub_index.py
@@ -222,6 +222,8 @@ jobs:
         uses: docker/metadata-action@v5
         with:
           images: ghcr.io/${{ github.repository }}
+          flavor: |
+            lower=true
           tags: |
             type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
             type=ref,event=branch

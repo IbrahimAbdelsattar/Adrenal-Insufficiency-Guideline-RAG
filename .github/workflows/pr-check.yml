@@ -36,8 +36,8 @@ jobs:
       - name: Run Ruff Linter
         run: ruff check backend
 
-      - name: Run Unit Tests
-        run: pytest backend/tests/unit -v
+      - name: Run Backend Tests (Unit & Integration)
+        run: pytest backend/tests/unit backend/tests/integration -v
 
   pr-frontend-check:
     name: Frontend Quality Gate

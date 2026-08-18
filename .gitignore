@@ -19,6 +19,7 @@ data/index/
 frontend/node_modules/
 frontend/.next/
 frontend/out/
+*.tsbuildinfo
 *.log
 
 # --- Editors / OS ---
