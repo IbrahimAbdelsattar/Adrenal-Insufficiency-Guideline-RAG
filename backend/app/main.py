@@ -7,8 +7,8 @@ deployable (plan.md Structure Decision).
 
 from __future__ import annotations
 
-from contextlib import asynccontextmanager
 import logging
+from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Response
 from fastapi.middleware.cors import CORSMiddleware

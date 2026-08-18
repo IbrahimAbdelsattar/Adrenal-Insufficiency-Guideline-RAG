@@ -68,9 +68,7 @@ async def _retrieve_and_scope(request: GenerateRequest):
     retriever = get_shared_retriever(settings)
     top_k = request.top_k or settings.top_k
     results = await asyncio.to_thread(retriever.search, request.query, top_k)
-    scope_status, scope_msg, filtered_results = classify_scope(
-        results, settings.scope_threshold
-    )
+    scope_status, scope_msg, filtered_results = classify_scope(results, settings.scope_threshold)
     return settings, top_k, results, scope_status, scope_msg, filtered_results
 
 
@@ -99,10 +97,7 @@ def _abstention_response(
     if scope_status == "out_of_scope":
         answer = OUT_OF_SCOPE_MESSAGE
     else:
-        answer = (
-            f"{NO_EVIDENCE_MESSAGE} "
-            "Please try rephrasing or broadening your clinical query."
-        )
+        answer = f"{NO_EVIDENCE_MESSAGE} Please try rephrasing or broadening your clinical query."
     return GenerateResponse(
         query=request.query,
         answer=answer,
@@ -129,8 +124,8 @@ async def generate_answer(request: GenerateRequest) -> GenerateResponse:
 
     try:
         # 1. Retrieve candidate evidence (shared retriever: no per-request rebuild)
-        settings, top_k, results, scope_status, _, filtered_results = (
-            await _retrieve_and_scope(request)
+        settings, top_k, results, scope_status, _, filtered_results = await _retrieve_and_scope(
+            request
         )
 
         # 2. Apply scope classification guardrail
@@ -171,9 +166,7 @@ async def generate_answer(request: GenerateRequest) -> GenerateResponse:
 
         # 6. Extract and map citations
         citations = extract_citations(answer, evidence_results)
-        _cache_put(
-            key, {"answer": answer, "citations": citations}, settings.response_cache_size
-        )
+        _cache_put(key, {"answer": answer, "citations": citations}, settings.response_cache_size)
         elapsed_ms = int((time.perf_counter() - started) * 1000)
 
         return GenerateResponse(
@@ -205,8 +198,8 @@ async def generate_answer_stream(request: GenerateRequest) -> StreamingResponse:
         started = time.perf_counter()
 
         try:
-            settings, top_k, results, scope_status, _, filtered_results = (
-                await _retrieve_and_scope(request)
+            settings, top_k, results, scope_status, _, filtered_results = await _retrieve_and_scope(
+                request
             )
         except PipelineError as exc:
             yield _sse("error", {"detail": str(exc)})
@@ -289,9 +282,7 @@ async def generate_answer_stream(request: GenerateRequest) -> StreamingResponse:
 
         answer = strip_trailing_disclaimer("".join(parts).strip())
         citations = extract_citations(answer, evidence_results)
-        _cache_put(
-            key, {"answer": answer, "citations": citations}, settings.response_cache_size
-        )
+        _cache_put(key, {"answer": answer, "citations": citations}, settings.response_cache_size)
 
         yield _sse(
             "done",

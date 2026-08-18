@@ -45,9 +45,7 @@ def build_graph(chunks: Sequence[Chunk]) -> dict[str, list[str]]:
 
     for chunk in chunks:
         if chunk.section_number:
-            by_section.setdefault(_top_section(chunk.section_number), []).append(
-                chunk.chunk_id
-            )
+            by_section.setdefault(_top_section(chunk.section_number), []).append(chunk.chunk_id)
         for rec_id in _recommendation_ids(chunk):
             by_recommendation.setdefault(rec_id, []).append(chunk.chunk_id)
 

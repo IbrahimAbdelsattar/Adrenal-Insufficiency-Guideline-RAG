@@ -22,9 +22,7 @@ def make_chunk(chunk_id: str, section_number: str = "", recommendation_ids: str 
 
 
 def make_result(chunk: Chunk, rank: int, score: float = 0.8) -> RetrievalResult:
-    return RetrievalResult(
-        chunk=chunk, score=score, rank=rank, below_floor=False
-    )
+    return RetrievalResult(chunk=chunk, score=score, rank=rank, below_floor=False)
 
 
 class TestBuildGraph:
@@ -102,7 +100,9 @@ class TestWrapExpanded:
 
 class TestStripDisclaimer:
     def test_removes_trailing_disclaimer(self):
-        text = "Give 100mg hydrocortisone [Source 1].\n\nDisclaimer: This information is educational."
+        text = (
+            "Give 100mg hydrocortisone [Source 1].\n\nDisclaimer: This information is educational."
+        )
 
         assert strip_trailing_disclaimer(text) == "Give 100mg hydrocortisone [Source 1]."
 

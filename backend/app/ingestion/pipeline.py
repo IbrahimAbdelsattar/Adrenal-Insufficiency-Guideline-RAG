@@ -14,6 +14,7 @@ from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 
+from backend.app import graph
 from backend.app.config import Settings, get_settings
 from backend.app.embeddings.base import Embedder
 from backend.app.ingestion import cleaner, parser, registry
@@ -21,7 +22,6 @@ from backend.app.ingestion.chunker import chunk_blocks
 from backend.app.ingestion.sectioner import detect_blocks
 from backend.app.models import Chunk, IndexManifest, PerDocumentStats, SourceDocument
 from backend.app.retrieval.store import VectorStore
-from backend.app import graph
 
 logger = logging.getLogger(__name__)
 
@@ -201,9 +201,7 @@ def run_ingest(
 
     report(f"Embedding  {len(all_chunks)} chunks via {embedder.model_id} ...")
     embed_start = time.perf_counter()
-    vectors = _embed_in_batches(
-        embedder, all_chunks, settings.embedding_batch_size, report
-    )
+    vectors = _embed_in_batches(embedder, all_chunks, settings.embedding_batch_size, report)
     logger.info(
         "embedded chunks=%d model=%s elapsed=%.2fs",
         len(all_chunks),

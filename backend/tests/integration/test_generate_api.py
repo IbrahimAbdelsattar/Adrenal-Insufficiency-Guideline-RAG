@@ -136,10 +136,10 @@ def test_generate_stream_emits_meta_token_done(monkeypatch):
     for block in response.text.split("\n\n"):
         lines = block.splitlines()
         event = next(
-            (l.split(":", 1)[1].strip() for l in lines if l.startswith("event:")), None
+            (line.split(":", 1)[1].strip() for line in lines if line.startswith("event:")), None
         )
         data_line = next(
-            (l.split(":", 1)[1].strip() for l in lines if l.startswith("data:")), None
+            (line.split(":", 1)[1].strip() for line in lines if line.startswith("data:")), None
         )
         if event and data_line:
             events.setdefault(event, []).append(json.loads(data_line))
@@ -177,9 +177,9 @@ def test_generate_stream_cache_hit(monkeypatch):
 
     second = client.post("/api/generate/stream", json=payload)
     meta_blocks = [
-        json.loads(l.split(":", 1)[1].strip())
-        for l in second.text.splitlines()
-        if l.startswith("data:") and "cache_hit" in l
+        json.loads(line.split(":", 1)[1].strip())
+        for line in second.text.splitlines()
+        if line.startswith("data:") and "cache_hit" in line
     ]
 
     assert meta_blocks and meta_blocks[0]["cache_hit"] is True

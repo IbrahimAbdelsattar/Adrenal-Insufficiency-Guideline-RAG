@@ -139,6 +139,23 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Set up Python 3.13
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: "pip"
+
+      # The production entrypoint refuses to boot with no index and no API
+      # key, so build a deterministic stub index (no LLM/embedding API calls)
+      # and mount it into the container.
+      - name: Install minimal ingest dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install chromadb pymupdf tiktoken pyyaml pydantic pydantic-settings python-dotenv httpx
+
+      - name: Build stub index for smoke test
+        run: python scripts/build_stub_index.py
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
@@ -154,12 +171,14 @@ jobs:
 
       - name: Run Smoke Test Container & Healthcheck
         run: |
-          docker run -d --name eva-ai-smoke -p 8000:8000 eva-ai:test
-          
+          docker run -d --name eva-ai-smoke -p 8000:8000 \
+            -v "$PWD/data/index:/app/data/index" eva-ai:test
+
           echo "Waiting for service to become healthy..."
           HEALTHY=0
           for i in $(seq 1 30); do
             if curl -s -f http://localhost:8000/api/health; then
+              echo ""
               echo "Container health check passed!"
               HEALTHY=1
               break
@@ -167,9 +186,10 @@ jobs:
             echo "Waiting for healthcheck... ($i/30)"
             sleep 3
           done
-          
+
+          docker logs eva-ai-smoke
           docker stop eva-ai-smoke && docker rm eva-ai-smoke
-          
+
           if [ "$HEALTHY" -ne 1 ]; then
             echo "Healthcheck failed after 90 seconds."
             exit 1

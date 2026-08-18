@@ -246,6 +246,8 @@ crisis dosing next to sick-day rules.
 | `frontend/app/page.tsx` | Progressive rendering of streamed answers, `streaming` state |
 | `frontend/components/AnswerCard.tsx` | “cached” badge |
 | `frontend/package-lock.json` | Regenerated — was out of sync with `package.json` (`npm ci` failed in Docker with missing `@emnapi/*` entries); fixed via `npm install --package-lock-only` |
+| `.github/workflows/ci-cd.yml` | `docker-smoke-test` builds + mounts a stub index so the entrypoint boots without an API key; container logs dumped on failure |
+| `scripts/build_stub_index.py` | **New** — deterministic API-key-free index builder for CI smoke tests |
 
 ### Tests
 
@@ -259,7 +261,19 @@ crisis dosing next to sick-day rules.
 
 ---
 
-## 6. Known Issue: OmniRoute Chat Credentials Down
+## 6. CI/CD Pipeline Fixes
+
+| # | Failure | Root cause | Fix |
+|---|---------|-----------|-----|
+| 1 | `npm ci` failed in the frontend Docker stage (`Missing: @emnapi/* from lock file`) | `frontend/package-lock.json` was out of sync with `package.json` | Regenerated with `npm install --package-lock-only`; verified with `npm ci --dry-run` + full `npm run build` |
+| 2 | `ruff format --check backend` / `ruff check backend` would fail CI | Day 4 changes introduced import-order (I001) and ambiguous-variable (E741) violations | `ruff check --fix` + `ruff format` + renamed `l` → `line`; both checks clean |
+| 3 | `docker-smoke-test` job could never pass (latent) | The production entrypoint exits(5) when no index exists and no API key is set — CI provides neither | New `scripts/build_stub_index.py` ingests the corpus with a deterministic hash-based stub embedder (no API calls); the workflow builds it on the runner and mounts `data/index` into the smoke container. Minimal host deps only (no torch). Container logs now dumped on failure |
+
+`data/index` is already in `.dockerignore`, so the stub index never enters the image build context.
+
+---
+
+## 7. Known Issue: OmniRoute Chat Credentials Down
 
 During end-to-end verification the gateway rejected **all** chat providers:
 
@@ -277,7 +291,7 @@ required:** restore gateway chat credentials, or set `GENERATION_MODEL` /
 
 ---
 
-## 7. Configuration Reference (new/changed)
+## 8. Configuration Reference (new/changed)
 
 ```dotenv
 TOP_K=3                 # evidence chunks per query (was 5)
@@ -289,10 +303,10 @@ RESPONSE_CACHE_SIZE=128 # LRU entries for repeat queries
 
 ---
 
-## 8. Follow-up Opportunities
+## 9. Follow-up Opportunities
 
 1. **Model routing** — cheap fast model for simple factual lookups, Sonnet for
-   synthesis (blocked on gateway credentials, §6).
+   synthesis (blocked on gateway credentials, §7).
 2. **Anthropic prompt caching** — static system prompt is cache-friendly once
    the provider is reachable.
 3. **Query-side graph use** — currently only evidence expansion; a future step
