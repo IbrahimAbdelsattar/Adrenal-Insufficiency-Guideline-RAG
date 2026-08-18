@@ -9,6 +9,22 @@ _TRAILING_DISCLAIMER = re.compile(
     r"\n+\s*(?:\*\*)?disclaimer(?:\*\*)?:.*$", re.IGNORECASE | re.DOTALL
 )
 
+# Constitution Principle II: citation metadata is structural, not cosmetic.
+# An excerpt this long is enough for a human to recognise the source passage
+# without reproducing the full chunk in the API response.
+_EXCERPT_MAX_CHARS = 240
+
+
+def _excerpt(text: str, max_chars: int = _EXCERPT_MAX_CHARS) -> str:
+    """First `max_chars` of the chunk text, cut on a word boundary."""
+    clean = " ".join(text.split())
+    if len(clean) <= max_chars:
+        return clean
+    cut = clean.rfind(" ", 0, max_chars)
+    if cut <= 0:
+        cut = max_chars
+    return clean[:cut].rstrip() + "…"
+
 
 def strip_trailing_disclaimer(text: str) -> str:
     """Remove a trailing disclaimer block; the API appends its own."""
@@ -45,6 +61,8 @@ def extract_citations(text: str, sources: Sequence[RetrievalResult]) -> list[dic
                         "section_number": res.chunk.section_number or "",
                         "page_number": res.chunk.page_number,
                         "source_url": res.chunk.source_url or "",
+                        "recommendation_ids": res.chunk.recommendation_ids or "",
+                        "excerpt": _excerpt(res.chunk.text),
                     }
                 )
         except ValueError:
