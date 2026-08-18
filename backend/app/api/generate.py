@@ -27,6 +27,7 @@ from backend.app.generation.citations import (
 from backend.app.generation.client import LLMClient
 from backend.app.generation.guardrails import detect_prompt_injection
 from backend.app.generation.prompt import SYSTEM_PROMPT, construct_user_prompt
+from backend.app.generation.reasoning import ReasoningFilter, strip_reasoning
 from backend.app.models import DISCLAIMER, GenerateRequest, GenerateResponse, RetrievalResult
 from backend.app.retrieval.factory import get_shared_retriever, get_shared_store
 from backend.app.retrieval.scope import (
@@ -110,6 +111,29 @@ def _abstention_response(
     )
 
 
+REASONING_ONLY_MESSAGE = (
+    "The model returned only its internal reasoning and no answer, which usually "
+    "means GENERATION_MAX_TOKENS is too low for a reasoning model. Raise it, or "
+    "set GENERATION_MODEL to a non-reasoning model."
+)
+
+
+def _finalize_answer(raw: str) -> str | None:
+    """Clean a raw completion into a displayable answer.
+
+    Chain-of-thought is stripped before anything else: it is not an answer, and
+    it names sources the model goes on to reject, so leaving it in would both
+    show a clinician the model's scratchpad and fabricate citations from it.
+
+    Returns None when nothing survives -- the model spent its whole budget
+    thinking. Callers must surface an error rather than render the reasoning.
+    """
+    answer = strip_reasoning(raw)
+    if not answer:
+        return None
+    return strip_trailing_disclaimer(answer.strip()) or None
+
+
 def _sse(event: str, data: dict) -> str:
     return f"event: {event}\ndata: {json.dumps(data, ensure_ascii=False)}\n\n"
 
@@ -186,7 +210,9 @@ async def generate_answer(request: GenerateRequest) -> GenerateResponse:
             system_prompt=SYSTEM_PROMPT,
             user_prompt=user_prompt,
         )
-        answer = strip_trailing_disclaimer(raw_answer.strip())
+        answer = _finalize_answer(raw_answer)
+        if answer is None:
+            raise PipelineError(REASONING_ONLY_MESSAGE)
 
         # 6. Extract and map citations
         citations = resolve_citations(answer, cited_sources)
@@ -313,12 +339,21 @@ async def generate_answer_stream(request: GenerateRequest) -> StreamingResponse:
         client = LLMClient(settings)
 
         parts: list[str] = []
+        # `parts` keeps the raw completion so the final answer is computed the
+        # same way as the non-streaming path; the filter only decides what the
+        # user is allowed to watch arrive, so reasoning never renders live.
+        visible = ReasoningFilter()
         try:
             async for delta in client.stream_completion(
                 system_prompt=SYSTEM_PROMPT, user_prompt=user_prompt
             ):
                 parts.append(delta)
-                yield _sse("token", {"text": delta})
+                shown = visible.feed(delta)
+                if shown:
+                    yield _sse("token", {"text": shown})
+            tail = visible.flush()
+            if tail:
+                yield _sse("token", {"text": tail})
         except PipelineError as exc:
             yield _sse("error", {"detail": str(exc)})
             return
@@ -327,7 +362,10 @@ async def generate_answer_stream(request: GenerateRequest) -> StreamingResponse:
             yield _sse("error", {"detail": f"LLM Answer Generation failed: {exc}"})
             return
 
-        answer = strip_trailing_disclaimer("".join(parts).strip())
+        answer = _finalize_answer("".join(parts))
+        if answer is None:
+            yield _sse("error", {"detail": REASONING_ONLY_MESSAGE})
+            return
         citations = resolve_citations(answer, cited_sources)
         _cache_put(key, {"answer": answer, "citations": citations}, settings.response_cache_size)
 

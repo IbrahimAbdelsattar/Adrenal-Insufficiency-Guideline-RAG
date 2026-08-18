@@ -43,7 +43,10 @@ class Settings(BaseSettings):
 
     # --- Generation (Day 3) ---
     generation_model: str = Field(default="gemini/gemini-1.5-flash", alias="GENERATION_MODEL")
-    generation_max_tokens: int = Field(default=1024, alias="GENERATION_MAX_TOKENS")
+    # Reasoning models spend part of this budget on a <think> block before
+    # writing anything. At 1024 the whole budget went to reasoning and the
+    # completion was truncated before an answer existed.
+    generation_max_tokens: int = Field(default=4096, alias="GENERATION_MAX_TOKENS")
     generation_temperature: float = Field(default=0.1, alias="GENERATION_TEMPERATURE")
 
     # --- Chunking ---
