@@ -61,6 +61,24 @@ def test_extract_citations_ignores_invalid_indices():
     assert citations[0]["source_id"] == "1"
 
 
+def test_extract_citations_includes_recommendation_and_excerpt():
+    """Day 5: citation objects must carry recommendation_ids + a text excerpt,
+    not just document/page pointers (Constitution Principle II)."""
+    text = "The treatment is hydrocortisone [Source 1]."
+    long_text = "Hydrocortisone dosing details. " * 20  # forces excerpt truncation
+    r1 = RetrievalResult(chunk=_make_chunk("c1", long_text), score=0.9, rank=1, below_floor=False)
+
+    citations = extract_citations(text, [r1])
+    assert len(citations) == 1
+    citation = citations[0]
+
+    assert citation["recommendation_ids"] == "1.2.1"
+    assert "excerpt" in citation
+    assert citation["excerpt"], "excerpt must not be empty when chunk text is present"
+    assert len(citation["excerpt"]) <= 241  # _EXCERPT_MAX_CHARS + ellipsis
+    assert citation["excerpt"].endswith("…")
+
+
 def test_should_abstain_empty():
     assert should_abstain([]) is True
 
