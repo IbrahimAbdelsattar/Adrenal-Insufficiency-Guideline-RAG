@@ -118,6 +118,37 @@ def _process_document(
     )
 
 
+def _embed_in_batches(
+    embedder: Embedder,
+    chunks: list[Chunk],
+    batch_size: int,
+    report: Reporter,
+) -> list[list[float]]:
+    """Embed chunks in fixed-size batches instead of one giant request.
+
+    Guards the pipeline (not just a specific embedder implementation) against
+    memory blowups / provider timeouts once the corpus grows into the
+    thousands of chunks (see EMBEDDING_BATCH_SIZE, default 32). Any Embedder
+    passed in — OpenRouterEmbedder, a test double, a future provider — gets
+    this protection regardless of whether it batches internally.
+    """
+    batch_size = max(1, batch_size)
+    texts = [c.text for c in chunks]
+    total = len(texts)
+    total_batches = (total + batch_size - 1) // batch_size if total else 0
+
+    vectors: list[list[float]] = []
+    for batch_num, start in enumerate(range(0, total, batch_size), start=1):
+        batch = texts[start : start + batch_size]
+        report(
+            f"Embedding  batch {batch_num}/{total_batches} "
+            f"({len(batch)} chunks, {start + len(batch)}/{total} total)"
+        )
+        vectors.extend(embedder.embed_documents(batch))
+
+    return vectors
+
+
 def run_ingest(
     settings: Settings | None = None,
     embedder: Embedder | None = None,
@@ -169,7 +200,9 @@ def run_ingest(
 
     report(f"Embedding  {len(all_chunks)} chunks via {embedder.model_id} ...")
     embed_start = time.perf_counter()
-    vectors = embedder.embed_documents([c.text for c in all_chunks])
+    vectors = _embed_in_batches(
+        embedder, all_chunks, settings.embedding_batch_size, report
+    )
     logger.info(
         "embedded chunks=%d model=%s elapsed=%.2fs",
         len(all_chunks),
