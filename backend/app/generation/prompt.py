@@ -11,8 +11,7 @@ RULES:
 5. Preserve exact drug names, dosages, and clinical values from the source.
 
 When answering, structure your response logically. Use bullet points for recommendations if applicable.
-At the very end of your response, always include a blank line followed by exactly this disclaimer text:
-"Disclaimer: This information is for educational purposes and should not replace clinical judgment."
+Do not add any disclaimer or closing boilerplate; the application appends it.
 """
 
 

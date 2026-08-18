@@ -10,6 +10,7 @@ from __future__ import annotations
 import logging
 import math
 from collections.abc import Sequence
+from typing import Any
 
 from backend.app.config import Settings, get_settings
 from backend.app.models import Chunk, RetrievalResult
@@ -20,6 +21,9 @@ logger = logging.getLogger(__name__)
 def sigmoid(x: float) -> float:
     """Calibrate logits to [0, 1] range."""
     return 1.0 / (1.0 + math.exp(-x))
+
+
+_MODEL_CACHE: dict[str, Any] = {}
 
 
 class CrossEncoderReranker:
@@ -34,18 +38,16 @@ class CrossEncoderReranker:
         self._settings = settings or get_settings()
         self._model_name = model_name or self._settings.reranker_model
         self._disabled = disabled
-        self._model = None
-        self._load_attempted = False
 
     def _get_model(self):
         if self._disabled:
             return None
-        if not self._load_attempted:
-            self._load_attempted = True
+        if self._model_name not in _MODEL_CACHE:
             try:
                 from sentence_transformers import CrossEncoder
 
-                self._model = CrossEncoder(self._model_name)
+                logger.info("Loading CrossEncoder model '%s'...", self._model_name)
+                _MODEL_CACHE[self._model_name] = CrossEncoder(self._model_name)
                 logger.info("CrossEncoder loaded successfully: %s", self._model_name)
             except Exception as exc:
                 logger.warning(
@@ -54,8 +56,8 @@ class CrossEncoderReranker:
                     self._model_name,
                     exc,
                 )
-                self._model = None
-        return self._model
+                _MODEL_CACHE[self._model_name] = None
+        return _MODEL_CACHE.get(self._model_name)
 
     @property
     def is_available(self) -> bool:

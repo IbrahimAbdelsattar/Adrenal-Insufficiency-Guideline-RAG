@@ -6,7 +6,7 @@ import { translations, type Language } from "@/lib/translations";
 
 export function AnswerCard({ result }: { result: GenerateResponse }) {
   const [lang, setLang] = useState<Language>("en");
-  const { answer, citations, evidence_found, disclaimer, latency_ms, model } = result;
+  const { answer, citations, evidence_found, disclaimer, latency_ms, model, cache_hit } = result;
 
   useEffect(() => {
     const savedLang = localStorage.getItem("eva_lang") as Language | null;
@@ -42,6 +42,11 @@ export function AnswerCard({ result }: { result: GenerateResponse }) {
           {!evidence_found && (
             <span className="mono-pill px-2.5 py-1 text-[10px] font-extrabold uppercase tracking-wider text-caution border-caution/40">
               {t.insufficientEvidenceBadge || "Insufficient Evidence"}
+            </span>
+          )}
+          {cache_hit && (
+            <span className="mono-pill px-2.5 py-1 text-[10px] font-extrabold uppercase tracking-wider text-accent-bright border-accent-bright/40">
+              cached
             </span>
           )}
           <span className="mono-pill px-2.5 py-1 text-[10px] font-extrabold uppercase tracking-wider text-ink-dim">

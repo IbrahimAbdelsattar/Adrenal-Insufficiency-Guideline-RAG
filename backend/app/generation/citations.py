@@ -5,6 +5,15 @@ from collections.abc import Sequence
 
 from backend.app.models import RetrievalResult
 
+_TRAILING_DISCLAIMER = re.compile(
+    r"\n+\s*(?:\*\*)?disclaimer(?:\*\*)?:.*$", re.IGNORECASE | re.DOTALL
+)
+
+
+def strip_trailing_disclaimer(text: str) -> str:
+    """Remove a trailing disclaimer block; the API appends its own."""
+    return _TRAILING_DISCLAIMER.sub("", text).rstrip()
+
 
 def extract_citations(text: str, sources: Sequence[RetrievalResult]) -> list[dict]:
     """Find [Source N] markers in text and map them to the corresponding chunks.

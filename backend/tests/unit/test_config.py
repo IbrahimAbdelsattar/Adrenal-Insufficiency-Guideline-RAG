@@ -16,10 +16,11 @@ def test_hybrid_config_defaults():
     assert settings.hybrid_candidate_k >= 10
 
 
-def test_retriever_type_default_is_hybrid_rerank():
-    """Default retriever is the fully featured hybrid_rerank."""
+def test_retriever_type_default_is_hybrid():
+    """Default retriever is plain hybrid (reranker off by default: the Day 2
+    eval showed it lowers hit rate while adding latency)."""
     settings = Settings()
-    assert settings.retriever_type == "hybrid_rerank"
+    assert settings.retriever_type == "hybrid"
 
 
 def test_reranker_model_default():

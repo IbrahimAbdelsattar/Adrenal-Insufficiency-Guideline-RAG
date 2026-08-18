@@ -93,6 +93,22 @@ class VectorStore:
             )
         ]
 
+    def get_chunks(self, chunk_ids: list[str]) -> list[Chunk]:
+        """Fetch specific chunks by ID (graph expansion at query time)."""
+        if not chunk_ids:
+            return []
+        collection = self._get(self.collection_name)
+        raw = collection.get(ids=chunk_ids, include=["documents", "metadatas"])
+        return [
+            Chunk.from_stored(cid, text, dict(meta))
+            for cid, text, meta in zip(
+                raw.get("ids", []),
+                raw.get("documents", []),
+                raw.get("metadatas", []),
+                strict=False,
+            )
+        ]
+
     # --- write ------------------------------------------------------------
 
     def build(self, chunks: list[Chunk], embeddings: list[list[float]]) -> None:

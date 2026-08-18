@@ -5,7 +5,7 @@ import { ChunkCard } from "@/components/ChunkCard";
 import { AnswerCard } from "@/components/AnswerCard";
 import { IndexStatus } from "@/components/IndexStatus";
 import { SearchBox } from "@/components/SearchBox";
-import { search, generate } from "@/lib/api";
+import { search, generateStream } from "@/lib/api";
 import type { SearchResponse, GenerateResponse } from "@/lib/api";
 import { translations, type Language } from "@/lib/translations";
 
@@ -15,6 +15,7 @@ export default function Page() {
   const [response, setResponse] = useState<SearchResponse | null>(null);
   const [genResponse, setGenResponse] = useState<GenerateResponse | null>(null);
   const [loading, setLoading] = useState(false);
+  const [streaming, setStreaming] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [topK, setTopK] = useState(5);
   const [filterMode, setFilterMode] = useState<FilterMode>("all");
@@ -52,19 +53,63 @@ export default function Page() {
    */
 
   async function runSearch(query: string) {
-    setLoading(true);
     setError(null);
     setResponse(null);
     setGenResponse(null);
 
     try {
       if (mode === "search") {
+        setLoading(true);
         const result = await search(query, topK);
         setResponse(result);
         setFilterMode("all");
       } else {
-        const result = await generate(query, topK);
-        setGenResponse(result);
+        setStreaming(true);
+        setGenResponse({
+          query,
+          answer: "",
+          citations: [],
+          evidence_found: false,
+          disclaimer: "",
+          model: "",
+          latency_ms: 0,
+        });
+
+        let accumulated = "";
+
+        await generateStream(query, topK, {
+          onMeta: (meta) =>
+            setGenResponse((prev) =>
+              prev
+                ? {
+                    ...prev,
+                    model: meta.model,
+                    evidence_found: meta.evidence_found,
+                    cache_hit: meta.cache_hit,
+                  }
+                : prev,
+            ),
+          onToken: (text) => {
+            accumulated += text;
+            const snapshot = accumulated;
+
+            setGenResponse((prev) =>
+              prev ? { ...prev, answer: snapshot } : prev,
+            );
+          },
+          onDone: (done) =>
+            setGenResponse((prev) =>
+              prev
+                ? {
+                    ...prev,
+                    citations: done.citations,
+                    latency_ms: done.latency_ms,
+                    disclaimer: done.disclaimer,
+                  }
+                : prev,
+            ),
+          onError: (detail) => setError(detail),
+        });
       }
     } catch (e) {
       setError(
@@ -74,6 +119,7 @@ export default function Page() {
       );
     } finally {
       setLoading(false);
+      setStreaming(false);
     }
   }
 
@@ -161,7 +207,7 @@ export default function Page() {
 
         <SearchBox
           onSearch={runSearch}
-          loading={loading}
+          loading={loading || streaming}
           topK={topK}
           onTopKChange={setTopK}
           mode={mode}

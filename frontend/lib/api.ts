@@ -102,6 +102,27 @@ export interface GenerateResponse {
   disclaimer: string;
   model: string;
   latency_ms: number;
+  cache_hit?: boolean;
+}
+
+export interface StreamMeta {
+  query: string;
+  model: string;
+  evidence_found: boolean;
+  cache_hit: boolean;
+}
+
+export interface StreamDone {
+  citations: Citation[];
+  latency_ms: number;
+  disclaimer: string;
+}
+
+export interface StreamCallbacks {
+  onMeta?: (meta: StreamMeta) => void;
+  onToken: (text: string) => void;
+  onDone: (done: StreamDone) => void;
+  onError?: (detail: string) => void;
 }
 
 export interface PerDocumentStats {
@@ -261,6 +282,95 @@ export function generate(query: string, topK: number): Promise<GenerateResponse>
     method: "POST",
     body: JSON.stringify({ query, top_k: topK }),
   });
+}
+
+/**
+ * Generate an answer as a server-sent event stream so tokens
+ * render as they are produced (low perceived latency).
+ */
+export async function generateStream(
+  query: string,
+  topK: number,
+  callbacks: StreamCallbacks,
+): Promise<void> {
+  let response: Response;
+
+  try {
+    response = await fetch(`${API_BASE}/api/generate/stream`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ query, top_k: topK }),
+    });
+  } catch {
+    throw new ApiError(
+      "Cannot reach the backend. Is it running on port 8010?",
+      0,
+    );
+  }
+
+  if (!response.ok || !response.body) {
+    let detail = `Request failed (${response.status}).`;
+
+    try {
+      const body = await response.json();
+
+      if (typeof body?.detail === "string") {
+        detail = body.detail;
+      }
+    } catch {
+      /* Keep fallback message */
+    }
+
+    throw new ApiError(detail, response.status);
+  }
+
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+
+  for (;;) {
+    const { done, value } = await reader.read();
+
+    if (done) {
+      break;
+    }
+
+    buffer += decoder.decode(value, { stream: true });
+
+    let separator: number;
+
+    while ((separator = buffer.indexOf("\n\n")) >= 0) {
+      const frame = buffer.slice(0, separator);
+      buffer = buffer.slice(separator + 2);
+
+      let event = "message";
+      const dataLines: string[] = [];
+
+      for (const line of frame.split("\n")) {
+        if (line.startsWith("event:")) {
+          event = line.slice(6).trim();
+        } else if (line.startsWith("data:")) {
+          dataLines.push(line.slice(5).trim());
+        }
+      }
+
+      if (dataLines.length === 0) {
+        continue;
+      }
+
+      const data = JSON.parse(dataLines.join("\n"));
+
+      if (event === "meta") {
+        callbacks.onMeta?.(data as StreamMeta);
+      } else if (event === "token") {
+        callbacks.onToken(data.text ?? "");
+      } else if (event === "done") {
+        callbacks.onDone(data as StreamDone);
+      } else if (event === "error") {
+        callbacks.onError?.(data.detail ?? "Generation failed.");
+      }
+    }
+  }
 }
 
 /**

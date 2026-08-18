@@ -196,6 +196,7 @@ class GenerateResponse(BaseModel):
     disclaimer: str
     model: str
     latency_ms: int
+    cache_hit: bool = False
 
 
 class GoldenQuestion(BaseModel):

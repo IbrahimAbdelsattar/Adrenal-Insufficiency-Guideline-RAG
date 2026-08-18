@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 import asyncio
+import json
 import logging
+from collections.abc import AsyncIterator
 from typing import Any
 
 import httpx
@@ -27,26 +29,22 @@ class LLMClient:
         self._api_key = self._settings.openrouter_api_key
         self._base_url = self._settings.openrouter_base_url.rstrip("/")
 
-    async def generate_completion(
-        self,
-        system_prompt: str,
-        user_prompt: str,
-    ) -> str:
-        """Call the OmniRoute chat completions API with exponential backoff."""
+    def _require_key(self) -> None:
         if not self._api_key:
             raise ConfigurationError(
                 "OMNIROUTE_API_KEY is not set. Set it in .env to enable LLM generation."
             )
 
-        endpoint = f"{self._base_url}/chat/completions"
-        headers = {
+    def _headers(self) -> dict[str, str]:
+        return {
             "Authorization": f"Bearer {self._api_key}",
             "Content-Type": "application/json",
             "HTTP-Referer": "https://eva-ai.local",
             "X-Title": "Eva AI",
         }
 
-        payload: dict[str, Any] = {
+    def _payload(self, system_prompt: str, user_prompt: str) -> dict[str, Any]:
+        return {
             "model": self._settings.generation_model,
             "messages": [
                 {"role": "system", "content": system_prompt},
@@ -55,6 +53,18 @@ class LLMClient:
             "max_tokens": self._settings.generation_max_tokens,
             "temperature": self._settings.generation_temperature,
         }
+
+    async def generate_completion(
+        self,
+        system_prompt: str,
+        user_prompt: str,
+    ) -> str:
+        """Call the OmniRoute chat completions API with exponential backoff."""
+        self._require_key()
+
+        endpoint = f"{self._base_url}/chat/completions"
+        headers = self._headers()
+        payload = self._payload(system_prompt, user_prompt)
 
         logger.info(
             "Calling OmniRoute LLM: model=%s max_tokens=%d temp=%.2f endpoint=%s",
@@ -118,3 +128,53 @@ class LLMClient:
                     raise PipelineError(f"Generation error: {exc}") from exc
 
             raise PipelineError(f"Generation failed after {MAX_ATTEMPTS} attempts: {last_error}")
+
+    async def stream_completion(
+        self,
+        system_prompt: str,
+        user_prompt: str,
+    ) -> AsyncIterator[str]:
+        """Stream chat completion content deltas (OpenAI-compatible SSE)."""
+        self._require_key()
+
+        endpoint = f"{self._base_url}/chat/completions"
+        payload = self._payload(system_prompt, user_prompt)
+        payload["stream"] = True
+
+        logger.info(
+            "Streaming OmniRoute LLM: model=%s endpoint=%s",
+            self._settings.generation_model,
+            endpoint,
+        )
+
+        timeout = httpx.Timeout(REQUEST_TIMEOUT_SECONDS, connect=10.0)
+        try:
+            async with httpx.AsyncClient(timeout=timeout) as client:
+                async with client.stream(
+                    "POST", endpoint, json=payload, headers=self._headers()
+                ) as response:
+                    if response.status_code != 200:
+                        body = await response.aread()
+                        raise PipelineError(
+                            f"OmniRoute API error {response.status_code}: "
+                            f"{body.decode(errors='replace')[:300]}"
+                        )
+
+                    async for line in response.aiter_lines():
+                        if not line.startswith("data:"):
+                            continue
+                        data = line[len("data:") :].strip()
+                        if data == "[DONE]":
+                            break
+                        try:
+                            chunk = json.loads(data)
+                        except json.JSONDecodeError:
+                            continue
+                        choices = chunk.get("choices") or []
+                        if not choices:
+                            continue
+                        delta = choices[0].get("delta", {}).get("content")
+                        if delta:
+                            yield delta
+        except (httpx.TimeoutException, httpx.NetworkError) as exc:
+            raise PipelineError(f"OmniRoute stream failed: {exc}") from exc

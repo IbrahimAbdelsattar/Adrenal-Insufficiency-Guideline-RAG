@@ -11,9 +11,8 @@ from pydantic import BaseModel, Field
 from backend.app.config import get_settings
 from backend.app.errors import PipelineError
 from backend.app.models import DISCLAIMER, IndexManifest, SearchResponse
-from backend.app.retrieval.factory import get_retriever
+from backend.app.retrieval.factory import get_shared_retriever, get_shared_store
 from backend.app.retrieval.scope import classify_scope
-from backend.app.retrieval.store import VectorStore
 
 logger = logging.getLogger(__name__)
 
@@ -36,7 +35,7 @@ def get_health() -> dict:
     key_configured = bool(settings.openrouter_api_key)
 
     try:
-        store = VectorStore(settings)
+        store = get_shared_store(settings)
         ready = store.is_ready()
         manifest = store.read_manifest()
     except Exception as exc:
@@ -80,7 +79,7 @@ def get_health() -> dict:
 def get_index_status() -> IndexManifest:
     """The manifest describing how the current index was built (FR-030)."""
 
-    manifest = VectorStore().read_manifest()
+    manifest = get_shared_store().read_manifest()
 
     if manifest is None:
         raise HTTPException(
@@ -124,7 +123,7 @@ def search(request: SearchRequest) -> SearchResponse:
     """Top-K retrieval with scope detection and citation metadata."""
 
     settings = get_settings()
-    store = VectorStore(settings)
+    store = get_shared_store(settings)
 
     if not store.is_ready():
         raise HTTPException(
@@ -147,7 +146,7 @@ def search(request: SearchRequest) -> SearchResponse:
 
     started = time.perf_counter()
     try:
-        retriever = get_retriever(settings=settings, store=store)
+        retriever = get_shared_retriever(settings)
         results = retriever.search(request.query, request.top_k or settings.top_k)
     except PipelineError as exc:
         raise HTTPException(status_code=503, detail=str(exc)) from exc

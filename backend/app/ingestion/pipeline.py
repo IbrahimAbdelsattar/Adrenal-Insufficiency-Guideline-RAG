@@ -21,6 +21,7 @@ from backend.app.ingestion.chunker import chunk_blocks
 from backend.app.ingestion.sectioner import detect_blocks
 from backend.app.models import Chunk, IndexManifest, PerDocumentStats, SourceDocument
 from backend.app.retrieval.store import VectorStore
+from backend.app import graph
 
 logger = logging.getLogger(__name__)
 
@@ -239,6 +240,13 @@ def run_ingest(
     )
     store.write_manifest(manifest)
     report(f"Manifest   {settings.manifest_path}")
+
+    adjacency = graph.build_graph(all_chunks)
+    graph_path = graph.save_graph(adjacency, settings.index_path)
+    report(
+        f"Graph      {graph.edge_count(adjacency)} edge(s) across "
+        f"{len(adjacency)} node(s) -> {graph_path}"
+    )
 
     result.manifest = manifest
     result.elapsed_seconds = time.perf_counter() - started

@@ -52,9 +52,12 @@ class Settings(BaseSettings):
     chunk_max_tokens: int = Field(default=800, alias="CHUNK_MAX_TOKENS")
 
     # --- Retrieval ---
-    top_k: int = Field(default=5, alias="TOP_K")
+    # k=3 scored highest precision in the Day 2 eval and cuts prompt tokens.
+    top_k: int = Field(default=3, alias="TOP_K")
     relevance_floor: float = Field(default=0.30, alias="RELEVANCE_FLOOR")
-    retriever_type: str = Field(default="hybrid_rerank", alias="RETRIEVER_TYPE")
+    # Default is plain hybrid: the Day 2 eval showed the cross-encoder reranker
+    # lowers hit rate (94.4% vs 100%) while adding per-query latency.
+    retriever_type: str = Field(default="hybrid", alias="RETRIEVER_TYPE")
     reranker_model: str = Field(
         default="cross-encoder/ms-marco-MiniLM-L-6-v2", alias="RERANKER_MODEL"
     )
@@ -62,6 +65,13 @@ class Settings(BaseSettings):
     # Tuned against the cross-encoder reranker scale, where unrelated queries
     # score ~0.000 and in-scope queries start around 0.007.
     scope_threshold: float = Field(default=0.005, alias="SCOPE_THRESHOLD")
+
+    # --- Graph expansion (lightweight Graph RAG) ---
+    graph_expansion: bool = Field(default=True, alias="GRAPH_EXPANSION")
+    graph_max_expand: int = Field(default=1, alias="GRAPH_MAX_EXPAND")
+
+    # --- Generation response cache ---
+    response_cache_size: int = Field(default=128, alias="RESPONSE_CACHE_SIZE")
 
     # --- Paths (relative values resolve against the repo root) ---
     corpus_dir: Path = Field(default=Path("data/corpus"), alias="CORPUS_DIR")

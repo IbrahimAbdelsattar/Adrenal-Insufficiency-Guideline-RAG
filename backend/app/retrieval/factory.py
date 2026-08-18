@@ -10,6 +10,7 @@ Instantiates the configured retriever strategy:
 from __future__ import annotations
 
 import logging
+import threading
 from typing import Literal
 
 from backend.app.config import Settings, get_settings
@@ -22,6 +23,51 @@ from backend.app.retrieval.store import VectorStore
 logger = logging.getLogger(__name__)
 
 RetrieverType = Literal["dense", "bm25", "hybrid", "hybrid_rerank"]
+
+_STORE_LOCK = threading.Lock()
+_shared_store: VectorStore | None = None
+
+_RETRIEVER_LOCK = threading.Lock()
+_shared_retriever: Retriever | None = None
+
+
+def get_shared_store(settings: Settings | None = None) -> VectorStore:
+    """Process-wide VectorStore.
+
+    Each VectorStore opens the persistent ChromaDB client; rebuilding it per
+    request reopens the on-disk index every time.
+    """
+    global _shared_store
+    if _shared_store is None:
+        with _STORE_LOCK:
+            if _shared_store is None:
+                _shared_store = VectorStore(settings or get_settings())
+    return _shared_store
+
+
+def get_shared_retriever(settings: Settings | None = None) -> Retriever:
+    """Process-wide cached retriever for request handling.
+
+    Building a retriever reads every chunk from Chroma and tokenizes the whole
+    corpus for BM25, and a fresh embedder loses its query cache — doing that
+    per request wastes hundreds of milliseconds. Call reset_shared_retriever()
+    after re-ingesting in the same process.
+    """
+    global _shared_retriever
+    if _shared_retriever is None:
+        with _RETRIEVER_LOCK:
+            if _shared_retriever is None:
+                _shared_retriever = get_retriever(
+                    settings=settings, store=get_shared_store(settings)
+                )
+    return _shared_retriever
+
+
+def reset_shared_retriever() -> None:
+    """Drop the cached retriever (e.g. after an index rebuild)."""
+    global _shared_retriever
+    with _RETRIEVER_LOCK:
+        _shared_retriever = None
 
 
 def get_retriever(
