@@ -63,7 +63,7 @@ export const translations = {
       "Every chunk includes document name, source page, section title, and publication year.",
     feat2Title: "Dense Vector Search",
     feat2Desc:
-      "Powered by 1536-dim OpenRouter embeddings & persistent ChromaDB vector store.",
+      "Hybrid dense + BM25 retrieval over a persistent ChromaDB vector store. The live embedding model and dimensions are shown in the knowledge store panel.",
     feat3Title: "Clinical Governance",
     feat3Desc:
       "Atomic recommendations are preserved without cross-boundary chunk splitting.",
@@ -160,7 +160,7 @@ export const translations = {
       "تتضمن كل قطعة اسم المستند، ورقم الصفحة المصدر، وعنوان القسم، وسنة النشر.",
     feat2Title: "بحث متجهي كثيف",
     feat2Desc:
-      "مدعوم بمتجهات 1536 بعداً عبر OpenRouter ومخزن ChromaDB المتجهي الدائم.",
+      "استرجاع هجين يجمع البحث المتجهي الكثيف مع BM25 فوق مخزن ChromaDB الدائم. يظهر نموذج التمثيل وأبعاده الفعلية في لوحة مخزن المعرفة.",
     feat3Title: "حوكمة سريرية",
     feat3Desc:
       "يتم الحفاظ على التوصيات الطبية الذرية كاملة دون تقسيم عبر حدود القطع.",

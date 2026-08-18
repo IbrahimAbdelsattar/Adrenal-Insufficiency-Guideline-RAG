@@ -52,6 +52,9 @@ class LLMClient:
             ],
             "max_tokens": self._settings.generation_max_tokens,
             "temperature": self._settings.generation_temperature,
+            # Explicit: some OmniRoute routes default to SSE when `stream` is absent,
+            # which breaks the non-streaming JSON parse in generate_completion().
+            "stream": False,
         }
 
     async def generate_completion(

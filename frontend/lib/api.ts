@@ -92,6 +92,14 @@ export interface Citation {
   section_number: string;
   page_number: number;
   source_url: string;
+  /**
+   * How the backend attributed this citation:
+   *   source_marker       - the answer cited [Source N] explicitly (claim-level)
+   *   recommendation_id   - a bare [1.8.6] marker was mapped back to its chunk
+   *   fallback_all_sources- no markers found; every supplied source is listed
+   *                         (block-level provenance, not claim-level)
+   */
+  resolved_by?: "source_marker" | "recommendation_id" | "fallback_all_sources";
 }
 
 export interface GenerateResponse {
@@ -358,16 +366,20 @@ export async function generateStream(
         continue;
       }
 
-      const data = JSON.parse(dataLines.join("\n"));
+      try {
+        const data = JSON.parse(dataLines.join("\n"));
 
-      if (event === "meta") {
-        callbacks.onMeta?.(data as StreamMeta);
-      } else if (event === "token") {
-        callbacks.onToken(data.text ?? "");
-      } else if (event === "done") {
-        callbacks.onDone(data as StreamDone);
-      } else if (event === "error") {
-        callbacks.onError?.(data.detail ?? "Generation failed.");
+        if (event === "meta") {
+          callbacks.onMeta?.(data as StreamMeta);
+        } else if (event === "token") {
+          callbacks.onToken(data.text ?? "");
+        } else if (event === "done") {
+          callbacks.onDone(data as StreamDone);
+        } else if (event === "error") {
+          callbacks.onError?.(data.detail ?? "Generation failed.");
+        }
+      } catch {
+        /* Ignore malformed frames */
       }
     }
   }

@@ -91,19 +91,28 @@ def cmd_query(args: argparse.Namespace) -> int:
         print(json.dumps(payload.model_dump(mode="json"), indent=2))
         return 0
 
+    # Apply the same guardrail the API does, so the CLI cannot answer a
+    # question the served endpoints would reject as out of scope.
+    scope_status, scope_message, shown = classify_scope(results, settings.scope_threshold)
+
     _echo(f"Query: {args.query}")
     _echo(
         f"Retriever: {retriever_type} | Model: {settings.embedding_model} | top_k={top_k} | "
-        f"floor={settings.relevance_floor:.2f}"
+        f"floor={settings.relevance_floor:.2f} | scope={settings.scope_threshold:.2f}"
     )
     _echo("")
 
-    for result in results:
+    if scope_status == "out_of_scope":
+        _echo(f"scope: {scope_status}")
+        _echo(scope_message)
+        return 0
+
+    for result in shown:
         chunk = result.chunk
         flag = "   [BELOW FLOOR]" if result.below_floor else ""
         caution = "   [CAUTION: non-current source]" if chunk.requires_caution else ""
         _echo(
-            f"#{result.rank}  {result.score:.3f}  {chunk.document_name[:40]}  "
+            f"#{result.rank}  rel={result.absolute_relevance:.3f}  {chunk.document_name[:40]}  "
             f"p.{chunk.page_number}  sec {chunk.section_number} - {chunk.section_title[:38]}{flag}{caution}"
         )
         if chunk.subsection_title:
@@ -113,8 +122,9 @@ def cmd_query(args: argparse.Namespace) -> int:
         _echo(f"    {body}")
         _echo("")
 
-    above = sum(1 for r in results if not r.below_floor)
-    _echo(f"evidence_found: {str(bool(above)).lower()}   ({above} of {len(results)} above floor)")
+    above = sum(1 for r in shown if not r.below_floor)
+    _echo(f"scope: {scope_status}")
+    _echo(f"evidence_found: {str(bool(above)).lower()}   ({above} of {len(shown)} above floor)")
     return 0
 
 

@@ -125,6 +125,22 @@ class RetrievalResult(BaseModel):
     rerank_score: float | None = None
     retriever_mode: str = "dense"
 
+    @property
+    def absolute_relevance(self) -> float:
+        """Scale-stable relevance signal for floor / scope decisions.
+
+        `score` is only meaningful for ordering: the hybrid retriever fuses
+        ranks via RRF and normalises by the top hit, so the best result is
+        always 1.0 no matter how unrelated the query is. Cosine similarity
+        (or the cross-encoder score, when reranking) is an absolute measure
+        and is what the guardrails must be compared against.
+        """
+        if self.rerank_score is not None:
+            return self.rerank_score
+        if self.dense_score is not None:
+            return self.dense_score
+        return self.score
+
 
 class PerDocumentStats(BaseModel):
     doc_id: str

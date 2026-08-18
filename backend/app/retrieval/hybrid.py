@@ -128,12 +128,16 @@ class HybridRetriever:
         results = []
         for rank, (chunk, score) in enumerate(ranked_pairs, start=1):
             cid = chunk.chunk_id
+            # `score` is RRF-normalised, so the top hit is always 1.0 and cannot
+            # be compared to a floor. Judge weak matches on the absolute signal:
+            # the cross-encoder score when reranking, else dense cosine.
+            relevance = score if self._reranker is not None else dense_map.get(cid, 0.0)
             results.append(
                 RetrievalResult(
                     chunk=chunk,
                     score=score,
                     rank=rank,
-                    below_floor=score < floor,
+                    below_floor=relevance < floor,
                     dense_score=dense_map.get(cid, 0.0),
                     bm25_score=bm25_map.get(cid, 0.0),
                     rerank_score=score if self._reranker is not None else None,

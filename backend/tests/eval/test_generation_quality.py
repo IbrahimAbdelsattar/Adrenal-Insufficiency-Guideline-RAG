@@ -62,7 +62,7 @@ def test_generation_quality(monkeypatch):
                 )
                 return [RetrievalResult(chunk=c, score=0.9, rank=1, below_floor=False)]
 
-        monkeypatch.setattr(generate_module, "get_retriever", lambda s: MockRetriever())
+        monkeypatch.setattr(generate_module, "get_shared_retriever", lambda s: MockRetriever())
 
         response = client.post(
             "/api/generate",

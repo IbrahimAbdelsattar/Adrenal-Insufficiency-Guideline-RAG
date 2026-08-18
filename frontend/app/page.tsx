@@ -5,7 +5,7 @@ import { ChunkCard } from "@/components/ChunkCard";
 import { AnswerCard } from "@/components/AnswerCard";
 import { IndexStatus } from "@/components/IndexStatus";
 import { SearchBox } from "@/components/SearchBox";
-import { search, generateStream } from "@/lib/api";
+import { search, generate, generateStream } from "@/lib/api";
 import type { SearchResponse, GenerateResponse } from "@/lib/api";
 import { translations, type Language } from "@/lib/translations";
 
@@ -76,40 +76,64 @@ export default function Page() {
         });
 
         let accumulated = "";
+        let streamFailed = false;
 
-        await generateStream(query, topK, {
-          onMeta: (meta) =>
-            setGenResponse((prev) =>
-              prev
-                ? {
-                    ...prev,
-                    model: meta.model,
-                    evidence_found: meta.evidence_found,
-                    cache_hit: meta.cache_hit,
-                  }
-                : prev,
-            ),
-          onToken: (text) => {
-            accumulated += text;
-            const snapshot = accumulated;
+        try {
+          await generateStream(query, topK, {
+            onMeta: (meta) =>
+              setGenResponse((prev) =>
+                prev
+                  ? {
+                      ...prev,
+                      model: meta.model,
+                      evidence_found: meta.evidence_found,
+                      cache_hit: meta.cache_hit,
+                    }
+                  : prev,
+              ),
+            onToken: (text) => {
+              accumulated += text;
+              const snapshot = accumulated;
 
-            setGenResponse((prev) =>
-              prev ? { ...prev, answer: snapshot } : prev,
+              setGenResponse((prev) =>
+                prev ? { ...prev, answer: snapshot } : prev,
+              );
+            },
+            onDone: (done) =>
+              setGenResponse((prev) =>
+                prev
+                  ? {
+                      ...prev,
+                      citations: done.citations,
+                      latency_ms: done.latency_ms,
+                      disclaimer: done.disclaimer,
+                    }
+                  : prev,
+              ),
+            onError: (detail) => {
+              streamFailed = true;
+              setError(detail);
+            },
+          });
+        } catch {
+          streamFailed = true;
+        }
+
+        // If streaming failed and nothing was received, fallback to standard generate API
+        if (streamFailed && !accumulated) {
+          try {
+            setError(null);
+            const fallbackResult = await generate(query, topK);
+            setGenResponse(fallbackResult);
+          } catch (fallbackError) {
+            setGenResponse(null);
+            setError(
+              fallbackError instanceof Error
+                ? fallbackError.message
+                : "Generation failed."
             );
-          },
-          onDone: (done) =>
-            setGenResponse((prev) =>
-              prev
-                ? {
-                    ...prev,
-                    citations: done.citations,
-                    latency_ms: done.latency_ms,
-                    disclaimer: done.disclaimer,
-                  }
-                : prev,
-            ),
-          onError: (detail) => setError(detail),
-        });
+          }
+        }
       }
     } catch (e) {
       setError(

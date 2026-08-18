@@ -18,9 +18,9 @@ from fastapi.responses import StreamingResponse
 from backend.app import graph
 from backend.app.config import Settings, get_settings
 from backend.app.errors import PipelineError
-from backend.app.generation.assembler import assemble_evidence
+from backend.app.generation.assembler import assemble_evidence, select_sources
 from backend.app.generation.citations import (
-    extract_citations,
+    resolve_citations,
     should_abstain,
     strip_trailing_disclaimer,
 )
@@ -154,6 +154,9 @@ async def generate_answer(request: GenerateRequest) -> GenerateResponse:
             )
 
         # 5. Assemble evidence context and synthesize via OmniRoute
+        # cited_sources is what the LLM actually sees numbered [Source 1..N];
+        # citations must resolve against it, not the unfiltered result list.
+        cited_sources = select_sources(evidence_results)
         evidence_text = assemble_evidence(evidence_results)
         user_prompt = construct_user_prompt(request.query, evidence_text)
 
@@ -165,7 +168,7 @@ async def generate_answer(request: GenerateRequest) -> GenerateResponse:
         answer = strip_trailing_disclaimer(raw_answer.strip())
 
         # 6. Extract and map citations
-        citations = extract_citations(answer, evidence_results)
+        citations = resolve_citations(answer, cited_sources)
         _cache_put(key, {"answer": answer, "citations": citations}, settings.response_cache_size)
         elapsed_ms = int((time.perf_counter() - started) * 1000)
 
@@ -261,6 +264,7 @@ async def generate_answer_stream(request: GenerateRequest) -> StreamingResponse:
             )
             return
 
+        cited_sources = select_sources(evidence_results)
         evidence_text = assemble_evidence(evidence_results)
         user_prompt = construct_user_prompt(request.query, evidence_text)
         client = LLMClient(settings)
@@ -281,7 +285,7 @@ async def generate_answer_stream(request: GenerateRequest) -> StreamingResponse:
             return
 
         answer = strip_trailing_disclaimer("".join(parts).strip())
-        citations = extract_citations(answer, evidence_results)
+        citations = resolve_citations(answer, cited_sources)
         _cache_put(key, {"answer": answer, "citations": citations}, settings.response_cache_size)
 
         yield _sse(

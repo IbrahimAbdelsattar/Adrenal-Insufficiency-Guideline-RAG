@@ -37,7 +37,10 @@ def classify_scope(
     scope_threshold: float,
 ) -> tuple[str, str, list[RetrievalResult]]:
     """Classify a result set, returning (status, message, results_to_show)."""
-    top_score = results[0].score if results else 0.0
+    # Compare against the absolute relevance signal, not `score`: the hybrid
+    # retriever normalises RRF by the top hit, so `results[0].score` is 1.0 for
+    # every query and would classify anything as in_scope.
+    top_score = results[0].absolute_relevance if results else 0.0
     above_floor = sum(1 for result in results if not result.below_floor)
 
     if not results or top_score < scope_threshold:

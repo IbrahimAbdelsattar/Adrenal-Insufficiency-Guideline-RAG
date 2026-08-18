@@ -5,21 +5,32 @@ from collections.abc import Sequence
 from backend.app.models import RetrievalResult
 
 
+def select_sources(results: Sequence[RetrievalResult]) -> list[RetrievalResult]:
+    """Pick the exact chunks that become [Source 1..N], in that order.
+
+    Drops below_floor results when anything is above the floor; if everything
+    is below, keeps them so the LLM can state that the answer is missing.
+
+    Callers MUST number citations against this list, not the raw results:
+    `[Source N]` is a 1-based index into it, so assembling from one list and
+    resolving citations from another silently attributes text to the wrong page.
+    """
+    if not results:
+        return []
+    above_floor = [r for r in results if not r.below_floor]
+    return above_floor if above_floor else list(results)
+
+
 def assemble_evidence(results: Sequence[RetrievalResult]) -> str:
     """Convert retrieval results into numbered evidence blocks with citation metadata.
 
-    Filters out below_floor results if there are any results above floor.
-    Otherwise, uses the below_floor results to allow the LLM to explain why
-    the evidence is insufficient.
+    Numbering follows `select_sources(results)`; pass that same list to
+    `extract_citations` so [Source N] resolves to the chunk the LLM was shown.
     """
     if not results:
         return "No relevant evidence found."
 
-    valid_results = [r for r in results if not r.below_floor]
-
-    # If everything is below floor, we still provide them so the LLM can
-    # analyze them and confidently state that the specific answer is missing.
-    sources = valid_results if valid_results else list(results)
+    sources = select_sources(results)
 
     blocks = []
     for i, res in enumerate(sources, start=1):
