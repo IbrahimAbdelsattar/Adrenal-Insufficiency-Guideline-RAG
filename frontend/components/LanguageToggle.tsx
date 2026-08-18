@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import type { Language } from "@/lib/translations";
 
 export function LanguageToggle({
@@ -11,6 +11,15 @@ export function LanguageToggle({
   const [lang, setLang] = useState<Language>("en");
   const [mounted, setMounted] = useState(false);
 
+  const applyLang = useCallback((newLang: Language) => {
+    const root = document.documentElement;
+    root.setAttribute("lang", newLang);
+    root.setAttribute("dir", newLang === "ar" ? "rtl" : "ltr");
+    if (onLanguageChange) onLanguageChange(newLang);
+    // Dispatch custom event for dynamic components
+    window.dispatchEvent(new CustomEvent("languageChange", { detail: newLang }));
+  }, [onLanguageChange]);
+
   useEffect(() => {
     setMounted(true);
     const savedLang = localStorage.getItem("eva_lang") as Language | null;
@@ -18,16 +27,7 @@ export function LanguageToggle({
       setLang(savedLang);
       applyLang(savedLang);
     }
-  }, []);
-
-  function applyLang(newLang: Language) {
-    const root = document.documentElement;
-    root.setAttribute("lang", newLang);
-    root.setAttribute("dir", newLang === "ar" ? "rtl" : "ltr");
-    if (onLanguageChange) onLanguageChange(newLang);
-    // Dispatch custom event for dynamic components
-    window.dispatchEvent(new CustomEvent("languageChange", { detail: newLang }));
-  }
+  }, [applyLang]);
 
   function toggleLang() {
     const nextLang = lang === "en" ? "ar" : "en";

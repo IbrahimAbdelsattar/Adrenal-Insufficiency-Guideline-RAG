@@ -16,7 +16,7 @@ from typing import Any
 import yaml
 
 from backend.app.config import Settings, get_settings
-from backend.app.models import Chunk, GoldenQuestion, RetrievalResult
+from backend.app.models import Chunk, GoldenQuestion
 from backend.app.retrieval.base import Retriever
 
 GOLDEN_PATH = Path(__file__).resolve().parents[1] / "tests" / "eval" / "golden_questions.yaml"
@@ -145,7 +145,9 @@ class EvaluationReport:
             if len(q_text) > 42:
                 q_text = q_text[:39] + "..."
             failure_note = o.notes or (
-                "Ground-truth section retrieved" if o.hit else f"Expected {','.join(o.question.expected_sections)}, got {','.join(o.retrieved_sections[:3])}"
+                "Ground-truth section retrieved"
+                if o.hit
+                else f"Expected {','.join(o.question.expected_sections)}, got {','.join(o.retrieved_sections[:3])}"
             )
             lines.append(
                 f"| **{o.question.id}** | *{q_text}* | {self.chunking_config} | {self.top_k} | "
@@ -230,13 +232,23 @@ def evaluate(
                 )
             )
 
-        p_at_3 = relevant_in_top_3 / 3.0 if len(results) >= 3 else (relevant_in_top_3 / max(len(results), 1))
-        p_at_5 = relevant_in_top_5 / 5.0 if len(results) >= 5 else (relevant_in_top_5 / max(len(results), 1))
+        p_at_3 = (
+            relevant_in_top_3 / 3.0
+            if len(results) >= 3
+            else (relevant_in_top_3 / max(len(results), 1))
+        )
+        p_at_5 = (
+            relevant_in_top_5 / 5.0
+            if len(results) >= 5
+            else (relevant_in_top_5 / max(len(results), 1))
+        )
 
         # Diagnose failure mode if missed or low precision
         note = ""
         if hit_rank is None:
-            got_secs = ",".join(r.chunk.section_number for r in results[:3] if r.chunk.section_number)
+            got_secs = ",".join(
+                r.chunk.section_number for r in results[:3] if r.chunk.section_number
+            )
             note = f"Missed target section {','.join(question.expected_sections)}; retrieved {got_secs or 'unsectioned'}"
         elif p_at_5 < 0.4:
             note = "High semantic drift in lower ranks"

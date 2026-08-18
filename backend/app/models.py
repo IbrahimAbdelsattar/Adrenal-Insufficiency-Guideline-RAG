@@ -10,7 +10,7 @@ single place that shape is produced.
 from __future__ import annotations
 
 from datetime import datetime
-from enum import Enum
+from enum import StrEnum
 from typing import Any, Literal
 
 from pydantic import BaseModel, Field, field_validator
@@ -21,7 +21,7 @@ CAUTION_AGE_YEARS = 10
 PLACEHOLDER_TOKENS = {"", "todo", "tbd", "n/a", "na", "...", "xxx"}
 
 
-class DocumentType(str, Enum):
+class DocumentType(StrEnum):
     GUIDELINE = "guideline"
     BULLETIN = "bulletin"
     REVIEW = "review"
@@ -46,8 +46,7 @@ class SourceDocument(BaseModel):
     def _reject_placeholder(cls, v: str) -> str:
         if v.strip().lower() in PLACEHOLDER_TOKENS:
             raise ValueError(
-                "must be a real justification, not a placeholder "
-                "(Constitution Principle III)"
+                "must be a real justification, not a placeholder (Constitution Principle III)"
             )
         return v.strip()
 
@@ -120,7 +119,7 @@ class RetrievalResult(BaseModel):
     score: float
     rank: int
     below_floor: bool
-    
+
     dense_score: float | None = None
     bm25_score: float | None = None
     rerank_score: float | None = None
@@ -182,12 +181,14 @@ class SearchResponse(BaseModel):
 
 class GenerateRequest(BaseModel):
     """Request body for POST /api/generate."""
+
     query: str
     top_k: int | None = Field(default=None)
 
 
 class GenerateResponse(BaseModel):
     """Response body for POST /api/generate."""
+
     query: str
     answer: str
     citations: list[dict]
@@ -195,7 +196,6 @@ class GenerateResponse(BaseModel):
     disclaimer: str
     model: str
     latency_ms: int
-
 
 
 class GoldenQuestion(BaseModel):

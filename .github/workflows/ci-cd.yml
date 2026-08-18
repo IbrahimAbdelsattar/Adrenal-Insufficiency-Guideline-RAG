@@ -1,0 +1,220 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches:
+      - main
+      - master
+      - develop
+    tags:
+      - 'v*'
+  pull_request:
+    branches:
+      - main
+      - master
+      - develop
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' && !startsWith(github.ref, 'refs/tags/v') }}
+
+jobs:
+  backend-ci:
+    name: Backend CI (Lint & Tests)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.13
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: "pip"
+
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install ruff pytest-cov
+
+      - name: Check formatting with Ruff
+        run: ruff format --check backend
+
+      - name: Lint with Ruff
+        run: ruff check backend
+
+      - name: Run Backend Unit Tests with Coverage
+        run: |
+          pytest backend/tests/unit -v --cov=backend/app --cov-report=xml:coverage-unit.xml --cov-report=term-missing
+
+      - name: Run Backend Integration Tests
+        run: |
+          pytest backend/tests/integration -v
+
+      - name: Upload Test Coverage Artifact
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: backend-coverage-report
+          path: coverage-unit.xml
+          retention-days: 14
+
+  frontend-ci:
+    name: Frontend CI (Typecheck, Lint & Build)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: "npm"
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install Frontend Dependencies
+        working-directory: ./frontend
+        run: npm ci
+
+      - name: TypeScript Typecheck
+        working-directory: ./frontend
+        run: npm run typecheck
+
+      - name: Frontend ESLint
+        working-directory: ./frontend
+        run: npm run lint
+
+      - name: Next.js Static Export Production Build
+        working-directory: ./frontend
+        env:
+          NEXT_OUTPUT: export
+          NODE_ENV: production
+        run: npm run build
+
+      - name: Upload Frontend Build Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-static-build
+          path: frontend/out
+          retention-days: 7
+
+  security-audit:
+    name: Security & Vulnerability Audit
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.13
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Install security auditing tools
+        run: |
+          python -m pip install --upgrade pip
+          pip install pip-audit
+
+      - name: Run pip-audit on backend dependencies
+        run: |
+          pip-audit -r requirements.txt || true
+
+      - name: Frontend npm audit
+        working-directory: ./frontend
+        run: |
+          npm audit --audit-level=high || true
+
+  docker-smoke-test:
+    name: Docker Build & Healthcheck Smoke Test
+    needs: [backend-ci, frontend-ci]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build Docker image for smoke test
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./Dockerfile
+          load: true
+          tags: eva-ai:test
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Run Smoke Test Container & Healthcheck
+        run: |
+          docker run -d --name eva-ai-smoke -p 8000:8000 eva-ai:test
+          
+          echo "Waiting for service to become healthy..."
+          HEALTHY=0
+          for i in $(seq 1 30); do
+            if curl -s -f http://localhost:8000/api/health; then
+              echo "Container health check passed!"
+              HEALTHY=1
+              break
+            fi
+            echo "Waiting for healthcheck... ($i/30)"
+            sleep 3
+          done
+          
+          docker stop eva-ai-smoke && docker rm eva-ai-smoke
+          
+          if [ "$HEALTHY" -ne 1 ]; then
+            echo "Healthcheck failed after 90 seconds."
+            exit 1
+          fi
+
+  publish-ghcr:
+    name: Publish Container to GHCR
+    needs: [backend-ci, frontend-ci, security-audit, docker-smoke-test]
+    if: (github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v'))) || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract Docker metadata & tags
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ github.repository }}
+          tags: |
+            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
+            type=ref,event=branch
+            type=ref,event=tag
+            type=sha,prefix=sha-
+
+      - name: Build and Push Docker image to GHCR
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./Dockerfile
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max

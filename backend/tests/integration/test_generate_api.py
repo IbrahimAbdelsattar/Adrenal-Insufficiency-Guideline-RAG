@@ -21,8 +21,8 @@ def mock_llm(monkeypatch):
 
 def test_generate_api_abstains_when_no_evidence(monkeypatch):
     """When no evidence is found or out of scope, the endpoint should return an abstention message without calling LLM."""
-    from backend.app.generation.client import LLMClient
     import backend.app.api.generate as generate_module
+    from backend.app.generation.client import LLMClient
 
     called = False
 

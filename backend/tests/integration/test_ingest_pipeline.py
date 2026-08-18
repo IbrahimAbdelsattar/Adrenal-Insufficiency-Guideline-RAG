@@ -37,9 +37,7 @@ class StubEmbedder:
 @pytest.fixture(scope="module")
 def report(tmp_path_factory):
     """Ingest the real corpus into a throwaway index directory."""
-    settings = get_settings().model_copy(
-        update={"index_dir": tmp_path_factory.mktemp("index")}
-    )
+    settings = get_settings().model_copy(update={"index_dir": tmp_path_factory.mktemp("index")})
     store = VectorStore(settings)
     result = run_ingest(settings=settings, embedder=StubEmbedder(), store=store)
     return result, store
@@ -116,9 +114,7 @@ class TestIdempotence:
     def test_second_run_yields_the_same_chunk_count(self, report, tmp_path):
         result, _ = report
         settings = get_settings().model_copy(update={"index_dir": tmp_path / "again"})
-        second = run_ingest(
-            settings=settings, embedder=StubEmbedder(), store=VectorStore(settings)
-        )
+        second = run_ingest(settings=settings, embedder=StubEmbedder(), store=VectorStore(settings))
         assert second.chunk_count == result.chunk_count
 
     def test_second_run_yields_the_same_ids(self, report, tmp_path):

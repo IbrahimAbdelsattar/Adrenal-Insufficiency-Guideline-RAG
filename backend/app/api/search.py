@@ -48,22 +48,15 @@ def get_health() -> dict:
         }
 
     index_model = manifest.embedding_model if manifest else ""
-    model_matches = (
-        (not index_model)
-        or index_model == settings.embedding_model
-    )
+    model_matches = (not index_model) or index_model == settings.embedding_model
 
     problems = []
 
     if not ready:
-        problems.append(
-            "No index built - run: python -m backend.app.cli ingest"
-        )
+        problems.append("No index built - run: python -m backend.app.cli ingest")
 
     if not key_configured:
-        problems.append(
-            "OMNIROUTE_API_KEY is not set - search cannot embed queries"
-        )
+        problems.append("OMNIROUTE_API_KEY is not set - search cannot embed queries")
 
     if not model_matches:
         problems.append(
@@ -79,9 +72,7 @@ def get_health() -> dict:
         "index_embedding_model": index_model,
         "model_matches_index": model_matches,
         "retriever_type": settings.retriever_type,
-        "message": "; ".join(problems)
-        if problems
-        else "Index ready.",
+        "message": "; ".join(problems) if problems else "Index ready.",
     }
 
 
@@ -94,10 +85,7 @@ def get_index_status() -> IndexManifest:
     if manifest is None:
         raise HTTPException(
             status_code=404,
-            detail=(
-                "No index has been built. "
-                "Run: python -m backend.app.cli ingest"
-            ),
+            detail=("No index has been built. Run: python -m backend.app.cli ingest"),
         )
 
     return manifest
@@ -160,9 +148,7 @@ def search(request: SearchRequest) -> SearchResponse:
     started = time.perf_counter()
     try:
         retriever = get_retriever(settings=settings, store=store)
-        results = retriever.search(
-            request.query, request.top_k or settings.top_k
-        )
+        results = retriever.search(request.query, request.top_k or settings.top_k)
     except PipelineError as exc:
         raise HTTPException(status_code=503, detail=str(exc)) from exc
 

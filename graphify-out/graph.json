@@ -1,0 +1,220 @@
+{
+  "directed": false,
+  "multigraph": false,
+  "graph": {},
+  "nodes": [
+    {
+      "label": "RootLayout",
+      "file_type": "code",
+      "source_file": "frontend/app/layout.tsx",
+      "source_location": "L9",
+      "_origin": "ast",
+      "id": "frontend_app_layout_rootlayout",
+      "community": 0,
+      "norm_label": "rootlayout"
+    },
+    {
+      "label": "NotFound",
+      "file_type": "code",
+      "source_file": "frontend/app/not-found.tsx",
+      "source_location": "L7",
+      "_origin": "ast",
+      "id": "frontend_app_not_found_notfound",
+      "community": 1,
+      "norm_label": "notfound"
+    },
+    {
+      "label": "ChunkCard",
+      "file_type": "code",
+      "source_file": "frontend/components/ChunkCard.tsx",
+      "source_location": "L21",
+      "_origin": "ast",
+      "id": "frontend_components_chunkcard_chunkcard",
+      "community": 2,
+      "norm_label": "chunkcard"
+    },
+    {
+      "label": "LanguageToggle",
+      "file_type": "code",
+      "source_file": "frontend/components/LanguageToggle.tsx",
+      "source_location": "L6",
+      "_origin": "ast",
+      "id": "frontend_components_languagetoggle_languagetoggle",
+      "community": 3,
+      "norm_label": "languagetoggle"
+    },
+    {
+      "label": "ThemeToggle",
+      "file_type": "code",
+      "source_file": "frontend/components/ThemeToggle.tsx",
+      "source_location": "L5",
+      "_origin": "ast",
+      "id": "frontend_components_themetoggle_themetoggle",
+      "community": 4,
+      "norm_label": "themetoggle"
+    },
+    {
+      "label": "Chunk",
+      "file_type": "code",
+      "source_file": "frontend/lib/api.ts",
+      "source_location": "L6",
+      "_origin": "ast",
+      "id": "frontend_lib_api_chunk",
+      "community": 6,
+      "norm_label": "chunk"
+    },
+    {
+      "label": "RetrievalResult",
+      "file_type": "code",
+      "source_file": "frontend/lib/api.ts",
+      "source_location": "L24",
+      "_origin": "ast",
+      "id": "frontend_lib_api_retrievalresult",
+      "community": 15,
+      "norm_label": "retrievalresult"
+    },
+    {
+      "label": "ScopeStatus",
+      "file_type": "code",
+      "source_file": "frontend/lib/api.ts",
+      "source_location": "L49",
+      "_origin": "ast",
+      "id": "frontend_lib_api_scopestatus",
+      "community": 16,
+      "norm_label": "scopestatus"
+    },
+    {
+      "label": "SearchResponse",
+      "file_type": "code",
+      "source_file": "frontend/lib/api.ts",
+      "source_location": "L54",
+      "_origin": "ast",
+      "id": "frontend_lib_api_searchresponse",
+      "community": 18,
+      "norm_label": "searchresponse"
+    },
+    {
+      "label": "Citation",
+      "file_type": "code",
+      "source_file": "frontend/lib/api.ts",
+      "source_location": "L88",
+      "_origin": "ast",
+      "id": "frontend_lib_api_citation",
+      "community": 7,
+      "norm_label": "citation"
+    },
+    {
+      "label": "GenerateResponse",
+      "file_type": "code",
+      "source_file": "frontend/lib/api.ts",
+      "source_location": "L97",
+      "_origin": "ast",
+      "id": "frontend_lib_api_generateresponse",
+      "community": 9,
+      "norm_label": "generateresponse"
+    },
+    {
+      "label": "PerDocumentStats",
+      "file_type": "code",
+      "source_file": "frontend/lib/api.ts",
+      "source_location": "L107",
+      "_origin": "ast",
+      "id": "frontend_lib_api_perdocumentstats",
+      "community": 14,
+      "norm_label": "perdocumentstats"
+    },
+    {
+      "label": "IndexManifest",
+      "file_type": "code",
+      "source_file": "frontend/lib/api.ts",
+      "source_location": "L114",
+      "_origin": "ast",
+      "id": "frontend_lib_api_indexmanifest",
+      "community": 13,
+      "norm_label": "indexmanifest"
+    },
+    {
+      "label": "SourceDocument",
+      "file_type": "code",
+      "source_file": "frontend/lib/api.ts",
+      "source_location": "L127",
+      "_origin": "ast",
+      "id": "frontend_lib_api_sourcedocument",
+      "community": 19,
+      "norm_label": "sourcedocument"
+    },
+    {
+      "label": "ApiError",
+      "file_type": "code",
+      "source_file": "frontend/lib/api.ts",
+      "source_location": "L143",
+      "_origin": "ast",
+      "id": "frontend_lib_api_apierror",
+      "community": 5,
+      "norm_label": "apierror"
+    },
+    {
+      "label": "search",
+      "file_type": "code",
+      "source_file": "frontend/lib/api.ts",
+      "source_location": "L220",
+      "_origin": "ast",
+      "id": "frontend_lib_api_search",
+      "community": 17,
+      "norm_label": "search"
+    },
+    {
+      "label": "getIndexStatus",
+      "file_type": "code",
+      "source_file": "frontend/lib/api.ts",
+      "source_location": "L239",
+      "_origin": "ast",
+      "id": "frontend_lib_api_getindexstatus",
+      "community": 11,
+      "norm_label": "getindexstatus"
+    },
+    {
+      "label": "getSources",
+      "file_type": "code",
+      "source_file": "frontend/lib/api.ts",
+      "source_location": "L248",
+      "_origin": "ast",
+      "id": "frontend_lib_api_getsources",
+      "community": 12,
+      "norm_label": "getsources"
+    },
+    {
+      "label": "generate",
+      "file_type": "code",
+      "source_file": "frontend/lib/api.ts",
+      "source_location": "L259",
+      "_origin": "ast",
+      "id": "frontend_lib_api_generate",
+      "community": 8,
+      "norm_label": "generate"
+    },
+    {
+      "label": "getHealth",
+      "file_type": "code",
+      "source_file": "frontend/lib/api.ts",
+      "source_location": "L269",
+      "_origin": "ast",
+      "id": "frontend_lib_api_gethealth",
+      "community": 10,
+      "norm_label": "gethealth"
+    },
+    {
+      "label": "Language",
+      "file_type": "code",
+      "source_file": "frontend/lib/translations.ts",
+      "source_location": "L1",
+      "_origin": "ast",
+      "id": "frontend_lib_translations_language",
+      "community": 20,
+      "norm_label": "language"
+    }
+  ],
+  "links": [],
+  "hyperedges": [],
+  "built_at_commit": "76fdee4187d7c0385298a9d8ba652b026cd42f67"
+}

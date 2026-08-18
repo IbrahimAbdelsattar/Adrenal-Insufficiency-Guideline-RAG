@@ -1,0 +1,73 @@
+name: Pull Request Check
+
+on:
+  pull_request:
+    branches:
+      - main
+      - master
+      - develop
+
+permissions:
+  contents: read
+
+jobs:
+  pr-backend-check:
+    name: Backend Quality Gate
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout PR
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.13
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: "pip"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install ruff
+
+      - name: Check code formatting
+        run: ruff format --check backend
+
+      - name: Run Ruff Linter
+        run: ruff check backend
+
+      - name: Run Unit Tests
+        run: pytest backend/tests/unit -v
+
+  pr-frontend-check:
+    name: Frontend Quality Gate
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout PR
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: "npm"
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install Dependencies
+        working-directory: ./frontend
+        run: npm ci
+
+      - name: TypeScript Typecheck
+        working-directory: ./frontend
+        run: npm run typecheck
+
+      - name: Frontend ESLint
+        working-directory: ./frontend
+        run: npm run lint
+
+      - name: Next.js Production Build Verification
+        working-directory: ./frontend
+        env:
+          NEXT_OUTPUT: export
+          NODE_ENV: production
+        run: npm run build

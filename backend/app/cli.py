@@ -1,9 +1,9 @@
 """Command-line interface (contracts/cli-contract.md, Day 2 Lab).
 
-    python -m backend.app.cli ingest [--dry-run] [--doc-id ID] [--strategy {section,fixed}] [--verbose]
-    python -m backend.app.cli query "..." [--top-k 5] [--retriever-type {dense,bm25,hybrid,hybrid_rerank}] [--json] [--full-text]
-    python -m backend.app.cli eval [--top-k 5] [--retriever-type {dense,bm25,hybrid,hybrid_rerank}] [--matrix] [--json]
-    python -m backend.app.cli benchmark [--output FILE] [--json]
+python -m backend.app.cli ingest [--dry-run] [--doc-id ID] [--strategy {section,fixed}] [--verbose]
+python -m backend.app.cli query "..." [--top-k 5] [--retriever-type {dense,bm25,hybrid,hybrid_rerank}] [--json] [--full-text]
+python -m backend.app.cli eval [--top-k 5] [--retriever-type {dense,bm25,hybrid,hybrid_rerank}] [--matrix] [--json]
+python -m backend.app.cli benchmark [--output FILE] [--json]
 """
 
 from __future__ import annotations
@@ -60,6 +60,7 @@ def cmd_query(args: argparse.Namespace) -> int:
     import json
 
     from backend.app.models import DISCLAIMER, SearchResponse
+    from backend.app.retrieval.factory import get_retriever
     from backend.app.retrieval.scope import classify_scope
     from backend.app.retrieval.store import VectorStore
 
@@ -76,9 +77,7 @@ def cmd_query(args: argparse.Namespace) -> int:
     results = retriever.search(args.query, top_k)
 
     if args.json:
-        scope_status, scope_message, shown = classify_scope(
-            results, settings.scope_threshold
-        )
+        scope_status, scope_message, shown = classify_scope(results, settings.scope_threshold)
         payload = SearchResponse(
             query=args.query,
             results=shown,
@@ -343,9 +342,7 @@ def build_parser() -> argparse.ArgumentParser:
         help="Retrieval strategy (default: configured in settings).",
     )
     query.add_argument("--json", action="store_true", help="Emit SearchResponse JSON.")
-    query.add_argument(
-        "--full-text", action="store_true", help="Print whole chunks, not excerpts."
-    )
+    query.add_argument("--full-text", action="store_true", help="Print whole chunks, not excerpts.")
     query.set_defaults(func=cmd_query)
 
     evaluate_cmd = sub.add_parser(

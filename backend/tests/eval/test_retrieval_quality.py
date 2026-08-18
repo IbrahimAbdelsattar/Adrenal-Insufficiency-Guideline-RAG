@@ -29,7 +29,9 @@ def report():
         pytest.skip("No API key configured; retrieval needs to embed the query.")
 
     retriever = get_retriever(retriever_type="hybrid", store=store, settings=settings)
-    result = evaluate(retriever, settings=settings, retriever_name="Hybrid", chunking_config="Section-Aware")
+    result = evaluate(
+        retriever, settings=settings, retriever_name="Hybrid", chunking_config="Section-Aware"
+    )
 
     # Printed so a failing run shows which questions regressed.
     print(f"\nGolden set: {result.total} questions | top_k={result.top_k}\n")

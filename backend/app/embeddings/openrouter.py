@@ -88,7 +88,7 @@ class OpenRouterEmbedder:
                     break
 
             if attempt < MAX_ATTEMPTS:
-                time.sleep(BACKOFF_BASE_SECONDS ** attempt)
+                time.sleep(BACKOFF_BASE_SECONDS**attempt)
 
         raise EmbeddingProviderError(
             f"Embedding request failed after {MAX_ATTEMPTS} attempts "

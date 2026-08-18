@@ -8,7 +8,6 @@ from __future__ import annotations
 
 from functools import lru_cache
 from pathlib import Path
-from typing import Literal
 
 from pydantic import AliasChoices, Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -39,21 +38,13 @@ class Settings(BaseSettings):
     )
 
     # --- Embeddings ---
-    embedding_model: str = Field(
-        default="gemini/gemini-embedding-001", alias="EMBEDDING_MODEL"
-    )
+    embedding_model: str = Field(default="gemini/gemini-embedding-001", alias="EMBEDDING_MODEL")
     embedding_batch_size: int = Field(default=32, alias="EMBEDDING_BATCH_SIZE")
 
     # --- Generation (Day 3) ---
-    generation_model: str = Field(
-        default="anthropic/claude-sonnet-4.5", alias="GENERATION_MODEL"
-    )
-    generation_max_tokens: int = Field(
-        default=1024, alias="GENERATION_MAX_TOKENS"
-    )
-    generation_temperature: float = Field(
-        default=0.1, alias="GENERATION_TEMPERATURE"
-    )
+    generation_model: str = Field(default="anthropic/claude-sonnet-4.5", alias="GENERATION_MODEL")
+    generation_max_tokens: int = Field(default=1024, alias="GENERATION_MAX_TOKENS")
+    generation_temperature: float = Field(default=0.1, alias="GENERATION_TEMPERATURE")
 
     # --- Chunking ---
     chunk_target_tokens: int = Field(default=600, alias="CHUNK_TARGET_TOKENS")
@@ -63,9 +54,7 @@ class Settings(BaseSettings):
     # --- Retrieval ---
     top_k: int = Field(default=5, alias="TOP_K")
     relevance_floor: float = Field(default=0.30, alias="RELEVANCE_FLOOR")
-    retriever_type: str = Field(
-        default="hybrid_rerank", alias="RETRIEVER_TYPE"
-    )
+    retriever_type: str = Field(default="hybrid_rerank", alias="RETRIEVER_TYPE")
     reranker_model: str = Field(
         default="cross-encoder/ms-marco-MiniLM-L-6-v2", alias="RERANKER_MODEL"
     )
@@ -81,9 +70,7 @@ class Settings(BaseSettings):
     chroma_collection: str = Field(default="guidelines", alias="CHROMA_COLLECTION")
 
     # --- Cleaning ---
-    boilerplate_page_ratio: float = Field(
-        default=0.6, alias="BOILERPLATE_PAGE_RATIO"
-    )
+    boilerplate_page_ratio: float = Field(default=0.6, alias="BOILERPLATE_PAGE_RATIO")
 
     # --- Serving ---
     allowed_origins: str = Field(

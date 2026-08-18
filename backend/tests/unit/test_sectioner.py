@@ -13,7 +13,6 @@ from backend.app.ingestion.cleaner import CleanPage
 from backend.app.ingestion.parser import Line
 from backend.app.ingestion.sectioner import detect_blocks
 
-
 # Real NG243 typography: body 12.0pt, sub-headings 16.5pt, section headings 21.0pt.
 BODY_SIZE = 12.0
 HEADING_SIZE = 16.5
@@ -23,10 +22,7 @@ def _clean_page(number: int, entries: list[tuple[str, bool]]) -> CleanPage:
     """entries: (text, is_heading). Headings are bold AND larger than body text."""
     return CleanPage(
         page_number=number,
-        lines=[
-            Line(text=t, size=HEADING_SIZE if h else BODY_SIZE, bold=h)
-            for t, h in entries
-        ],
+        lines=[Line(text=t, size=HEADING_SIZE if h else BODY_SIZE, bold=h) for t, h in entries],
         is_front_matter=False,
     )
 
@@ -58,8 +54,7 @@ class TestSectionDetection:
         blocks = detect_blocks([NG243_PAGE_6])
         assert all(b.section_number == "1.1" for b in blocks)
         assert all(
-            b.section_title == "1.1 Information, support and decision making"
-            for b in blocks
+            b.section_title == "1.1 Information, support and decision making" for b in blocks
         )
 
     def test_recommendations_split_into_separate_blocks(self):

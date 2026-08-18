@@ -38,9 +38,7 @@ class VectorStore:
     # --- read -------------------------------------------------------------
 
     def _get(self, name: str):
-        return self._client.get_or_create_collection(
-            name=name, metadata={"hnsw:space": "cosine"}
-        )
+        return self._client.get_or_create_collection(name=name, metadata={"hnsw:space": "cosine"})
 
     def count(self) -> int:
         try:
@@ -73,7 +71,7 @@ class VectorStore:
 
         out: list[tuple[Chunk, float]] = []
         for chunk_id, text, metadata, distance in zip(
-            ids, documents, metadatas, distances
+            ids, documents, metadatas, distances, strict=False
         ):
             score = max(0.0, min(1.0, 1.0 - float(distance)))
             out.append((Chunk.from_stored(chunk_id, text, dict(metadata)), score))
@@ -91,6 +89,7 @@ class VectorStore:
                 raw.get("ids", []),
                 raw.get("documents", []),
                 raw.get("metadatas", []),
+                strict=False,
             )
         ]
 

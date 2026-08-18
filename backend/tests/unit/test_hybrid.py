@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-import pytest
-
 from backend.app.models import Chunk, RetrievalResult
 from backend.app.retrieval.bm25 import BM25Retriever
 from backend.app.retrieval.hybrid import HybridRetriever, reciprocal_rank_fusion
@@ -46,9 +44,7 @@ class StubDenseRetriever:
 def _make_dense_results(chunks: list[Chunk]) -> list[RetrievalResult]:
     """Build synthetic dense results with descending scores."""
     return [
-        RetrievalResult(
-            chunk=c, score=1.0 - i * 0.1, rank=i + 1, below_floor=False
-        )
+        RetrievalResult(chunk=c, score=1.0 - i * 0.1, rank=i + 1, below_floor=False)
         for i, c in enumerate(chunks)
     ]
 
@@ -86,12 +82,8 @@ def test_reranker_fallback_on_missing_model():
 
 class TestHybridRetriever:
     def test_combines_bm25_and_dense(self):
-        c1 = _make_chunk(
-            "c1", "Hydrocortisone is used for adrenal crisis management."
-        )
-        c2 = _make_chunk(
-            "c2", "NICE Guideline NG243 scope and recommendation overview."
-        )
+        c1 = _make_chunk("c1", "Hydrocortisone is used for adrenal crisis management.")
+        c2 = _make_chunk("c2", "NICE Guideline NG243 scope and recommendation overview.")
 
         dense_stub = StubDenseRetriever(_make_dense_results([c1, c2]))
         bm25 = BM25Retriever(chunks=[c1, c2])
@@ -127,15 +119,9 @@ class TestHybridRetriever:
         assert hasattr(results[0], "below_floor")
 
     def test_rrf_boosts_chunks_in_both_retrievers(self):
-        c1 = _make_chunk(
-            "c1", "Hydrocortisone dosage for emergency adrenal crisis."
-        )
-        c2 = _make_chunk(
-            "c2", "General overview of hospital administration processes."
-        )
-        c3 = _make_chunk(
-            "c3", "Fludrocortisone for mineralocorticoid replacement therapy."
-        )
+        c1 = _make_chunk("c1", "Hydrocortisone dosage for emergency adrenal crisis.")
+        c2 = _make_chunk("c2", "General overview of hospital administration processes.")
+        c3 = _make_chunk("c3", "Fludrocortisone for mineralocorticoid replacement therapy.")
 
         dense_results = [
             RetrievalResult(chunk=c1, score=0.9, rank=1, below_floor=False),

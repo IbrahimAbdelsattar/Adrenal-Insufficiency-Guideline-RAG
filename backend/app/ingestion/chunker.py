@@ -152,9 +152,7 @@ def chunk_blocks_fixed(
     step = max(1, chunk_size - overlap_tokens)
 
     # Collect cleaned textual blocks
-    filtered_blocks = [
-        b for b in blocks if b.recommendation_id or not is_navigational(b.text)
-    ]
+    filtered_blocks = [b for b in blocks if b.recommendation_id or not is_navigational(b.text)]
     if not filtered_blocks:
         return []
 

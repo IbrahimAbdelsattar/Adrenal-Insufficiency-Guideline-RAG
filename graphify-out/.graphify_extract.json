@@ -1,0 +1,447 @@
+{
+  "nodes": [
+    {
+      "id": "frontend_app_layout_rootlayout",
+      "label": "RootLayout",
+      "file_type": "code",
+      "source_file": "frontend/app/layout.tsx",
+      "source_location": "L9",
+      "_origin": "ast"
+    },
+    {
+      "id": "frontend_app_not_found_notfound",
+      "label": "NotFound",
+      "file_type": "code",
+      "source_file": "frontend/app/not-found.tsx",
+      "source_location": "L7",
+      "_origin": "ast"
+    },
+    {
+      "id": "frontend_components_chunkcard_chunkcard",
+      "label": "ChunkCard",
+      "file_type": "code",
+      "source_file": "frontend/components/ChunkCard.tsx",
+      "source_location": "L21",
+      "_origin": "ast"
+    },
+    {
+      "id": "frontend_components_languagetoggle_languagetoggle",
+      "label": "LanguageToggle",
+      "file_type": "code",
+      "source_file": "frontend/components/LanguageToggle.tsx",
+      "source_location": "L6",
+      "_origin": "ast"
+    },
+    {
+      "id": "frontend_components_themetoggle_themetoggle",
+      "label": "ThemeToggle",
+      "file_type": "code",
+      "source_file": "frontend/components/ThemeToggle.tsx",
+      "source_location": "L5",
+      "_origin": "ast"
+    },
+    {
+      "id": "frontend_lib_api_chunk",
+      "label": "Chunk",
+      "file_type": "code",
+      "source_file": "frontend/lib/api.ts",
+      "source_location": "L6",
+      "_origin": "ast"
+    },
+    {
+      "id": "frontend_lib_api_retrievalresult",
+      "label": "RetrievalResult",
+      "file_type": "code",
+      "source_file": "frontend/lib/api.ts",
+      "source_location": "L24",
+      "_origin": "ast"
+    },
+    {
+      "id": "frontend_lib_api_scopestatus",
+      "label": "ScopeStatus",
+      "file_type": "code",
+      "source_file": "frontend/lib/api.ts",
+      "source_location": "L49",
+      "_origin": "ast"
+    },
+    {
+      "id": "frontend_lib_api_searchresponse",
+      "label": "SearchResponse",
+      "file_type": "code",
+      "source_file": "frontend/lib/api.ts",
+      "source_location": "L54",
+      "_origin": "ast"
+    },
+    {
+      "id": "frontend_lib_api_citation",
+      "label": "Citation",
+      "file_type": "code",
+      "source_file": "frontend/lib/api.ts",
+      "source_location": "L88",
+      "_origin": "ast"
+    },
+    {
+      "id": "frontend_lib_api_generateresponse",
+      "label": "GenerateResponse",
+      "file_type": "code",
+      "source_file": "frontend/lib/api.ts",
+      "source_location": "L97",
+      "_origin": "ast"
+    },
+    {
+      "id": "frontend_lib_api_perdocumentstats",
+      "label": "PerDocumentStats",
+      "file_type": "code",
+      "source_file": "frontend/lib/api.ts",
+      "source_location": "L107",
+      "_origin": "ast"
+    },
+    {
+      "id": "frontend_lib_api_indexmanifest",
+      "label": "IndexManifest",
+      "file_type": "code",
+      "source_file": "frontend/lib/api.ts",
+      "source_location": "L114",
+      "_origin": "ast"
+    },
+    {
+      "id": "frontend_lib_api_sourcedocument",
+      "label": "SourceDocument",
+      "file_type": "code",
+      "source_file": "frontend/lib/api.ts",
+      "source_location": "L127",
+      "_origin": "ast"
+    },
+    {
+      "id": "frontend_lib_api_apierror",
+      "label": "ApiError",
+      "file_type": "code",
+      "source_file": "frontend/lib/api.ts",
+      "source_location": "L143",
+      "_origin": "ast"
+    },
+    {
+      "id": "frontend_lib_api_search",
+      "label": "search",
+      "file_type": "code",
+      "source_file": "frontend/lib/api.ts",
+      "source_location": "L220",
+      "_origin": "ast"
+    },
+    {
+      "id": "frontend_lib_api_getindexstatus",
+      "label": "getIndexStatus",
+      "file_type": "code",
+      "source_file": "frontend/lib/api.ts",
+      "source_location": "L239",
+      "_origin": "ast"
+    },
+    {
+      "id": "frontend_lib_api_getsources",
+      "label": "getSources",
+      "file_type": "code",
+      "source_file": "frontend/lib/api.ts",
+      "source_location": "L248",
+      "_origin": "ast"
+    },
+    {
+      "id": "frontend_lib_api_generate",
+      "label": "generate",
+      "file_type": "code",
+      "source_file": "frontend/lib/api.ts",
+      "source_location": "L259",
+      "_origin": "ast"
+    },
+    {
+      "id": "frontend_lib_api_gethealth",
+      "label": "getHealth",
+      "file_type": "code",
+      "source_file": "frontend/lib/api.ts",
+      "source_location": "L269",
+      "_origin": "ast"
+    },
+    {
+      "id": "frontend_lib_translations_language",
+      "label": "Language",
+      "file_type": "code",
+      "source_file": "frontend/lib/translations.ts",
+      "source_location": "L1",
+      "_origin": "ast"
+    }
+  ],
+  "edges": [
+    {
+      "source": "frontend_app_layout",
+      "target": "frontend_components_themetoggle_themetoggle",
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/app/layout.tsx",
+      "source_location": "L5",
+      "weight": 1.0
+    },
+    {
+      "source": "frontend_app_layout",
+      "target": "frontend_components_languagetoggle_languagetoggle",
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/app/layout.tsx",
+      "source_location": "L6",
+      "weight": 1.0
+    },
+    {
+      "source": "frontend_app_layout",
+      "target": "frontend_lib_translations_language",
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/app/layout.tsx",
+      "source_location": "L7",
+      "weight": 1.0
+    },
+    {
+      "source": "frontend_app_page",
+      "target": "frontend_components_chunkcard_chunkcard",
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/app/page.tsx",
+      "source_location": "L4",
+      "weight": 1.0
+    },
+    {
+      "source": "frontend_app_page",
+      "target": "frontend_lib_api_search",
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/app/page.tsx",
+      "source_location": "L8",
+      "weight": 1.0
+    },
+    {
+      "source": "frontend_app_page",
+      "target": "frontend_lib_api_generate",
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/app/page.tsx",
+      "source_location": "L8",
+      "weight": 1.0
+    },
+    {
+      "source": "frontend_app_page",
+      "target": "frontend_lib_api_searchresponse",
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/app/page.tsx",
+      "source_location": "L9",
+      "weight": 1.0
+    },
+    {
+      "source": "frontend_app_page",
+      "target": "frontend_lib_api_generateresponse",
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/app/page.tsx",
+      "source_location": "L9",
+      "weight": 1.0
+    },
+    {
+      "source": "frontend_app_page",
+      "target": "frontend_lib_translations_language",
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/app/page.tsx",
+      "source_location": "L10",
+      "weight": 1.0
+    },
+    {
+      "source": "frontend_components_answercard",
+      "target": "frontend_lib_api_generateresponse",
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/components/AnswerCard.tsx",
+      "source_location": "L4",
+      "weight": 1.0
+    },
+    {
+      "source": "frontend_components_answercard",
+      "target": "frontend_lib_translations_language",
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/components/AnswerCard.tsx",
+      "source_location": "L5",
+      "weight": 1.0
+    },
+    {
+      "source": "frontend_components_chunkcard",
+      "target": "frontend_lib_api_retrievalresult",
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/components/ChunkCard.tsx",
+      "source_location": "L4",
+      "weight": 1.0
+    },
+    {
+      "source": "frontend_components_chunkcard",
+      "target": "frontend_lib_translations_language",
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/components/ChunkCard.tsx",
+      "source_location": "L5",
+      "weight": 1.0
+    },
+    {
+      "source": "frontend_components_indexstatus",
+      "target": "frontend_lib_api_getindexstatus",
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/components/IndexStatus.tsx",
+      "source_location": "L4",
+      "weight": 1.0
+    },
+    {
+      "source": "frontend_components_indexstatus",
+      "target": "frontend_lib_api_getsources",
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/components/IndexStatus.tsx",
+      "source_location": "L4",
+      "weight": 1.0
+    },
+    {
+      "source": "frontend_components_indexstatus",
+      "target": "frontend_lib_api_indexmanifest",
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/components/IndexStatus.tsx",
+      "source_location": "L5",
+      "weight": 1.0
+    },
+    {
+      "source": "frontend_components_indexstatus",
+      "target": "frontend_lib_api_sourcedocument",
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/components/IndexStatus.tsx",
+      "source_location": "L5",
+      "weight": 1.0
+    },
+    {
+      "source": "frontend_components_indexstatus",
+      "target": "frontend_lib_translations_language",
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/components/IndexStatus.tsx",
+      "source_location": "L6",
+      "weight": 1.0
+    },
+    {
+      "source": "frontend_components_languagetoggle",
+      "target": "frontend_lib_translations_language",
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/components/LanguageToggle.tsx",
+      "source_location": "L4",
+      "weight": 1.0
+    },
+    {
+      "source": "frontend_components_searchbox",
+      "target": "frontend_lib_translations_language",
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/components/SearchBox.tsx",
+      "source_location": "L4",
+      "weight": 1.0
+    },
+    {
+      "source": "backend_app_ingestion_pipeline",
+      "target": "backend_app_ingestion_cleaner",
+      "relation": "imports_from",
+      "context": "submodule_import",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/app/ingestion/pipeline.py",
+      "source_location": "L19",
+      "weight": 1.0
+    },
+    {
+      "source": "backend_app_ingestion_pipeline",
+      "target": "backend_app_ingestion_parser",
+      "relation": "imports_from",
+      "context": "submodule_import",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/app/ingestion/pipeline.py",
+      "source_location": "L19",
+      "weight": 1.0
+    },
+    {
+      "source": "backend_app_ingestion_pipeline",
+      "target": "backend_app_ingestion_registry",
+      "relation": "imports_from",
+      "context": "submodule_import",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/app/ingestion/pipeline.py",
+      "source_location": "L19",
+      "weight": 1.0
+    },
+    {
+      "source": "backend_app_main",
+      "target": "backend_app_api_generate",
+      "relation": "imports_from",
+      "context": "submodule_import",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/app/main.py",
+      "source_location": "L14",
+      "weight": 1.0
+    },
+    {
+      "source": "backend_app_main",
+      "target": "backend_app_api_search",
+      "relation": "imports_from",
+      "context": "submodule_import",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/app/main.py",
+      "source_location": "L14",
+      "weight": 1.0
+    },
+    {
+      "source": "c_users_c_lab_videos_ai_hackthon_frontend_app_page_runsearch",
+      "target": "frontend_lib_api_search",
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/app/page.tsx",
+      "source_location": "L62",
+      "weight": 1.0
+    },
+    {
+      "source": "c_users_c_lab_videos_ai_hackthon_frontend_app_page_runsearch",
+      "target": "frontend_lib_api_generate",
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/app/page.tsx",
+      "source_location": "L66",
+      "weight": 1.0
+    }
+  ],
+  "hyperedges": [],
+  "input_tokens": 0,
+  "output_tokens": 0
+}

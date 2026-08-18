@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-import shutil
-
 import pytest
 import yaml
 
@@ -35,9 +33,7 @@ def corpus(tmp_path):
     sources = tmp_path / "sources.yaml"
     sources.write_text(yaml.safe_dump({"sources": [VALID_ENTRY]}), encoding="utf-8")
 
-    return get_settings().model_copy(
-        update={"corpus_dir": corpus_dir, "sources_file": sources}
-    )
+    return get_settings().model_copy(update={"corpus_dir": corpus_dir, "sources_file": sources})
 
 
 class TestFailClosed:

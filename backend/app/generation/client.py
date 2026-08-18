@@ -69,7 +69,7 @@ class LLMClient:
             for attempt in range(1, MAX_ATTEMPTS + 1):
                 try:
                     response = await client.post(endpoint, json=payload, headers=headers)
-                    
+
                     if response.status_code == 200:
                         data = response.json()
                         choices = data.get("choices", [])
@@ -107,9 +107,13 @@ class LLMClient:
                         )
                         await asyncio.sleep(delay)
                         continue
-                    raise PipelineError(f"OmniRoute gateway unreachable after {MAX_ATTEMPTS} attempts: {exc}") from exc
+                    raise PipelineError(
+                        f"OmniRoute gateway unreachable after {MAX_ATTEMPTS} attempts: {exc}"
+                    ) from exc
                 except httpx.HTTPStatusError as exc:
-                    raise PipelineError(f"OmniRoute API error {exc.response.status_code}: {exc.response.text}") from exc
+                    raise PipelineError(
+                        f"OmniRoute API error {exc.response.status_code}: {exc.response.text}"
+                    ) from exc
                 except Exception as exc:
                     raise PipelineError(f"Generation error: {exc}") from exc
 

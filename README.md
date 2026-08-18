@@ -1,11 +1,12 @@
 # Eva AI — Clinical Decision Support (Adrenal Insufficiency RAG)
 
+[![CI/CD Pipeline](https://github.com/IbrahimAbdelsattar/Eva-AI/actions/workflows/ci-cd.yml/badge.svg)](https://github.com/IbrahimAbdelsattar/Eva-AI/actions/workflows/ci-cd.yml)
+[![Docker GHCR](https://img.shields.io/badge/Container-GHCR-blue?logo=docker&logoColor=white)](https://github.com/IbrahimAbdelsattar/Eva-AI/pkgs/container/eva-ai)
 [![Python Version](https://img.shields.io/badge/python-3.13-blue.svg)](https://www.python.org/)
-[![Node Version](https://img.shields.io/badge/node-24.x-green.svg)](https://nodejs.org/)
+[![Node Version](https://img.shields.io/badge/node-20.x-green.svg)](https://nodejs.org/)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.115+-009688.svg)](https://fastapi.tiangolo.com/)
 [![Next.js](https://img.shields.io/badge/Next.js-15.x-black.svg)](https://nextjs.org/)
-[![ChromaDB](https://img.shields.io/badge/VectorStore-ChromaDB-orange.svg)](https://www.trychroma.com/)
-[![OpenRouter](https://img.shields.io/badge/Embeddings-OpenRouter_1536--dim-purple.svg)](https://openrouter.ai/)
+[![Code Style: Ruff](https://img.shields.io/badge/code%20style-ruff-000000.svg)](https://github.com/astral-sh/ruff)
 [![License](https://img.shields.io/badge/License-NICE_Notice_of_Rights-red.svg)](https://www.nice.org.uk/terms-and-conditions#notice-of-rights)
 
 ---
@@ -692,6 +693,76 @@ ai-hackthon/
         ├── quickstart.md                      # Quickstart & Gate Validation Guide
         ├── tasks.md                           # Project Task Tracking
         └── contracts/                         # OpenAPI and CLI contracts
+```
+
+---
+
+## 🚀 CI/CD Pipeline & DevOps Automation
+
+Eva AI includes a production-grade continuous integration and continuous deployment (CI/CD) system implemented with **GitHub Actions** and containerized publishing to **GitHub Container Registry (GHCR)**.
+
+### Pipeline Topology
+
+```mermaid
+flowchart TD
+    subgraph Triggers [Triggers]
+        P[Push to main / tags v*]
+        PR[Pull Request]
+        M[Manual Workflow Dispatch]
+    end
+
+    subgraph CI_Matrix [Parallel Quality & Security Gates]
+        B[Backend CI: Python 3.13, Ruff, Pytest Unit/Integration, Coverage]
+        F[Frontend CI: Node 20, TypeScript, ESLint, Next.js Export Build]
+        S[Security Scan: pip-audit & npm audit]
+    end
+
+    subgraph Container_Verification [Docker Verification]
+        D[Docker Buildx + /api/health Smoke Test]
+    end
+
+    subgraph CD_Deployment [Continuous Deployment]
+        G[Publish Image to GHCR: latest, branch, sha, semver]
+    end
+
+    P --> B & F & S
+    PR --> B & F & S
+    M --> B & F & S
+
+    B & F --> D
+    D & S --> G
+```
+
+### Workflow Specifications
+
+1. **`backend-ci`**:
+   - Python 3.13 environment with pip dependency caching.
+   - Code style and format checking via **Ruff**.
+   - Unit and integration tests via **Pytest** with automated coverage XML report upload.
+2. **`frontend-ci`**:
+   - Node.js 20 environment with npm caching.
+   - TypeScript strict type checking (`tsc --noEmit`).
+   - Headless ESLint verification (`next lint`).
+   - Static export production build (`NEXT_OUTPUT=export next build`) with build artifact storage.
+3. **`security-audit`**:
+   - Automated dependency vulnerability scanning with `pip-audit` and `npm audit`.
+4. **`docker-smoke-test`**:
+   - Builds the production multi-stage container using Docker Buildx and GitHub Actions cache.
+   - Spins up the container and verifies health status against `http://localhost:8000/api/health`.
+5. **`publish-ghcr`**:
+   - Automatically builds and pushes multi-tagged container images to `ghcr.io/ibrahimabdelsattar/eva-ai` on main branch pushes or release tags (`v*`).
+
+### Running Local Pre-flight CI Validation
+
+Before committing code, developers can execute the exact pre-flight validation suite locally:
+
+```bash
+# Windows
+scripts\validate-ci.bat
+
+# Linux / macOS
+chmod +x scripts/validate-ci.sh
+./scripts/validate-ci.sh
 ```
 
 ---

@@ -24,9 +24,7 @@ def _result(score: float, *, below_floor: bool, rank: int = 1) -> RetrievalResul
         section_number="1.1",
         section_title="1.1 Identification",
     )
-    return RetrievalResult(
-        chunk=chunk, score=score, rank=rank, below_floor=below_floor
-    )
+    return RetrievalResult(chunk=chunk, score=score, rank=rank, below_floor=below_floor)
 
 
 def test_strong_match_is_in_scope_and_keeps_results():

@@ -10,9 +10,9 @@ from __future__ import annotations
 
 import logging
 import time
+from collections.abc import Callable
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
-from typing import Callable
+from datetime import UTC, datetime
 
 from backend.app.config import Settings, get_settings
 from backend.app.embeddings.base import Embedder
@@ -84,8 +84,7 @@ def _process_document(
     recommendations = sum(1 for b in blocks if b.recommendation_id)
     sections = len({b.section_number for b in blocks if b.section_number})
     report(
-        f"Sections   detected {sections} section(s), "
-        f"{recommendations} numbered recommendation(s)"
+        f"Sections   detected {sections} section(s), {recommendations} numbered recommendation(s)"
     )
 
     chunks = chunk_blocks(blocks, doc, settings)
@@ -155,9 +154,7 @@ def run_ingest(
         all_chunks.extend(chunks)
         per_document.append(doc_report)
 
-    result = IngestReport(
-        documents=per_document, chunks=all_chunks, dry_run=dry_run
-    )
+    result = IngestReport(documents=per_document, chunks=all_chunks, dry_run=dry_run)
 
     if dry_run:
         report("Dry run    no embeddings requested, index untouched")
@@ -188,7 +185,7 @@ def run_ingest(
     )
 
     manifest = IndexManifest(
-        built_at=datetime.now(timezone.utc),
+        built_at=datetime.now(UTC),
         embedding_model=embedder.model_id,
         embedding_dimensions=embedder.dimensions or (len(vectors[0]) if vectors else 0),
         chunk_target_tokens=settings.chunk_target_tokens,

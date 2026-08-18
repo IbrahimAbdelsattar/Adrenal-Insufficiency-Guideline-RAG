@@ -48,7 +48,7 @@ class DenseRetriever:
                 rank=rank,
                 below_floor=score < floor,
                 dense_score=score,
-                retriever_mode="dense"
+                retriever_mode="dense",
             )
             for rank, (chunk, score) in enumerate(hits, start=1)
         ]

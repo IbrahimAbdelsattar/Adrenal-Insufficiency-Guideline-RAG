@@ -10,7 +10,6 @@ from __future__ import annotations
 import math
 import re
 from collections import Counter
-from typing import Sequence
 
 from backend.app.config import Settings, get_settings
 from backend.app.models import Chunk, RetrievalResult
@@ -18,9 +17,40 @@ from backend.app.retrieval.store import VectorStore
 
 _TOKEN_PATTERN = re.compile(r"[a-z0-9]+(?:[\.\-][a-z0-9]+)*")
 _STOPWORDS = {
-    "a", "an", "and", "are", "as", "at", "be", "by", "for", "from", "has", "he",
-    "in", "is", "it", "its", "of", "on", "that", "the", "to", "was", "were", "will",
-    "with", "what", "which", "when", "where", "who", "how", "should", "do", "does",
+    "a",
+    "an",
+    "and",
+    "are",
+    "as",
+    "at",
+    "be",
+    "by",
+    "for",
+    "from",
+    "has",
+    "he",
+    "in",
+    "is",
+    "it",
+    "its",
+    "of",
+    "on",
+    "that",
+    "the",
+    "to",
+    "was",
+    "were",
+    "will",
+    "with",
+    "what",
+    "which",
+    "when",
+    "where",
+    "who",
+    "how",
+    "should",
+    "do",
+    "does",
 }
 
 

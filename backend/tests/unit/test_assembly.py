@@ -34,7 +34,7 @@ def test_assemble_evidence_empty():
 def test_assemble_evidence_formats_correctly():
     c1 = _make_chunk("c1", "Hydrocortisone is recommended.")
     r1 = RetrievalResult(chunk=c1, score=0.9, rank=1, below_floor=False)
-    
+
     text = assemble_evidence([r1])
     assert "[Source 1]" in text
     assert "Document: Test Guideline" in text
@@ -47,10 +47,10 @@ def test_assemble_evidence_formats_correctly():
 def test_assemble_evidence_filters_below_floor_if_mixed():
     c1 = _make_chunk("c1", "Good chunk")
     r1 = RetrievalResult(chunk=c1, score=0.9, rank=1, below_floor=False)
-    
+
     c2 = _make_chunk("c2", "Bad chunk")
     r2 = RetrievalResult(chunk=c2, score=0.1, rank=2, below_floor=True)
-    
+
     text = assemble_evidence([r1, r2])
     assert "[Source 1]" in text
     assert "Good chunk" in text
@@ -61,10 +61,10 @@ def test_assemble_evidence_filters_below_floor_if_mixed():
 def test_assemble_evidence_keeps_below_floor_if_all_below():
     c1 = _make_chunk("c1", "Bad chunk 1")
     r1 = RetrievalResult(chunk=c1, score=0.1, rank=1, below_floor=True)
-    
+
     c2 = _make_chunk("c2", "Bad chunk 2")
     r2 = RetrievalResult(chunk=c2, score=0.05, rank=2, below_floor=True)
-    
+
     text = assemble_evidence([r1, r2])
     assert "[Source 1]" in text
     assert "Bad chunk 1" in text
@@ -75,6 +75,6 @@ def test_assemble_evidence_keeps_below_floor_if_all_below():
 def test_assemble_evidence_caution_flag():
     c1 = _make_chunk("c1", "Old chunk", requires_caution=True)
     r1 = RetrievalResult(chunk=c1, score=0.9, rank=1, below_floor=False)
-    
+
     text = assemble_evidence([r1])
     assert "CAUTION: This document requires caution" in text

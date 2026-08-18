@@ -1,3 +1,4 @@
+import path from "node:path";
 import type { NextConfig } from "next";
 
 /**
@@ -28,6 +29,7 @@ const BACKEND_URL = process.env.BACKEND_URL ?? "http://127.0.0.1:8010";
 const nextConfig: NextConfig = {
   // standalone keeps the runtime image small (no full node_modules copy).
   output: isExport ? "export" : "standalone",
+  outputFileTracingRoot: path.join(__dirname, "../"),
 
   async rewrites() {
     // A static export has no server, so rewrites cannot apply there.

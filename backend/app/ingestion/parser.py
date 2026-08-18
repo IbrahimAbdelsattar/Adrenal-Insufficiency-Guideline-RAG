@@ -45,8 +45,7 @@ def _line_from_spans(spans: list[dict]) -> Line | None:
 
     sizes = [float(span.get("size", 0)) for span in spans] or [0.0]
     bold = any(
-        bool(int(span.get("flags", 0)) & _BOLD_FLAG)
-        or "bold" in str(span.get("font", "")).lower()
+        bool(int(span.get("flags", 0)) & _BOLD_FLAG) or "bold" in str(span.get("font", "")).lower()
         for span in spans
     )
     return Line(text=text, size=max(sizes), bold=bold)

@@ -25,9 +25,7 @@ DOC = SourceDocument(
     license_note="(c) NICE 2024.",
 )
 
-SETTINGS = Settings(
-    CHUNK_TARGET_TOKENS=600, CHUNK_MIN_TOKENS=400, CHUNK_MAX_TOKENS=800
-)
+SETTINGS = Settings(CHUNK_TARGET_TOKENS=600, CHUNK_MIN_TOKENS=400, CHUNK_MAX_TOKENS=800)
 
 
 def _block(rec_id: str, words: int, page: int = 9, section: str = "1.2") -> Block:
@@ -54,12 +52,7 @@ class TestAtomicRecommendations:
     def test_every_recommendation_is_present_exactly_once(self):
         blocks = [_block(f"1.2.{i}", 120) for i in range(1, 9)]
         chunks = chunk_blocks(blocks, DOC, SETTINGS)
-        seen = {
-            r
-            for chunk in chunks
-            for r in chunk.recommendation_ids.split(",")
-            if r
-        }
+        seen = {r for chunk in chunks for r in chunk.recommendation_ids.split(",") if r}
         assert seen == {f"1.2.{i}" for i in range(1, 9)}
 
 

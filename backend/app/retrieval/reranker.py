@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import logging
 import math
-from typing import Sequence
+from collections.abc import Sequence
 
 from backend.app.config import Settings, get_settings
 from backend.app.models import Chunk, RetrievalResult
@@ -79,8 +79,7 @@ class CrossEncoderReranker:
 
         # Extract Chunk objects if RetrievalResult instances were passed
         extracted_chunks: list[Chunk] = [
-            item.chunk if isinstance(item, RetrievalResult) else item
-            for item in chunks
+            item.chunk if isinstance(item, RetrievalResult) else item for item in chunks
         ]
 
         k = top_k or len(extracted_chunks)
@@ -92,7 +91,9 @@ class CrossEncoderReranker:
                 scores = model.predict(pairs)
                 norm_scores = [sigmoid(float(s)) for s in scores]
                 ranked = sorted(
-                    zip(extracted_chunks, norm_scores), key=lambda x: x[1], reverse=True
+                    zip(extracted_chunks, norm_scores, strict=False),
+                    key=lambda x: x[1],
+                    reverse=True,
                 )
                 return list(ranked)[:k]
             except Exception as exc:
@@ -103,8 +104,5 @@ class CrossEncoderReranker:
 
         # Fallback: preserve input order with uniform step-decay scores.
         n = len(extracted_chunks)
-        fallback = [
-            (c, max(0.1, 1.0 - (i / max(1, n))))
-            for i, c in enumerate(extracted_chunks)
-        ]
+        fallback = [(c, max(0.1, 1.0 - (i / max(1, n)))) for i, c in enumerate(extracted_chunks)]
         return fallback[:k]
