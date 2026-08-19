@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback, useEffect } from "react";
 import type { ChatMessage, ChatSession } from "@/components/ChatView";
 
 const SESSIONS_STORAGE_KEY = "eva_ai_consultation_sessions_v1";
@@ -67,32 +67,43 @@ export interface UseChatSessionsReturn {
 
 export function useChatSessions(topK: number): UseChatSessionsReturn {
   const [sessions, setSessions] = useState<ChatSession[]>(() => {
-    return loadSessions() || [];
+    return [createEmptySession(topK)];
   });
-  const [activeSessionId, setActiveSessionId] = useState<string>(() => {
-    const saved = loadActiveId();
+  const [activeSessionId, setActiveSessionId] = useState<string>("");
+  const [isLoaded, setIsLoaded] = useState(false);
+
+  // Load from localStorage on client mount only to prevent SSR hydration mismatch
+  useEffect(() => {
     const loaded = loadSessions();
-    if (loaded) {
-      const active = loaded.find((s) => s.id === saved) || loaded[0];
-      return active.id;
+    const savedActive = loadActiveId();
+    if (loaded && loaded.length > 0) {
+      setSessions(loaded);
+      const active = loaded.find((s) => s.id === savedActive) || loaded[0];
+      setActiveSessionId(active.id);
+    } else {
+      const initial = createEmptySession(topK);
+      setSessions([initial]);
+      setActiveSessionId(initial.id);
     }
-    return "";
-  });
+    setIsLoaded(true);
+  }, [topK]);
 
-  // Initialize if empty
-  const initialized = sessions.length > 0;
-  const effectiveSessions = initialized
-    ? sessions
-    : (() => {
-        const initial = createEmptySession(topK);
-        return [initial];
-      })();
-  const effectiveActiveId = activeSessionId || effectiveSessions[0]?.id || "";
+  // Persist sessions to localStorage whenever they change after initial load
+  useEffect(() => {
+    if (isLoaded && sessions.length > 0) {
+      saveSessions(sessions);
+    }
+  }, [sessions, isLoaded]);
 
-  // Persist
-  if (initialized && sessions.length > 0) {
-    // We save via effects in the parent, but we also save here for direct mutations
-  }
+  // Persist activeSessionId to localStorage
+  useEffect(() => {
+    if (isLoaded && activeSessionId) {
+      saveActiveId(activeSessionId);
+    }
+  }, [activeSessionId, isLoaded]);
+
+  const effectiveSessions = sessions;
+  const effectiveActiveId = activeSessionId || sessions[0]?.id || "";
 
   const currentSession = useMemo(() => {
     return effectiveSessions.find((s) => s.id === effectiveActiveId) || effectiveSessions[0];

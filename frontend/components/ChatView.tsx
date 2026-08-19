@@ -145,7 +145,10 @@ export function ChatView({ lang, topK, onTopKChange }: ChatViewProps) {
           <div>
             <div className="flex items-center gap-2">
               <h2 className="text-sm font-extrabold text-ink">{t.chatTab || "💬 RAG Chatbot"}</h2>
-              <span className="text-[11px] font-bold text-ink-dim max-w-[200px] truncate hidden sm:inline">
+              <span
+                className="text-[11px] font-bold text-ink-dim max-w-[200px] truncate hidden sm:inline"
+                suppressHydrationWarning
+              >
                 · {currentSession?.title || t.untitledSession}
               </span>
             </div>
