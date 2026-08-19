@@ -18,7 +18,7 @@ from backend.app.monitoring.sentry import (
 
 def test_sentry_init_disabled_when_dsn_empty():
     """When SENTRY_DSN is empty, init_sentry returns False and does not crash."""
-    settings = Settings(sentry_dsn="")
+    settings = Settings(SENTRY_DSN="")
     with patch("sentry_sdk.init") as mock_init:
         result = init_sentry(settings)
         assert result is False
@@ -29,10 +29,12 @@ def test_sentry_init_disabled_when_dsn_empty():
 def test_sentry_init_enabled_when_dsn_provided():
     """When SENTRY_DSN is provided, sentry_sdk.init is called with appropriate parameters."""
     test_dsn = "https://public_key@sentry.io/123456"
+    # These fields are alias-keyed to their env var names, so an override must
+    # use the alias -- by field name it is dropped and the real .env wins.
     settings = Settings(
-        sentry_dsn=test_dsn,
-        sentry_environment="test-env",
-        sentry_traces_sample_rate=0.5,
+        SENTRY_DSN=test_dsn,
+        SENTRY_ENVIRONMENT="test-env",
+        SENTRY_TRACES_SAMPLE_RATE=0.5,
     )
     with patch("sentry_sdk.init") as mock_init:
         result = init_sentry(settings)

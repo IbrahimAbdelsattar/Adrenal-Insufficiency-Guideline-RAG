@@ -13,6 +13,7 @@ import httpx
 
 from backend.app.config import Settings, get_settings
 from backend.app.errors import ConfigurationError, EmbeddingProviderError
+from backend.app.retrieval.cache import TTLLRUCache, normalize_query
 
 logger = logging.getLogger(__name__)
 
@@ -35,7 +36,12 @@ class OpenRouterEmbedder:
                 "add it. (The legacy name OPENROUTER_API_KEY is also accepted.)"
             )
         self._dimensions = 0
-        self._query_cache: dict[str, list[float]] = {}
+        self._query_cache: TTLLRUCache[str, list[float]] = TTLLRUCache(
+            maxsize=self._settings.embedding_cache_size,
+            ttl_seconds=self._settings.cache_ttl_seconds,
+            manifest_path=self._settings.index_dir / "manifest.json",
+            name="embedding_cache",
+        )
 
     @property
     def model_id(self) -> str:
@@ -81,7 +87,9 @@ class OpenRouterEmbedder:
     def embed_query(self, text: str) -> list[float]:
         # The cache turns a repeat query into a zero-latency lookup; logging
         # the hit is what makes a suspiciously fast retrieval explainable.
-        if text in self._query_cache:
+        key = normalize_query(text)
+        cached = self._query_cache.get(key)
+        if cached is not None:
             logger.debug(
                 "Embedding cache hit (cached_queries=%d)",
                 len(self._query_cache),
@@ -93,12 +101,12 @@ class OpenRouterEmbedder:
                     "cached_queries": len(self._query_cache),
                 },
             )
-            return self._query_cache[text]
+            return cached
 
         started = time.perf_counter()
         with httpx.Client(timeout=REQUEST_TIMEOUT_SECONDS) as client:
             vec = self._embed_batch(client, [text])[0]
-            self._query_cache[text] = vec
+            self._query_cache.put(key, vec)
 
         elapsed_ms = (time.perf_counter() - started) * 1000
         logger.info(
@@ -116,6 +124,7 @@ class OpenRouterEmbedder:
             },
         )
         return vec
+
 
     # ------------------------------------------------------------------
 

@@ -133,6 +133,11 @@ export interface StreamCallbacks {
   onError?: (detail: string) => void;
 }
 
+export interface ChatHistoryMessage {
+  role: "user" | "assistant";
+  content: string;
+}
+
 export interface PerDocumentStats {
   doc_id: string;
   pages_processed: number;
@@ -285,10 +290,14 @@ export function getSources(): Promise<{
 /**
  * Generate an answer grounded in clinical guidelines.
  */
-export function generate(query: string, topK: number): Promise<GenerateResponse> {
+export function generate(
+  query: string,
+  topK: number,
+  history: ChatHistoryMessage[] = [],
+): Promise<GenerateResponse> {
   return request<GenerateResponse>("/api/generate", {
     method: "POST",
-    body: JSON.stringify({ query, top_k: topK }),
+    body: JSON.stringify({ query, top_k: topK, history }),
   });
 }
 
@@ -300,6 +309,7 @@ export async function generateStream(
   query: string,
   topK: number,
   callbacks: StreamCallbacks,
+  history: ChatHistoryMessage[] = [],
 ): Promise<void> {
   let response: Response;
 
@@ -307,7 +317,7 @@ export async function generateStream(
     response = await fetch(`${API_BASE}/api/generate/stream`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ query, top_k: topK }),
+      body: JSON.stringify({ query, top_k: topK, history }),
     });
   } catch {
     throw new ApiError(

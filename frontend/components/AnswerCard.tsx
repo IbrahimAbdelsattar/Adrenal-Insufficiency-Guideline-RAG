@@ -6,6 +6,7 @@ import remarkGfm from "remark-gfm";
 import type { GenerateResponse } from "@/lib/api";
 import { translations, type Language } from "@/lib/translations";
 import type { Citation } from "@/lib/api";
+import { HighlightMatches } from "@/components/HighlightMatches";
 
 /**
  * Render "1.7 Emergency management of adrenal crisis" from a citation.
@@ -23,7 +24,7 @@ function formatSection(c: Citation): string {
 
 export function AnswerCard({ result }: { result: GenerateResponse }) {
   const [lang, setLang] = useState<Language>("en");
-  const { answer, citations, evidence_found, disclaimer, latency_ms, model, cache_hit } = result;
+  const { query, answer, citations, evidence_found, disclaimer, latency_ms, model, cache_hit } = result;
 
   useEffect(() => {
     const savedLang = localStorage.getItem("eva_lang") as Language | null;
@@ -85,15 +86,15 @@ export function AnswerCard({ result }: { result: GenerateResponse }) {
           <ReactMarkdown
             remarkPlugins={[remarkGfm]}
             components={{
-              h1: ({ children }) => <h3 className="mb-3 mt-6 text-xl font-bold first:mt-0">{children}</h3>,
-              h2: ({ children }) => <h4 className="mb-3 mt-5 text-lg font-bold first:mt-0">{children}</h4>,
-              h3: ({ children }) => <h5 className="mb-2 mt-4 text-base font-bold first:mt-0">{children}</h5>,
-              p: ({ children }) => <p className="mb-3 last:mb-0">{children}</p>,
+              h1: ({ children }) => <h3 className="mb-3 mt-6 text-xl font-bold first:mt-0"><HighlightMatches query={query}>{children}</HighlightMatches></h3>,
+              h2: ({ children }) => <h4 className="mb-3 mt-5 text-lg font-bold first:mt-0"><HighlightMatches query={query}>{children}</HighlightMatches></h4>,
+              h3: ({ children }) => <h5 className="mb-2 mt-4 text-base font-bold first:mt-0"><HighlightMatches query={query}>{children}</HighlightMatches></h5>,
+              p: ({ children }) => <p className="mb-3 last:mb-0"><HighlightMatches query={query}>{children}</HighlightMatches></p>,
               ul: ({ children }) => <ul className="mb-3 list-disc space-y-1 pl-5 last:mb-0">{children}</ul>,
               ol: ({ children }) => <ol className="mb-3 list-decimal space-y-1 pl-5 last:mb-0">{children}</ol>,
               li: ({ children }) => <li className="pl-1">{children}</li>,
               blockquote: ({ children }) => (
-                <blockquote className="mb-3 border-l-2 border-accent-bright/60 pl-4 text-ink-dim">{children}</blockquote>
+                <blockquote className="mb-3 border-l-2 border-accent-bright/60 pl-4 text-ink-dim"><HighlightMatches query={query}>{children}</HighlightMatches></blockquote>
               ),
               strong: ({ children }) => <strong className="font-bold text-ink">{children}</strong>,
               em: ({ children }) => <em>{children}</em>,
@@ -118,8 +119,8 @@ export function AnswerCard({ result }: { result: GenerateResponse }) {
                   <table className="min-w-full border-collapse text-left text-sm">{children}</table>
                 </div>
               ),
-              th: ({ children }) => <th className="border-b border-line/60 bg-ink/5 px-3 py-2 font-bold">{children}</th>,
-              td: ({ children }) => <td className="border-b border-line/40 px-3 py-2 align-top last:border-b-0">{children}</td>,
+              th: ({ children }) => <th className="border-b border-line/60 bg-ink/5 px-3 py-2 font-bold"><HighlightMatches query={query}>{children}</HighlightMatches></th>,
+              td: ({ children }) => <td className="border-b border-line/40 px-3 py-2 align-top last:border-b-0"><HighlightMatches query={query}>{children}</HighlightMatches></td>,
               hr: () => <hr className="my-4 border-line/60" />,
             }}
           >

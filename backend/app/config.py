@@ -62,7 +62,7 @@ class Settings(BaseSettings):
     # cross-encoder score when reranking) — never against the RRF-normalised
     # `score`, whose top hit is 1.0 for every query. Measured on this corpus:
     # in-scope results land at 0.667-0.810, unrelated ones at 0.000-0.526.
-    relevance_floor: float = Field(default=0.62, alias="RELEVANCE_FLOOR")
+    relevance_floor: float = Field(default=0.50, alias="RELEVANCE_FLOOR")
     # Default is plain hybrid: the Day 2 eval showed the cross-encoder reranker
     # lowers hit rate (94.4% vs 100%) while adding per-query latency.
     retriever_type: str = Field(default="hybrid", alias="RETRIEVER_TYPE")
@@ -70,17 +70,18 @@ class Settings(BaseSettings):
         default="cross-encoder/ms-marco-MiniLM-L-6-v2", alias="RERANKER_MODEL"
     )
     hybrid_candidate_k: int = Field(default=20, alias="HYBRID_CANDIDATE_K")
-    # Below this, a query is rejected as out_of_scope. Sits in the measured gap
-    # between unrelated queries (top relevance <= 0.526) and in-scope ones
-    # (top relevance >= 0.700). Same scale as relevance_floor above.
-    scope_threshold: float = Field(default=0.58, alias="SCOPE_THRESHOLD")
+    scope_threshold: float = Field(default=0.50, alias="SCOPE_THRESHOLD")
+
 
     # --- Graph expansion (lightweight Graph RAG) ---
     graph_expansion: bool = Field(default=True, alias="GRAPH_EXPANSION")
     graph_max_expand: int = Field(default=1, alias="GRAPH_MAX_EXPAND")
 
-    # --- Generation response cache ---
-    response_cache_size: int = Field(default=128, alias="RESPONSE_CACHE_SIZE")
+    # --- Multi-Tier Cache Configuration ---
+    response_cache_size: int = Field(default=512, alias="RESPONSE_CACHE_SIZE")
+    retrieval_cache_size: int = Field(default=512, alias="RETRIEVAL_CACHE_SIZE")
+    embedding_cache_size: int = Field(default=1024, alias="EMBEDDING_CACHE_SIZE")
+    cache_ttl_seconds: int = Field(default=3600, alias="CACHE_TTL_SECONDS")
 
     # --- Paths (relative values resolve against the repo root) ---
     corpus_dir: Path = Field(default=Path("data/corpus"), alias="CORPUS_DIR")

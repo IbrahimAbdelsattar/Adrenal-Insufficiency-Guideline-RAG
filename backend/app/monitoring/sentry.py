@@ -187,6 +187,25 @@ def is_sentry_enabled() -> bool:
     return _SENTRY_ENABLED
 
 
+def set_rag_context(fields: dict[str, Any], tags: dict[str, Any] | None = None) -> None:
+    """Attach the RAG trace summary to the current Sentry transaction.
+
+    Fields land in a searchable "rag" context; `tags` become indexed tags so a
+    transaction can be filtered by e.g. scope_status or cache_hit in the UI.
+    Values are scrubbed on the way out by `sanitize_sentry_event`.
+    """
+    if not _SENTRY_ENABLED:
+        return
+    try:
+        sentry_sdk.set_context("rag", fields)
+        for key, value in (tags or {}).items():
+            if value is not None:
+                sentry_sdk.set_tag(key, str(value))
+    except Exception:
+        # Telemetry must never break the request it is describing.
+        pass
+
+
 @contextmanager
 def trace_span(op: str, description: str) -> Generator[Any]:
     """Context manager for tracing custom operations in RAG & LLM pipelines.

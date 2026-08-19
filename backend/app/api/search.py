@@ -10,14 +10,26 @@ from pydantic import BaseModel, Field
 
 from backend.app.config import get_settings
 from backend.app.errors import PipelineError
-from backend.app.models import DISCLAIMER, IndexManifest, SearchResponse
+from backend.app.models import DISCLAIMER, IndexManifest, RetrievalResult, SearchResponse
 from backend.app.monitoring import REGISTRY, RagTrace
+from backend.app.retrieval.cache import TTLLRUCache, normalize_query
 from backend.app.retrieval.factory import get_shared_retriever, get_shared_store
 from backend.app.retrieval.scope import classify_scope
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api", tags=["retrieval"])
+
+# Bounded TTL + LRU retrieval cache for instant repeat searches
+_RETRIEVAL_CACHE: TTLLRUCache[tuple[str, int, str], tuple[list[RetrievalResult], str, str, list[RetrievalResult]]] = (
+    TTLLRUCache(
+        maxsize=get_settings().retrieval_cache_size,
+        ttl_seconds=get_settings().cache_ttl_seconds,
+        manifest_path=get_settings().index_dir / "manifest.json",
+        name="retrieval_search_cache",
+    )
+)
+
 
 
 class SearchRequest(BaseModel):
@@ -225,6 +237,35 @@ def search(request: SearchRequest) -> SearchResponse:
         )
 
     started = time.perf_counter()
+    cache_key = (normalize_query(request.query), top_k, settings.retriever_type)
+    cached_entry = _RETRIEVAL_CACHE.get(cache_key)
+
+    if cached_entry is not None:
+        results, scope_status, scope_message, filtered_results = cached_entry
+        latency_ms = int((time.perf_counter() - started) * 1000)
+        trace.record_retrieval(results)
+        REGISTRY.increment(f"search.scope.{scope_status}")
+        REGISTRY.increment("search.cache.hit")
+        trace.set(
+            scope_status=scope_status,
+            returned=len(filtered_results),
+            evidence_found=scope_status == "in_scope",
+            cache_hit=True,
+        )
+        trace.emit(status="ok_cached")
+        return SearchResponse(
+            query=request.query,
+            results=filtered_results,
+            result_count=len(filtered_results),
+            evidence_found=scope_status == "in_scope",
+            scope_status=scope_status,
+            scope_message=scope_message,
+            embedding_model=settings.embedding_model,
+            latency_ms=latency_ms,
+            disclaimer=DISCLAIMER,
+        )
+
+    REGISTRY.increment("search.cache.miss")
     try:
         with trace.stage("retrieval", top_k=top_k, retriever_type=settings.retriever_type) as span:
             retriever = get_shared_retriever(settings)
@@ -240,16 +281,21 @@ def search(request: SearchRequest) -> SearchResponse:
 
     with trace.stage("scope", scope_threshold=settings.scope_threshold) as span:
         scope_status, scope_message, filtered_results = classify_scope(
-            results, settings.scope_threshold
+            results, settings.scope_threshold, query=request.query
         )
+
         span["scope_status"] = scope_status
         span["kept"] = len(filtered_results)
+
+    # Save to retrieval cache
+    _RETRIEVAL_CACHE.put(cache_key, (results, scope_status, scope_message, filtered_results))
 
     REGISTRY.increment(f"search.scope.{scope_status}")
     trace.set(
         scope_status=scope_status,
         returned=len(filtered_results),
         evidence_found=scope_status == "in_scope",
+        cache_hit=False,
     )
     trace.emit(status="ok")
 
@@ -264,3 +310,4 @@ def search(request: SearchRequest) -> SearchResponse:
         latency_ms=latency_ms,
         disclaimer=DISCLAIMER,
     )
+

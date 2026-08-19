@@ -8,6 +8,23 @@ from backend.app.main import app
 client = TestClient(app)
 
 
+@pytest.mark.parametrize("endpoint", ["/api/generate", "/api/generate/stream"])
+def test_capability_question_returns_a_live_intro_without_retrieval(monkeypatch, endpoint):
+    """Conversational capability questions must not be rejected as out of scope."""
+    import backend.app.api.generate as generate_module
+
+    def retrieval_must_not_run(_settings):
+        raise AssertionError("Capability inquiries should not invoke retrieval")
+
+    monkeypatch.setattr(generate_module, "get_shared_retriever", retrieval_must_not_run)
+
+    response = client.post(endpoint, json={"query": "how can you help me", "top_k": 3})
+
+    assert response.status_code == 200
+    assert "adrenal insufficiency" in response.text
+    assert "outside the current scope" not in response.text
+
+
 @pytest.fixture
 def mock_llm(monkeypatch):
     """Mocks the LLMClient.generate_completion method."""

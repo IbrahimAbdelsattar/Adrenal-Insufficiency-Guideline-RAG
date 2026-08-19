@@ -72,7 +72,7 @@ rag.trace generate status=ok total=46189ms
 | `retrieval` | all | Hybrid search: embed → dense → BM25 → fusion → rerank |
 | `scope` | all | in_scope / no_evidence / out_of_scope classification |
 | `graph_expansion` | generate | Graph-linked extra evidence chunks |
-| `cache_lookup` | generate | LRU response-cache probe |
+| `cache_lookup` | generate | Response-cache probe |
 | `prompt_build` | generate | Evidence assembly and prompt construction |
 | `llm` | generate | OmniRoute completion (or the full stream) |
 | `citations` | generate | `[Source N]` resolution against the cited sources |
@@ -203,7 +203,56 @@ curl -s localhost:8000/api/metrics | jq '.counters | with_entries(select(.key|st
 
 ---
 
-## 7. Adding instrumentation
+## 7. Sentry integration
+
+Every timed stage opens a matching Sentry span, so the trace view in Sentry
+mirrors the `rag.trace` log line. Verified end to end against the configured
+DSN — a `/api/generate` transaction produces a 17-span tree:
+
+```
+backend.app.api.generate.generate_answer          (http.server)
+  rag.guardrail            0.1 ms   injection_detected=False
+  rag.retrieval          993.3 ms   top_k=3 retriever_type=hybrid results=3 top_relevance=0.794
+    rag.hybrid.search    992.1 ms
+      rag.dense.search   990.8 ms
+        retrieval.dense.embed  984.7 ms   dims=3072
+          http.client          969.4 ms   POST .../v1/embeddings
+        retrieval.dense.query    5.9 ms   hits=20 top_score=0.794
+      retrieval.bm25.search      0.8 ms   hits=20
+      retrieval.hybrid.fusion    0.1 ms   dense_hits=20 bm25_hits=20 overlap=12
+  rag.scope                0.2 ms   scope_status=in_scope kept=3
+  rag.graph_expansion      3.2 ms   added=1
+  rag.cache_lookup         0.2 ms   hit=False
+  rag.prompt_build         0.1 ms   sources=4 evidence_chars=13450 est_prompt_tokens=3765
+  rag.llm               3764.1 ms
+    llm.generate        3763.7 ms
+      http.client       3751.3 ms   POST .../v1/chat/completions
+  rag.citations            0.5 ms   resolved=3
+```
+
+Confirmed working:
+
+- **Span nesting across the thread boundary.** Retrieval runs in
+  `asyncio.to_thread`; its spans still attach to the request transaction.
+- **Span data.** Each stage's measurements are attached via `set_data`, so the
+  Sentry UI shows the numbers that explain the duration, not just the duration.
+- **Searchable tags** on the transaction: `rag.endpoint`, `rag.status`,
+  `rag.scope_status`, `rag.cache_hit`, `rag.model`.
+- **`rag` context** carrying the full trace summary (stage breakdown, token
+  usage, evidence counts).
+- **Breadcrumbs.** `LoggingIntegration(level=INFO)` turns the RAG stage lines
+  and the trace summary into breadcrumbs on any error event, so a captured
+  exception arrives with the pipeline history that led to it.
+- **Scrubbing.** Query text passes through `scrub_text()` before it reaches a
+  log line, a breadcrumb, or a span, and `sanitize_sentry_event` scrubs again
+  on the way out.
+
+Transactions carry no breadcrumbs — that is Sentry's model, not a gap.
+
+Set `SENTRY_DSN=` (empty) to disable; every span helper degrades to a no-op and
+logging is unaffected.
+
+## 8. Adding instrumentation
 
 For a stage inside a request, use the request's `RagTrace`:
 

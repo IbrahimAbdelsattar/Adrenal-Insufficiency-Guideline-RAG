@@ -442,7 +442,7 @@ export default function Page() {
                     <div className="space-y-4">
                       {filteredResults.length > 0 ? (
                         filteredResults.map((result) => (
-                          <ChunkCard key={result.chunk.chunk_id} result={result} />
+                          <ChunkCard key={result.chunk.chunk_id} result={result} query={response.query} />
                         ))
                       ) : (
                         <div className="mono-inset rounded-2xl p-8 text-center text-xs text-ink-faint">

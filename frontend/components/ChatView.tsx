@@ -7,6 +7,7 @@ import type { Language } from "@/lib/translations";
 import { translations } from "@/lib/translations";
 import { generateStream, generate } from "@/lib/api";
 import type { Citation } from "@/lib/api";
+import { HighlightMatches } from "@/components/HighlightMatches";
 
 
 export interface ChatMessage {
@@ -25,6 +26,7 @@ export interface ChatMessage {
   model?: string;
   cache_hit?: boolean;
   evidence_found?: boolean;
+  query?: string;
   timestamp: string;
 }
 
@@ -88,6 +90,7 @@ export function ChatView({ lang, topK, onTopKChange }: ChatViewProps) {
       content: "",
       citations: [],
       latency_ms: 0,
+      query: text,
       timestamp: currentTime,
     };
 
@@ -98,10 +101,9 @@ export function ChatView({ lang, topK, onTopKChange }: ChatViewProps) {
     let streamFailed = false;
 
     // Convert prior conversation history for backend context
-    const historyPayload = messages.map((m) => ({
-      role: m.role,
-      content: m.content,
-    }));
+    const historyPayload = messages
+      .filter((m) => m.content.trim())
+      .map((m) => ({ role: m.role, content: m.content }));
 
     try {
       await generateStream(text, topK, {
@@ -147,7 +149,7 @@ export function ChatView({ lang, topK, onTopKChange }: ChatViewProps) {
           streamFailed = true;
           setError(errDetail);
         },
-      });
+      }, historyPayload);
     } catch {
       streamFailed = true;
     }
@@ -156,7 +158,7 @@ export function ChatView({ lang, topK, onTopKChange }: ChatViewProps) {
     if (streamFailed && !accumulatedText) {
       try {
         setError(null);
-        const fallbackRes = await generate(text, topK);
+        const fallbackRes = await generate(text, topK, historyPayload);
         setMessages((prev) =>
           prev.map((m) =>
             m.id === assistantMessageId
@@ -351,21 +353,21 @@ export function ChatView({ lang, topK, onTopKChange }: ChatViewProps) {
                         <ReactMarkdown
                           remarkPlugins={[remarkGfm]}
                           components={{
-                            h1: ({ children }) => <h3 className="mb-3 mt-5 text-lg font-bold first:mt-0">{children}</h3>,
-                            h2: ({ children }) => <h4 className="mb-3 mt-4 text-base font-bold first:mt-0">{children}</h4>,
-                            h3: ({ children }) => <h5 className="mb-2 mt-3 text-sm font-bold first:mt-0">{children}</h5>,
-                            p: ({ children }) => <p className="mb-3 last:mb-0">{children}</p>,
+                            h1: ({ children }) => <h3 className="mb-3 mt-5 text-lg font-bold first:mt-0"><HighlightMatches query={msg.query || ""}>{children}</HighlightMatches></h3>,
+                            h2: ({ children }) => <h4 className="mb-3 mt-4 text-base font-bold first:mt-0"><HighlightMatches query={msg.query || ""}>{children}</HighlightMatches></h4>,
+                            h3: ({ children }) => <h5 className="mb-2 mt-3 text-sm font-bold first:mt-0"><HighlightMatches query={msg.query || ""}>{children}</HighlightMatches></h5>,
+                            p: ({ children }) => <p className="mb-3 last:mb-0"><HighlightMatches query={msg.query || ""}>{children}</HighlightMatches></p>,
                             ul: ({ children }) => <ul className="mb-3 list-disc space-y-1 pl-5 last:mb-0">{children}</ul>,
                             ol: ({ children }) => <ol className="mb-3 list-decimal space-y-1 pl-5 last:mb-0">{children}</ol>,
                             li: ({ children }) => <li className="pl-1">{children}</li>,
-                            blockquote: ({ children }) => <blockquote className="mb-3 border-l-2 border-accent-bright/60 pl-3 text-ink-dim">{children}</blockquote>,
+                            blockquote: ({ children }) => <blockquote className="mb-3 border-l-2 border-accent-bright/60 pl-3 text-ink-dim"><HighlightMatches query={msg.query || ""}>{children}</HighlightMatches></blockquote>,
                             strong: ({ children }) => <strong className="font-bold text-ink">{children}</strong>,
                             code: ({ children }) => <code className="break-words rounded bg-ink/10 px-1 py-0.5 font-mono text-[0.9em]">{children}</code>,
                             pre: ({ children }) => <pre className="mb-3 overflow-x-auto rounded-xl bg-ink/10 p-3 font-mono text-xs">{children}</pre>,
                             a: ({ children, href }) => <a className="break-words text-accent-bright underline underline-offset-2" href={href} rel="noreferrer" target="_blank">{children}</a>,
                             table: ({ children }) => <div className="mb-3 overflow-x-auto rounded-xl border border-line/60"><table className="min-w-full border-collapse text-left text-xs">{children}</table></div>,
-                            th: ({ children }) => <th className="border-b border-line/60 bg-ink/5 px-2 py-1.5 font-bold">{children}</th>,
-                            td: ({ children }) => <td className="border-b border-line/40 px-2 py-1.5 align-top">{children}</td>,
+                            th: ({ children }) => <th className="border-b border-line/60 bg-ink/5 px-2 py-1.5 font-bold"><HighlightMatches query={msg.query || ""}>{children}</HighlightMatches></th>,
+                            td: ({ children }) => <td className="border-b border-line/40 px-2 py-1.5 align-top"><HighlightMatches query={msg.query || ""}>{children}</HighlightMatches></td>,
                             hr: () => <hr className="my-3 border-line/60" />,
                           }}
                         >

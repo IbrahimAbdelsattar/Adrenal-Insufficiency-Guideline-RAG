@@ -1,7 +1,7 @@
 # Eva AI — Clinical Decision Support (Adrenal Insufficiency RAG)
 
 [![CI/CD Pipeline](https://github.com/IbrahimAbdelsattar/Eva-AI/actions/workflows/ci-cd.yml/badge.svg)](https://github.com/IbrahimAbdelsattar/Eva-AI/actions/workflows/ci-cd.yml)
-[![Unit Tests](https://img.shields.io/badge/Unit_Tests-248_Passing-brightgreen.svg)](file:///c:/Users/C-LAB/Videos/ai%20hackthon/backend/tests/unit/)
+[![Unit Tests](https://img.shields.io/badge/Unit_Tests-259_Passing-brightgreen.svg)](file:///c:/Users/C-LAB/Videos/ai%20hackthon/backend/tests/unit/)
 [![Docker GHCR](https://img.shields.io/badge/Container-GHCR-blue?logo=docker&logoColor=white)](https://github.com/IbrahimAbdelsattar/Eva-AI/pkgs/container/eva-ai)
 [![Python Version](https://img.shields.io/badge/python-3.13-blue.svg)](https://www.python.org/)
 [![Node Version](https://img.shields.io/badge/node-20.x-green.svg)](https://nodejs.org/)
@@ -22,11 +22,14 @@
 
 The application pairs a high-performance **FastAPI backend** with a **Next.js 15 Monomorphic Soft UI** frontend featuring:
 - 💬 **Interactive Multi-Turn RAG Chatbot**: Real-time SSE streaming answers with inline structural citations directly from NICE NG243.
+- 🧭 **Conversational Capability Routing**: Common greetings and capability questions (for example, “How can you help me?”) return an immediate live introduction before clinical retrieval, while clinical questions retain strict evidence guardrails.
+- 🚀 **Multi-Tier RAG Caching Architecture**: Sub-5ms response time on warm queries (**492x speedup**) with L1 Embedding, L2 Retrieval, and L3 Answer Caching with TTL/LRU eviction and automatic index manifest invalidation.
 - 🔍 **Retrieval & Evidence Inspector**: In-depth vector & BM25 ranking inspection with similarity scores and confidence floors.
 - ⚡ **Ultra-Low Latency OmniRoute Routing**: Optimized with `GENERATION_MODEL=eva-ai` (~1.6s vs 4.4s) and instant 0ms zero-LLM greeting handling.
 - 🛡️ **Fail-Closed Clinical Guardrails**: Adversarial prompt injection defense, out-of-scope refusal, and insufficient evidence abstention.
 - 📊 **Full-Stack Sentry Observability**: Distributed tracing across RAG stages, continuous CPU profiling, and automatic PHI/PII sanitization.
 - 🌐 **Bilingual Medical Interface**: Native English and Arabic (RTL) support with localized terminology.
+
 
 
 ---

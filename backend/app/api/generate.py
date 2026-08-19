@@ -15,7 +15,6 @@ import asyncio
 import json
 import logging
 import time
-from collections import OrderedDict
 
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import StreamingResponse
@@ -40,6 +39,7 @@ from backend.app.generation.prompt import SYSTEM_PROMPT, construct_user_prompt
 from backend.app.generation.reasoning import ReasoningFilter, strip_reasoning
 from backend.app.models import DISCLAIMER, GenerateRequest, GenerateResponse, RetrievalResult
 from backend.app.monitoring import REGISTRY, RagTrace, estimate_tokens
+from backend.app.retrieval.cache import TTLLRUCache, normalize_query
 from backend.app.retrieval.factory import get_shared_retriever, get_shared_store
 from backend.app.retrieval.scope import (
     NO_EVIDENCE_MESSAGE,
@@ -51,44 +51,41 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api", tags=["generation"])
 
-# LRU response cache: same query + same retrieved evidence => same answer,
-# so repeat questions cost zero tokens and return in milliseconds.
-_RESPONSE_CACHE: OrderedDict[str, dict] = OrderedDict()
+# Memory-bounded TTL + LRU response cache for repeat queries
+_RESPONSE_CACHE: TTLLRUCache[str, dict] = TTLLRUCache(
+    maxsize=get_settings().response_cache_size,
+    ttl_seconds=get_settings().cache_ttl_seconds,
+    manifest_path=get_settings().index_dir / "manifest.json",
+    name="generation_response_cache",
+)
 
 
-def _cache_key(query: str, top_k: int, results: list[RetrievalResult]) -> str:
+def _cache_key(
+    query: str,
+    top_k: int,
+    results: list[RetrievalResult],
+    history: list[dict] | None = None,
+) -> str:
+    norm_q = normalize_query(query)
     ids = "+".join(r.chunk.chunk_id for r in results)
-    return f"{top_k}|{query.strip().lower()}|{ids}"
+    hist_suffix = ""
+    if history:
+        hist_parts = [
+            f"{h.get('role', '')}:{normalize_query(h.get('content', ''))}"
+            for h in history[-4:]
+            if h.get("content")
+        ]
+        if hist_parts:
+            hist_suffix = "|hist:" + "+".join(hist_parts)
+    return f"{top_k}|{norm_q}|{ids}{hist_suffix}"
 
 
 def _cache_get(key: str) -> dict | None:
-    entry = _RESPONSE_CACHE.get(key)
-    if entry is not None:
-        _RESPONSE_CACHE.move_to_end(key)
-    return entry
+    return _RESPONSE_CACHE.get(key)
 
 
-def _cache_put(key: str, entry: dict, maxsize: int) -> None:
-    _RESPONSE_CACHE[key] = entry
-    _RESPONSE_CACHE.move_to_end(key)
-    evicted = 0
-    while len(_RESPONSE_CACHE) > maxsize:
-        _RESPONSE_CACHE.popitem(last=False)
-        evicted += 1
-    if evicted:
-        logger.debug(
-            "Response cache evicted %d entr%s (size=%d/%d)",
-            evicted,
-            "y" if evicted == 1 else "ies",
-            len(_RESPONSE_CACHE),
-            maxsize,
-            extra={
-                "event": "cache.evict",
-                "evicted": evicted,
-                "size": len(_RESPONSE_CACHE),
-                "maxsize": maxsize,
-            },
-        )
+def _cache_put(key: str, entry: dict, maxsize: int | None = None) -> None:
+    _RESPONSE_CACHE.put(key, entry)
 
 
 def _log_cache(trace: RagTrace, hit: bool) -> None:
@@ -97,11 +94,23 @@ def _log_cache(trace: RagTrace, hit: bool) -> None:
 
 
 async def _retrieve_and_scope(request: GenerateRequest, trace: RagTrace):
-    """Shared first stage: retrieve candidates and classify scope."""
+    """Shared first stage: retrieve candidates and classify scope with retrieval cache."""
+    from backend.app.api.search import _RETRIEVAL_CACHE
+
     settings = get_settings()
-    retriever = get_shared_retriever(settings)
     top_k = request.top_k or settings.top_k
 
+    retrieval_cache_key = (normalize_query(request.query), top_k, settings.retriever_type)
+    cached_retrieval = _RETRIEVAL_CACHE.get(retrieval_cache_key)
+
+    if cached_retrieval is not None:
+        results, scope_status, scope_msg, filtered_results = cached_retrieval
+        trace.record_retrieval(results)
+        trace.set(scope_status=scope_status, retrieval_cached=True)
+        REGISTRY.increment(f"generate.scope.{scope_status}")
+        return settings, top_k, results, scope_status, scope_msg, filtered_results
+
+    retriever = get_shared_retriever(settings)
     with trace.stage(
         "retrieval", top_k=top_k, retriever_type=settings.retriever_type
     ) as span:
@@ -113,14 +122,19 @@ async def _retrieve_and_scope(request: GenerateRequest, trace: RagTrace):
 
     with trace.stage("scope", scope_threshold=settings.scope_threshold) as span:
         scope_status, scope_msg, filtered_results = classify_scope(
-            results, settings.scope_threshold
+            results, settings.scope_threshold, query=request.query
         )
+
         span["scope_status"] = scope_status
         span["kept"] = len(filtered_results)
+
+    # Save to shared retrieval cache
+    _RETRIEVAL_CACHE.put(retrieval_cache_key, (results, scope_status, scope_msg, filtered_results))
 
     trace.set(scope_status=scope_status)
     REGISTRY.increment(f"generate.scope.{scope_status}")
     return settings, top_k, results, scope_status, scope_msg, filtered_results
+
 
 
 def _expand_with_graph(
@@ -302,7 +316,7 @@ async def generate_answer(request: GenerateRequest) -> GenerateResponse:
 
         # 4. Response cache: identical query + identical evidence
         with trace.stage("cache_lookup", level=logging.DEBUG) as span:
-            key = _cache_key(request.query, top_k, evidence_results)
+            key = _cache_key(request.query, top_k, evidence_results, request.history)
             cached = _cache_get(key)
             span["hit"] = cached is not None
         _log_cache(trace, cached is not None)
@@ -321,7 +335,7 @@ async def generate_answer(request: GenerateRequest) -> GenerateResponse:
                 citations=cached["citations"],
                 evidence_found=True,
                 disclaimer=DISCLAIMER,
-                model=settings.generation_model,
+                model=cached.get("model", settings.generation_model),
                 latency_ms=elapsed_ms,
                 cache_hit=True,
             )
@@ -367,7 +381,15 @@ async def generate_answer(request: GenerateRequest) -> GenerateResponse:
                 },
             )
 
-        _cache_put(key, {"answer": answer, "citations": citations}, settings.response_cache_size)
+        _cache_put(
+            key,
+            {
+                "answer": answer,
+                "citations": [c.model_dump() if hasattr(c, "model_dump") else c for c in citations],
+                "model": settings.generation_model,
+            },
+        )
+
         _log_llm_result(trace, client, answer, citations)
         trace.set(evidence_found=True)
         elapsed_ms = trace.emit(status="ok")
@@ -526,7 +548,7 @@ async def generate_answer_stream(request: GenerateRequest) -> StreamingResponse:
         evidence_results = _expand_with_graph(settings, filtered_results or results, trace)
 
         with trace.stage("cache_lookup", level=logging.DEBUG) as span:
-            key = _cache_key(request.query, top_k, evidence_results)
+            key = _cache_key(request.query, top_k, evidence_results, request.history)
             cached = _cache_get(key)
             span["hit"] = cached is not None
         _log_cache(trace, cached is not None)
@@ -535,7 +557,7 @@ async def generate_answer_stream(request: GenerateRequest) -> StreamingResponse:
             "meta",
             {
                 "query": request.query,
-                "model": model,
+                "model": cached.get("model", model) if cached else model,
                 "evidence_found": True,
                 "cache_hit": cached is not None,
             },
@@ -555,7 +577,7 @@ async def generate_answer_stream(request: GenerateRequest) -> StreamingResponse:
                     "disclaimer": DISCLAIMER,
                 },
             )
-            trace.set(evidence_found=True, citations=len(cached["citations"]))
+            trace.set(evidence_found=True, citations=len(cached["citations"]), cache_hit=True)
             trace.emit(status="ok_cached")
             return
 
@@ -642,7 +664,15 @@ async def generate_answer_stream(request: GenerateRequest) -> StreamingResponse:
                 },
             )
 
-        _cache_put(key, {"answer": answer, "citations": citations}, settings.response_cache_size)
+        _cache_put(
+            key,
+            {
+                "answer": answer,
+                "citations": [c.model_dump() if hasattr(c, "model_dump") else c for c in citations],
+                "model": model,
+            },
+        )
+
         _log_llm_result(trace, client, answer, citations)
         trace.set(
             evidence_found=True,

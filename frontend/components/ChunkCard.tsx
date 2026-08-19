@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import type { RetrievalResult } from "@/lib/api";
 import { translations, type Language } from "@/lib/translations";
+import { HighlightMatches } from "@/components/HighlightMatches";
 
 const EXCERPT_CHARS = 340;
 
@@ -18,7 +19,7 @@ function getScoreTone(score: number, belowFloor: boolean) {
   return "text-ink-dim font-semibold";
 }
 
-export function ChunkCard({ result }: { result: RetrievalResult }) {
+export function ChunkCard({ result, query }: { result: RetrievalResult; query: string }) {
   const [expanded, setExpanded] = useState(false);
   const [copied, setCopied] = useState(false);
   const [lang, setLang] = useState<Language>("en");
@@ -176,7 +177,7 @@ export function ChunkCard({ result }: { result: RetrievalResult }) {
 
       {/* Chunk Prose Body */}
       <p className="whitespace-pre-line text-sm leading-relaxed text-ink/90 font-normal">
-        {body}
+        <HighlightMatches query={query}>{body}</HighlightMatches>
       </p>
 
       {expanded && (

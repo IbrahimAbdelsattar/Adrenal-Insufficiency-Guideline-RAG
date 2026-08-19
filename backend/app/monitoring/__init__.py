@@ -16,6 +16,7 @@ from backend.app.monitoring.metrics import (
 from backend.app.monitoring.sentry import (
     init_sentry,
     is_sentry_enabled,
+    set_rag_context,
     trace_span,
 )
 
@@ -29,6 +30,7 @@ __all__ = [
     "is_sentry_enabled",
     "reset_request_id",
     "safe_query",
+    "set_rag_context",
     "set_request_id",
     "stage_timer",
     "trace_span",

@@ -33,7 +33,7 @@ from typing import Any
 
 from backend.app.config import Settings, get_settings
 from backend.app.monitoring.logging_config import get_request_id
-from backend.app.monitoring.sentry import scrub_text, trace_span
+from backend.app.monitoring.sentry import scrub_text, set_rag_context, trace_span
 
 logger = logging.getLogger("backend.app.rag")
 
@@ -122,6 +122,26 @@ def estimate_tokens(text: str) -> int:
     return max(0, len(text) // 4)
 
 
+def _annotate_span(span: Any, duration_ms: float, ok: bool, fields: dict[str, Any]) -> None:
+    """Copy the stage's measurements onto its Sentry span.
+
+    Without this the Sentry trace view shows only op + duration, while the log
+    line carries the numbers that explain the duration.
+    """
+    if span is None:
+        return
+    try:
+        span.set_data("duration_ms", round(duration_ms, 2))
+        for key, value in fields.items():
+            if isinstance(value, (str, int, float, bool)) or value is None:
+                span.set_data(key, value)
+        if not ok:
+            span.set_status("internal_error")
+    except Exception:
+        # Telemetry must never break the request it is describing.
+        pass
+
+
 @contextmanager
 def stage_timer(
     name: str,
@@ -141,25 +161,33 @@ def stage_timer(
     extra: dict[str, Any] = dict(fields)
     started = time.perf_counter()
     failed = False
-    try:
-        with trace_span(op=name, description=name):
+    # The annotate/log work happens inside the span context so the span is
+    # still open and can be given the measurements it describes.
+    with trace_span(op=name, description=name) as span:
+        try:
             yield extra
-    except Exception:
-        failed = True
-        raise
-    finally:
-        duration_ms = (time.perf_counter() - started) * 1000
-        REGISTRY.observe(name, duration_ms)
-        if failed:
-            REGISTRY.increment(f"{name}.error")
-        log.log(
-            logging.WARNING if failed else level,
-            "%s %s in %.1f ms",
-            name,
-            "failed" if failed else "completed",
-            duration_ms,
-            extra={"stage": name, "duration_ms": round(duration_ms, 2), "ok": not failed, **extra},
-        )
+        except Exception:
+            failed = True
+            raise
+        finally:
+            duration_ms = (time.perf_counter() - started) * 1000
+            REGISTRY.observe(name, duration_ms)
+            if failed:
+                REGISTRY.increment(f"{name}.error")
+            _annotate_span(span, duration_ms, not failed, extra)
+            log.log(
+                logging.WARNING if failed else level,
+                "%s %s in %.1f ms",
+                name,
+                "failed" if failed else "completed",
+                duration_ms,
+                extra={
+                    "stage": name,
+                    "duration_ms": round(duration_ms, 2),
+                    "ok": not failed,
+                    **extra,
+                },
+            )
 
 
 class RagTrace:
@@ -210,34 +238,35 @@ class RagTrace:
         extra: dict[str, Any] = dict(fields)
         started = time.perf_counter()
         failed = False
-        try:
-            with trace_span(op=f"rag.{name}", description=f"{self.endpoint}:{name}"):
+        with trace_span(op=f"rag.{name}", description=f"{self.endpoint}:{name}") as span:
+            try:
                 yield extra
-        except Exception:
-            failed = True
-            raise
-        finally:
-            duration_ms = (time.perf_counter() - started) * 1000
-            qualified = f"{self.endpoint}.{name}"
-            self.stages[name] = round(duration_ms, 2)
-            REGISTRY.observe(qualified, duration_ms)
-            if failed:
-                REGISTRY.increment(f"{qualified}.error")
-            self._log.log(
-                logging.WARNING if failed else level,
-                "rag.stage %s %s in %.1f ms",
-                name,
-                "failed" if failed else "ok",
-                duration_ms,
-                extra={
-                    "event": "rag.stage",
-                    "endpoint": self.endpoint,
-                    "stage": name,
-                    "duration_ms": round(duration_ms, 2),
-                    "ok": not failed,
-                    **extra,
-                },
-            )
+            except Exception:
+                failed = True
+                raise
+            finally:
+                duration_ms = (time.perf_counter() - started) * 1000
+                qualified = f"{self.endpoint}.{name}"
+                self.stages[name] = round(duration_ms, 2)
+                REGISTRY.observe(qualified, duration_ms)
+                if failed:
+                    REGISTRY.increment(f"{qualified}.error")
+                _annotate_span(span, duration_ms, not failed, extra)
+                self._log.log(
+                    logging.WARNING if failed else level,
+                    "rag.stage %s %s in %.1f ms",
+                    name,
+                    "failed" if failed else "ok",
+                    duration_ms,
+                    extra={
+                        "event": "rag.stage",
+                        "endpoint": self.endpoint,
+                        "stage": name,
+                        "duration_ms": round(duration_ms, 2),
+                        "ok": not failed,
+                        **extra,
+                    },
+                )
 
     # --- record retrieval + generation detail -----------------------------
 
@@ -285,6 +314,26 @@ class RagTrace:
         REGISTRY.increment(f"{self.endpoint}.status.{status}")
 
         accounted = sum(self.stages.values())
+
+        # Make the transaction searchable in Sentry by the things that explain
+        # it: which guardrail fired, whether the cache saved the LLM call.
+        set_rag_context(
+            {
+                "trace_id": self.trace_id,
+                "status": status,
+                "total_ms": total_ms,
+                "stages_ms": dict(self.stages),
+                **{k: v for k, v in self.fields.items() if not isinstance(v, (dict, list))},
+            },
+            tags={
+                "rag.endpoint": self.endpoint,
+                "rag.status": status,
+                "rag.scope_status": self.fields.get("scope_status"),
+                "rag.cache_hit": self.fields.get("cache_hit"),
+                "rag.model": self.fields.get("model"),
+            },
+        )
+
         self._log.log(
             level,
             "rag.trace %s status=%s total=%dms stages=%s",
