@@ -27,6 +27,17 @@ def sigmoid(x: float) -> float:
 
 _MODEL_CACHE: dict[str, Any] = {}
 
+# The cross-encoder truncates each pair to 512 tokens anyway (its own
+# tokenizer max_length), but sentence-transformers pads every pair in a batch
+# to the LONGEST sequence in that batch. One oversized chunk -- this corpus
+# keeps a numbered recommendation whole and unsplit even past the target size
+# (chunker.py) -- was dragging every other candidate in its batch up to ~512
+# padded tokens too, turning a ~10ms/pair score into ~70ms/pair. Trimming the
+# text we hand the tokenizer keeps the same information (it would have been
+# truncated at the same point regardless) while keeping the batch's padded
+# length bounded and cheap.
+_MAX_RERANK_CHARS = 1800  # ~450 tokens: leaves room for the query + template.
+
 
 class CrossEncoderReranker:
     """Reranks candidate chunks using a cross-attention transformer model."""
@@ -104,8 +115,11 @@ class CrossEncoderReranker:
             if model is not None:
                 try:
                     started = time.perf_counter()
-                    pairs = [[query, f"{c.section_title}: {c.text}"] for c in extracted_chunks]
-                    scores = model.predict(pairs)
+                    pairs = [
+                        [query, f"{c.section_title}: {c.text[:_MAX_RERANK_CHARS]}"]
+                        for c in extracted_chunks
+                    ]
+                    scores = model.predict(pairs, show_progress_bar=False)
                     norm_scores = [sigmoid(float(s)) for s in scores]
                     ranked = sorted(
                         zip(extracted_chunks, norm_scores, strict=False),

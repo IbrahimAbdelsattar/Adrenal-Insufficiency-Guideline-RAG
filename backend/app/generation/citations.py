@@ -1,7 +1,9 @@
-"""Extracts citations from LLM output and maps them to retrieved sources."""
+"""Extracts citations from LLM output and validates that clinical claims are grounded."""
 
 import re
 from collections.abc import Sequence
+from dataclasses import dataclass, field
+from typing import Literal
 
 from backend.app.models import RetrievalResult
 
@@ -116,19 +118,18 @@ def extract_recommendation_citations(text: str, sources: Sequence[RetrievalResul
 
 
 def resolve_citations(text: str, sources: Sequence[RetrievalResult]) -> list[dict]:
-    """Always return citations carrying document, section and page for a grounded answer.
-
-    Three layers, most precise first, so a correctly-grounded answer can never
-    reach the UI with no provenance just because the model formatted its
-    markers differently:
+    """Return only citations the model actually pointed at, most precise first.
 
     1. explicit [Source N] markers
     2. bare guideline recommendation markers such as [1.8.6]
-    3. every source the model was shown
 
-    Layer 3 is deliberate: the answer was generated from exactly these chunks,
-    so listing them is accurate provenance, and `resolved_by` records that the
-    attribution is block-level rather than claim-level.
+    No fallback layer. Earlier this fell back to attaching every source the
+    model was shown when neither format was found -- that proves evidence was
+    *retrieved*, not that any specific claim in the answer is *supported* by
+    it, and let an ungrounded answer reach the clinician wearing a citation
+    list it never earned. An answer with no resolvable citation now returns
+    an empty list; callers must treat that as ungrounded (see
+    `validate_grounding`), not silently attribute it to everything retrieved.
     """
     if not sources:
         return []
@@ -137,11 +138,122 @@ def resolve_citations(text: str, sources: Sequence[RetrievalResult]) -> list[dic
     if citations:
         return citations
 
-    citations = extract_recommendation_citations(text, sources)
-    if citations:
-        return citations
+    return extract_recommendation_citations(text, sources)
 
-    return [_to_citation(str(i + 1), res, "fallback_all_sources") for i, res in enumerate(sources)]
+
+_SOURCE_MARKER = re.compile(r"\[Source\s*(\d+)[^\]]*\]", re.IGNORECASE)
+
+# Claim shapes that must never reach a clinician unsupported: doses, routes,
+# timing/frequency, lab or vital thresholds, and emergency instructions. Kept
+# as one alternation so a single scan over a claim unit answers "does this
+# look clinical" -- deliberately over-inclusive (a false positive just asks
+# for a citation that harmlessly exists), never under-inclusive.
+_CLINICAL_CLAIM_PATTERN = re.compile(
+    r"""
+    \d+(?:\.\d+)?\s*(?:mg|mcg|microgram\w*|milligram\w*|g|ml|iu|units?|mmol|nmol)\b # dose / units
+    | \b(?:intravenous(?:ly)?|intramuscular(?:ly)?|subcutaneous(?:ly)?|orally|by\ mouth|\biv\b|\bim\b|\bsc\b)\b # route
+    | \bevery\s+\d+\s*(?:hour|hr|minute|min|day|week)s?\b   # dosing frequency
+    | \bwithin\s+\d+\s*(?:hour|hr|minute|min)s?\b           # timing
+    | \bimmediately\b | \burgently\b | \bwithout\ delay\b   # timing / urgency
+    | [<>≤≥]\s*\d+                                          # threshold comparison
+    | \b\d+\s*(?:nmol/l|mmol/l|mg/dl|mmhg|bpm|%)\b           # lab / vital threshold
+    | \bemergency\b | \badrenal\ crisis\b | \bcall\ (?:999|911|112|an\ ambulance)\b
+    | \bseek\ (?:immediate|urgent)\ medical\b
+    """,
+    re.IGNORECASE | re.VERBOSE,
+)
+
+# Splits an answer into claim-sized units: bullet/numbered list lines are
+# usually one claim each, and multi-sentence paragraphs split on sentence
+# boundaries. Good enough to flag an uncited clinical sentence; it is not a
+# clause-level parser.
+_CLAIM_UNIT_SPLIT = re.compile(r"(?<=[.!?])\s+(?=[A-Z\[])|\n+")
+
+
+def _split_claim_units(text: str) -> list[str]:
+    return [u.strip() for u in _CLAIM_UNIT_SPLIT.split(text) if u.strip()]
+
+
+def _marker_validity(text: str, n_sources: int) -> tuple[list[str], list[str]]:
+    """Every [Source N] marker in *text*, split into (valid, out-of-range) ids."""
+    valid, invalid = [], []
+    for raw in _SOURCE_MARKER.findall(text):
+        idx = int(raw)
+        (valid if 1 <= idx <= n_sources else invalid).append(raw)
+    return valid, invalid
+
+
+@dataclass
+class GroundingResult:
+    """Outcome of validating that an answer's clinical claims are cited.
+
+    `status` is the contract callers must act on:
+
+    - "verified": every clinical claim resolves to a real [Source N] (or a
+      resolvable bare recommendation marker); `citations` is safe to show and
+      to cache.
+    - "failed": either an out-of-range/invalid marker was used, or at least
+      one clinical claim (dose, route, timing, threshold, emergency
+      instruction) has no citation at all. `citations` is always empty --
+      callers must abstain, not display a partial answer.
+    """
+
+    status: Literal["verified", "failed"]
+    citations: list[dict] = field(default_factory=list)
+    reason: str = ""
+    invalid_markers: list[str] = field(default_factory=list)
+    unsupported_claims: list[str] = field(default_factory=list)
+
+
+def validate_grounding(text: str, sources: Sequence[RetrievalResult]) -> GroundingResult:
+    """Reject an answer unless every clinical claim in it is actually cited.
+
+    Two failure modes, checked in order:
+
+    1. Any [Source N] marker pointing outside 1..len(sources) -- the model
+       cited evidence that was never shown to it, so nothing it says about
+       that citation can be trusted.
+    2. Any individual claim unit (line or sentence) matching a clinical claim
+       shape -- dose, route, timing, threshold, emergency instruction -- that
+       carries no citation of its own. A citation elsewhere in the answer
+       does not cover it; this is deliberately per-claim, not per-answer,
+       because "the answer has a citation somewhere" is exactly the weak
+       check that let ungrounded claims through before.
+
+    An answer with no clinical claims at all (e.g. a plain restatement of
+    what the evidence does not cover) needs no citation to be "verified" --
+    there is nothing in it that requires provenance.
+    """
+    n = len(sources)
+    if n == 0:
+        return GroundingResult(status="failed", reason="no_sources")
+
+    _, invalid = _marker_validity(text, n)
+    if invalid:
+        return GroundingResult(
+            status="failed",
+            reason="invalid_citation_marker",
+            invalid_markers=sorted(set(invalid)),
+        )
+
+    unsupported = []
+    for unit in _split_claim_units(text):
+        if not _CLINICAL_CLAIM_PATTERN.search(unit):
+            continue
+        valid, _ = _marker_validity(unit, n)
+        if valid or _RECOMMENDATION_MARKER.search(unit):
+            continue
+        unsupported.append(unit[:160])
+
+    if unsupported:
+        return GroundingResult(
+            status="failed",
+            reason="unsupported_clinical_claim",
+            unsupported_claims=unsupported,
+        )
+
+    citations = resolve_citations(text, sources)
+    return GroundingResult(status="verified", citations=citations)
 
 
 def should_abstain(results: Sequence[RetrievalResult]) -> bool:

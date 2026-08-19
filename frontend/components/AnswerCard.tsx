@@ -140,24 +140,51 @@ export function AnswerCard({ result }: { result: GenerateResponse }) {
           <h3 className="text-xs font-bold uppercase tracking-wider text-ink-faint mb-3">
             {t.citationsLabel || "Sources cited"}
           </h3>
-          <ul className="flex flex-col gap-2">
-            {citations.map((c, i) => (
-              <li key={`${c.source_id}-${i}`} className="mono-inset flex items-start gap-3 rounded-xl px-4 py-3 text-sm text-ink-dim">
-                <span className="font-mono text-xs font-bold text-accent-bright mt-0.5">
-                  [{c.source_id}]
-                </span>
-                <div className="flex flex-col">
-                  <span className="font-semibold text-ink">{c.document_name}</span>
-                  <span className="text-xs mt-0.5 text-ink-faint">
-                    {formatSection(c)}
-                    {c.page_number && ` (Page ${c.page_number})`}
-                  </span>
-                </div>
-              </li>
-            ))}
+          <ul className="flex flex-col gap-3">
+            {citations.map((c, i) => {
+              const textContent = c.text || c.excerpt || "";
+              return (
+                <li
+                  key={`${c.source_id}-${i}`}
+                  className="mono-card rounded-xl p-3.5 text-xs text-ink-dim border border-line/50 space-y-2"
+                >
+                  <div className="flex flex-wrap items-center justify-between gap-2 border-b border-line/30 pb-2">
+                    <div className="flex items-center gap-2">
+                      <span className="mono-pill px-2 py-0.5 font-mono text-[11px] font-extrabold text-accent-bright">
+                        [{c.source_id}]
+                      </span>
+                      <div>
+                        <span className="font-bold text-ink text-[12px]">{c.document_name}</span>
+                        <span className="text-xs text-ink-faint ml-1.5">
+                          {formatSection(c)}
+                          {c.page_number && ` · Page ${c.page_number}`}
+                        </span>
+                      </div>
+                    </div>
+                    {c.source_url && (
+                      <a
+                        href={c.source_url}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="text-accent-bright hover:underline text-[11px] font-bold"
+                      >
+                        NICE ↗
+                      </a>
+                    )}
+                  </div>
+
+                  {textContent && (
+                    <div className="text-[12px] leading-relaxed text-ink-dim bg-ink/5 p-2.5 rounded-lg border border-line/30 font-sans">
+                      <HighlightMatches query={query}>{textContent}</HighlightMatches>
+                    </div>
+                  )}
+                </li>
+              );
+            })}
           </ul>
         </div>
       )}
+
 
       {/* Disclaimer */}
       {disclaimer && (

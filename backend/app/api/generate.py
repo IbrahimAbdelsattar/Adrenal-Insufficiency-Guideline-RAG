@@ -24,9 +24,9 @@ from backend.app.config import Settings, get_settings
 from backend.app.errors import PipelineError
 from backend.app.generation.assembler import assemble_evidence, select_sources
 from backend.app.generation.citations import (
-    resolve_citations,
     should_abstain,
     strip_trailing_disclaimer,
+    validate_grounding,
 )
 from backend.app.generation.client import LLMClient
 from backend.app.generation.guardrails import (

@@ -539,6 +539,15 @@ python -m backend.app.cli eval [--retriever-type {dense,bm25,hybrid,hybrid_reran
 
 Runs the retrieval quality suite over the 18 golden clinical queries in [backend/tests/eval/golden_questions.yaml](file:///c:/Users/C-LAB/Videos/ai%20hackthon/backend/tests/eval/golden_questions.yaml). Target: $\ge 80\%$ hit rate, high Precision@3 and Precision@5.
 
+> **Corpus fix (Day 7):** the sectioner previously misattributed 30 pages of unnumbered
+> back matter (glossary, rationale, update history) to the last numbered section,
+> flooding retrieval with noise on 61% of the index. Fixed in `sectioner.py`/`chunker.py`
+> — re-ingesting now yields 34 correctly-attributed chunks, 100% golden-set hit rate, and
+> hybrid Precision@3 of 0.574 (up from 0.389). See
+> [DAY7_RAG_RETRIEVAL_QUALITY_AND_RERANKER_FIX.md](file:///c:/Users/C-LAB/Videos/ai%20hackthon/docs/DAY7_RAG_RETRIEVAL_QUALITY_AND_RERANKER_FIX.md).
+> **Run `python -m backend.app.cli ingest` after pulling this fix** — it only takes
+> effect on the next ingest, not on code deploy alone.
+
 ### 4. Comparative Benchmark Suite (`benchmark`)
 
 ```bash
@@ -660,7 +669,7 @@ Eva AI implements enterprise-grade, privacy-preserving error tracking, performan
 Run the full automated test suite using `pytest`:
 
 ```bash
-# Run all unit tests including Sentry monitoring, spans, endpoints, RRF, conversational history, and chunking (248 tests)
+# Run all unit tests including Sentry monitoring, spans, endpoints, RRF, conversational history, and chunking (260 tests)
 pytest backend/tests/unit/ -v
 
 # Run Sentry-specific verification tests

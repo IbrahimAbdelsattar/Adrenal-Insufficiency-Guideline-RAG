@@ -815,8 +815,8 @@ export function ChatView({ lang, topK, onTopKChange }: ChatViewProps) {
                           <div className="space-y-3 pt-2 animate-fade-in-up">
                             {msg.citations?.map((c, idx) => {
                               const citationKey = `${msg.id}-${c.source_id}-${idx}`;
-                              const isFullText = Boolean(fullTextCitationMap[citationKey]);
-                              const displayText = isFullText && c.text ? c.text : (c.excerpt || c.text || "");
+                              const isConcise = Boolean(fullTextCitationMap[citationKey]);
+                              const displayText = isConcise && c.excerpt ? c.excerpt : (c.text || c.excerpt || "");
 
                               return (
                                 <div
@@ -875,9 +875,9 @@ export function ChatView({ lang, topK, onTopKChange }: ChatViewProps) {
                                         onClick={() => toggleFullText(citationKey)}
                                         className="text-accent-bright hover:underline font-semibold cursor-pointer"
                                       >
-                                        {isFullText
-                                          ? `▲ ${t.conciseExcerpt || "Show Concise Excerpt"}`
-                                          : `▼ ${t.fullGuidelineText || "Show Full Guideline Chunk Text"}`}
+                                        {isConcise
+                                          ? `▼ ${t.fullGuidelineText || "Show Full Guideline Chunk Text"}`
+                                          : `▲ ${t.conciseExcerpt || "Show Concise Excerpt"}`}
                                       </button>
                                     ) : <div />}
 

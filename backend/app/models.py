@@ -214,6 +214,13 @@ class GenerateResponse(BaseModel):
     model: str
     latency_ms: int
     cache_hit: bool = False
+    # "verified": every clinical claim resolved to a real citation.
+    # "failed": grounding validation rejected the answer (invalid marker or an
+    #   uncited clinical claim) -- `answer` is the abstention message, not the
+    #   model's output, and `citations` is always empty.
+    # "abstained": no answer was generated at all (out of scope, no evidence,
+    #   prompt injection, greeting) -- grounding was never applicable.
+    grounding_status: Literal["verified", "failed", "abstained"] = "verified"
 
 
 class GoldenQuestion(BaseModel):
