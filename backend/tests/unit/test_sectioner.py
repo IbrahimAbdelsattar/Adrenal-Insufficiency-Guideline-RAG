@@ -16,13 +16,24 @@ from backend.app.ingestion.sectioner import detect_blocks
 # Real NG243 typography: body 12.0pt, sub-headings 16.5pt, section headings 21.0pt.
 BODY_SIZE = 12.0
 HEADING_SIZE = 16.5
+SECTION_SIZE = 21.0
 
 
-def _clean_page(number: int, entries: list[tuple[str, bool]]) -> CleanPage:
-    """entries: (text, is_heading). Headings are bold AND larger than body text."""
+def _clean_page(
+    number: int, entries: list[tuple[str, bool] | tuple[str, bool, float]]
+) -> CleanPage:
+    """entries: (text, is_heading) or (text, is_heading, size)."""
+    lines = []
+    for item in entries:
+        if len(item) == 3:
+            t, h, sz = item
+        else:
+            t, h = item
+            sz = HEADING_SIZE if h else BODY_SIZE
+        lines.append(Line(text=t, size=sz, bold=h))
     return CleanPage(
         page_number=number,
-        lines=[Line(text=t, size=HEADING_SIZE if h else BODY_SIZE, bold=h) for t, h in entries],
+        lines=lines,
         is_front_matter=False,
     )
 
@@ -30,7 +41,7 @@ def _clean_page(number: int, entries: list[tuple[str, bool]]) -> CleanPage:
 NG243_PAGE_6 = _clean_page(
     6,
     [
-        ("1.1 Information, support and decision making", True),
+        ("1.1 Information, support and decision making", True, SECTION_SIZE),
         ("1.1.1 For advice on communicating with people with adrenal insufficiency,", False),
         ("follow the recommendations in NICE's guideline on patient experience.", False),
         ("1.1.2 When making decisions with people who have learning disabilities,", False),
@@ -41,8 +52,8 @@ NG243_PAGE_6 = _clean_page(
 NG243_PAGE_9 = _clean_page(
     9,
     [
-        ("1.2 Initial identification and referral", True),
-        ("When to suspect adrenal insufficiency", True),
+        ("1.2 Initial identification and referral", True, SECTION_SIZE),
+        ("When to suspect adrenal insufficiency", True, HEADING_SIZE),
         ("1.2.1 Consider adrenal insufficiency in people with unexplained", False),
         ("hyperpigmentation, or when there is no other clinical explanation.", False),
     ],
