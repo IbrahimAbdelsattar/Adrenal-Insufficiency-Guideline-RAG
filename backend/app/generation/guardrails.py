@@ -158,17 +158,16 @@ def sanitize_query(query: str) -> str:
 # ---------------------------------------------------------------------------
 
 DOSAGE_REFUSAL_MESSAGE_EN = (
-    "I couldn't find enough information in the indexed guidelines to answer this confidently. "
-    "Eva AI searches NICE NG243 (adrenal insufficiency) but does not provide specific medication recommendations, "
-    "drug prescribing guidance, or detailed dosage tables. "
-    "Try rephrasing with general diagnostic or clinical signs, or consult a licensed healthcare professional directly."
+    "I am not authorized to provide specific drug dosages, medication recommendations, "
+    "or prescribing instructions. Eva AI is a clinical decision-support tool, not a prescribing clinician. "
+    "For patient safety, all dosing decisions and drug recommendations must be evaluated by a licensed "
+    "healthcare professional, or referenced directly from the official NICE NG243 guidelines."
 )
 
 DOSAGE_REFUSAL_MESSAGE_AR = (
-    "لم أتمكن من العثور على معلومات كافية في الإرشادات المؤرشفة للإجابة بثقة. "
-    "تجري إيفا (Eva AI) عمليات البحث في إرشادات NICE NG243 (قصور الكظر)، ولكنها لا تقدم توصيات دوائية محددة، "
-    "أو إرشادات لوصف الأدوية، أو جداول تفصيلية للجرعات. "
-    "يرجى محاولة إعادة الصياغة باستخدام علامات سريرية أو تشخيصية عامة، أو استشارة طبيب مختص مباشرة."
+    "أنا غير مخول لتقديم جرعات الأدوية، أو توصيات العلاج، أو تعليمات الوصفات الطبية. "
+    "إيفا (Eva AI) هي أداة دعم قرار سريري وليست طبيباً معالجاً. لسلامة المرضى، يجب اتخاذ "
+    "جميع قرارات الجرعات وتوصيات الأدوية من قِبل ممارس صحي مرخص، أو الرجوع إليها مباشرة من دليل إرشادات NICE NG243 الرسمي."
 )
 
 _DOSAGE_MED_KEYWORDS = [

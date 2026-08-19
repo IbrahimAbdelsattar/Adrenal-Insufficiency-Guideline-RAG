@@ -516,7 +516,7 @@ class TestDosageMedicationRefusalGuard:
         assert response.status_code == 200
         data = response.json()
         assert data["evidence_found"] is False
-        assert "does not provide" in data["answer"] or "لا تقدم توصيات" in data["answer"]
+        assert "not authorized" in data["answer"] or "غير مخول" in data["answer"]
 
     def test_search_api_dosage_query_returns_empty_results(self):
         from fastapi.testclient import TestClient
