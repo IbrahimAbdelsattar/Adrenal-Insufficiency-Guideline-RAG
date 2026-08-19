@@ -48,4 +48,3 @@ def construct_user_prompt(
 ---
 
 {context_prefix}QUESTION: {query}"""
-

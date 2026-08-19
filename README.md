@@ -1,7 +1,8 @@
 # Eva AI — Clinical Decision Support (Adrenal Insufficiency RAG)
 
 [![CI/CD Pipeline](https://github.com/IbrahimAbdelsattar/Eva-AI/actions/workflows/ci-cd.yml/badge.svg)](https://github.com/IbrahimAbdelsattar/Eva-AI/actions/workflows/ci-cd.yml)
-[![Unit Tests](https://img.shields.io/badge/Unit_Tests-259_Passing-brightgreen.svg)](file:///c:/Users/C-LAB/Videos/ai%20hackthon/backend/tests/unit/)
+[![Unit Tests](https://img.shields.io/badge/Unit_Tests-260_Passing-brightgreen.svg)](file:///c:/Users/C-LAB/Videos/ai%20hackthon/backend/tests/unit/)
+
 [![Docker GHCR](https://img.shields.io/badge/Container-GHCR-blue?logo=docker&logoColor=white)](https://github.com/IbrahimAbdelsattar/Eva-AI/pkgs/container/eva-ai)
 [![Python Version](https://img.shields.io/badge/python-3.13-blue.svg)](https://www.python.org/)
 [![Node Version](https://img.shields.io/badge/node-20.x-green.svg)](https://nodejs.org/)

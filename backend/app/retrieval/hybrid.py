@@ -24,7 +24,6 @@ from backend.app.retrieval.store import VectorStore
 logger = logging.getLogger(__name__)
 
 
-
 def reciprocal_rank_fusion(
     ranked_lists: list[list[RetrievalResult]],
     k_rrf: int = 60,
@@ -195,4 +194,3 @@ class HybridRetriever:
                 },
             )
             return results
-

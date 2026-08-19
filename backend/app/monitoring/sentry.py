@@ -66,7 +66,9 @@ def sanitize_dict_recursive(data: Any) -> Any:
         sanitized = {}
         for key, val in data.items():
             key_lower = str(key).lower()
-            if key_lower in SENSITIVE_HEADERS or any(s in key_lower for s in ("secret", "token", "password", "key")):
+            if key_lower in SENSITIVE_HEADERS or any(
+                s in key_lower for s in ("secret", "token", "password", "key")
+            ):
                 sanitized[key] = "[REDACTED]"
             else:
                 sanitized[key] = sanitize_dict_recursive(val)
@@ -87,9 +89,7 @@ def sanitize_sentry_event(event: dict[str, Any], hint: dict[str, Any]) -> dict[s
         # Strip sensitive headers
         if "headers" in req and isinstance(req["headers"], dict):
             req["headers"] = {
-                k: v
-                for k, v in req["headers"].items()
-                if str(k).lower() not in SENSITIVE_HEADERS
+                k: v for k, v in req["headers"].items() if str(k).lower() not in SENSITIVE_HEADERS
             }
 
         # Sanitize URL / Query string
@@ -127,7 +127,9 @@ def sanitize_sentry_event(event: dict[str, Any], hint: dict[str, Any]) -> dict[s
     return event
 
 
-def sanitize_sentry_breadcrumb(crumb: dict[str, Any], hint: dict[str, Any]) -> dict[str, Any] | None:
+def sanitize_sentry_breadcrumb(
+    crumb: dict[str, Any], hint: dict[str, Any]
+) -> dict[str, Any] | None:
     """Sanitize individual breadcrumb messages and data dictionaries."""
     if "message" in crumb and isinstance(crumb["message"], str):
         crumb["message"] = scrub_text(crumb["message"])
@@ -217,4 +219,3 @@ def trace_span(op: str, description: str) -> Generator[Any]:
             yield span
     else:
         yield None
-

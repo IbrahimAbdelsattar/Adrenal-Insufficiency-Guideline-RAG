@@ -291,7 +291,9 @@ class LLMClient:
                         raise PipelineError(f"Generation error: {exc}") from exc
 
                 self._log_failure(log_fields, call_started, MAX_ATTEMPTS, str(last_error))
-                raise PipelineError(f"Generation failed after {MAX_ATTEMPTS} attempts: {last_error}")
+                raise PipelineError(
+                    f"Generation failed after {MAX_ATTEMPTS} attempts: {last_error}"
+                )
 
     def _log_failure(
         self,

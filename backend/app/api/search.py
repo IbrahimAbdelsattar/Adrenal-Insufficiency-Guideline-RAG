@@ -21,15 +21,14 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api", tags=["retrieval"])
 
 # Bounded TTL + LRU retrieval cache for instant repeat searches
-_RETRIEVAL_CACHE: TTLLRUCache[tuple[str, int, str], tuple[list[RetrievalResult], str, str, list[RetrievalResult]]] = (
-    TTLLRUCache(
-        maxsize=get_settings().retrieval_cache_size,
-        ttl_seconds=get_settings().cache_ttl_seconds,
-        manifest_path=get_settings().index_dir / "manifest.json",
-        name="retrieval_search_cache",
-    )
+_RETRIEVAL_CACHE: TTLLRUCache[
+    tuple[str, int, str], tuple[list[RetrievalResult], str, str, list[RetrievalResult]]
+] = TTLLRUCache(
+    maxsize=get_settings().retrieval_cache_size,
+    ttl_seconds=get_settings().cache_ttl_seconds,
+    manifest_path=get_settings().index_dir / "manifest.json",
+    name="retrieval_search_cache",
 )
-
 
 
 class SearchRequest(BaseModel):
@@ -124,6 +123,7 @@ def sentry_test_diagnostic(trigger_error: bool = False) -> dict:
     sentry_active = is_sentry_enabled()
 
     if trigger_error:
+
         class SentryTestException(Exception):
             pass
 
@@ -144,7 +144,6 @@ def sentry_test_diagnostic(trigger_error: bool = False) -> dict:
         "sentry_enabled": sentry_active,
         "message": "Sentry test diagnostic triggered successfully.",
     }
-
 
 
 @router.get("/index", response_model=IndexManifest)
@@ -310,4 +309,3 @@ def search(request: SearchRequest) -> SearchResponse:
         latency_ms=latency_ms,
         disclaimer=DISCLAIMER,
     )
-

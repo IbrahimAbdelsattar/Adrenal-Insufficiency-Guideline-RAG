@@ -178,5 +178,3 @@ def test_generation_response_cache_integration():
     assert "100 mg hydrocortisone" in cached["answer"]
     assert cached["model"] == "eva-ai"
     assert len(cached["citations"]) == 1
-
-

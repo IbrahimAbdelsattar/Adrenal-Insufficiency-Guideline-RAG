@@ -44,5 +44,3 @@ def test_sentry_config_defaults():
     assert settings.sentry_environment == "development"
     assert hasattr(settings, "sentry_traces_sample_rate")
     assert settings.sentry_traces_sample_rate == 1.0
-
-

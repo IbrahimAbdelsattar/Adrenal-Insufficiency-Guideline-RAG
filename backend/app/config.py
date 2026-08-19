@@ -72,7 +72,6 @@ class Settings(BaseSettings):
     hybrid_candidate_k: int = Field(default=20, alias="HYBRID_CANDIDATE_K")
     scope_threshold: float = Field(default=0.50, alias="SCOPE_THRESHOLD")
 
-
     # --- Graph expansion (lightweight Graph RAG) ---
     graph_expansion: bool = Field(default=True, alias="GRAPH_EXPANSION")
     graph_max_expand: int = Field(default=1, alias="GRAPH_MAX_EXPAND")

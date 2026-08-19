@@ -112,13 +112,18 @@ def detect_prompt_injection(query: str) -> bool:
 
 
 _GREETING_PATTERNS: list[re.Pattern[str]] = [
-    re.compile(r"^(hi|hello|hey|greetings|good morning|good afternoon|good evening|howdy)\b[!.? ]*$", re.I),
+    re.compile(
+        r"^(hi|hello|hey|greetings|good morning|good afternoon|good evening|howdy)\b[!.? ]*$", re.I
+    ),
     re.compile(
         r"^(who are you|what are you|what do you do|how can you help(?: me)?|"
         r"can you help(?: me)?|help me|what is your purpose|what can you do)\s*[?!.]*$",
         re.I,
     ),
-    re.compile(r"^(مرحبا|أهلا|اهلا|السلام عليكم|صباح الخير|مساء الخير|من أنت|من انت|ماذا تفعل|كيف تساعدني|ما هي قدراتك)\??$", re.I),
+    re.compile(
+        r"^(مرحبا|أهلا|اهلا|السلام عليكم|صباح الخير|مساء الخير|من أنت|من انت|ماذا تفعل|كيف تساعدني|ما هي قدراتك)\??$",
+        re.I,
+    ),
 ]
 
 GREETING_RESPONSE_EN = (
@@ -146,4 +151,3 @@ def sanitize_query(query: str) -> str:
     legitimate clinical queries.
     """
     return re.sub(r"\s+", " ", query.strip())
-

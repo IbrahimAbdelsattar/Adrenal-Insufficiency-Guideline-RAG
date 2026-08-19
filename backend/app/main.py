@@ -153,7 +153,6 @@ app.add_middleware(
 )
 
 
-
 @app.middleware("http")
 async def request_logging_middleware(request: Request, call_next):
     """Assign a correlation id and log one line per HTTP request.
@@ -236,8 +235,6 @@ async def trigger_error():
     """Trigger a division by zero error to verify Sentry integration."""
     divisor = 0
     return 1 / divisor
-
-
 
 
 # Production only: serve the Next.js static export if it has been built.

@@ -38,4 +38,3 @@ def test_sentry_debug_zero_division_raises():
     """GET /sentry-debug triggers ZeroDivisionError for Sentry onboarding verification."""
     with pytest.raises(ZeroDivisionError):
         client.get("/sentry-debug")
-

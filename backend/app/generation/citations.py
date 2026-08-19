@@ -66,7 +66,7 @@ _RECOMMENDATION_MARKER = re.compile(r"\[(\d+(?:\.\d+)+)\]")
 
 
 def _to_citation(source_id: str, res: RetrievalResult, resolved_by: str) -> dict:
-    """Build one citation dict. document / section / page are always present."""
+    """Build one citation dict. document / section / page / full text are always present."""
     return {
         "source_id": source_id,
         "document_name": res.chunk.document_name,
@@ -76,8 +76,12 @@ def _to_citation(source_id: str, res: RetrievalResult, resolved_by: str) -> dict
         "source_url": res.chunk.source_url or "",
         "recommendation_ids": res.chunk.recommendation_ids or "",
         "excerpt": _excerpt(res.chunk.text),
+        "text": res.chunk.text,
+        "score": round(res.score, 4),
+        "absolute_relevance": round(res.absolute_relevance, 4),
         "resolved_by": resolved_by,
     }
+
 
 
 def extract_recommendation_citations(text: str, sources: Sequence[RetrievalResult]) -> list[dict]:

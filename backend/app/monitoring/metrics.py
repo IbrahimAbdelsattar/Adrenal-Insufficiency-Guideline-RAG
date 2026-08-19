@@ -233,7 +233,9 @@ class RagTrace:
         return int((time.perf_counter() - self.started) * 1000)
 
     @contextmanager
-    def stage(self, name: str, level: int = logging.INFO, **fields: Any) -> Iterator[dict[str, Any]]:
+    def stage(
+        self, name: str, level: int = logging.INFO, **fields: Any
+    ) -> Iterator[dict[str, Any]]:
         """Time one pipeline stage. Mutate the yielded dict to add fields."""
         extra: dict[str, Any] = dict(fields)
         started = time.perf_counter()

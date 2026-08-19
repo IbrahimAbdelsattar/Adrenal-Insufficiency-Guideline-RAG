@@ -55,7 +55,9 @@ def test_hybrid_retriever_traces_span():
 
     with patch("backend.app.retrieval.hybrid.trace_span") as mock_trace:
         retriever.search("clinical query")
-        mock_trace.assert_called_with(op="rag.hybrid.search", description="Hybrid Dense + BM25 Search")
+        mock_trace.assert_called_with(
+            op="rag.hybrid.search", description="Hybrid Dense + BM25 Search"
+        )
 
 
 def test_cross_encoder_reranker_traces_span():
@@ -80,4 +82,6 @@ async def test_llm_client_traces_span():
                 json=lambda: {"choices": [{"message": {"content": "Answer"}}]},
             )
             await client.generate_completion("system", "user")
-            mock_trace.assert_called_with(op="llm.generate", description="OmniRoute Chat Completion")
+            mock_trace.assert_called_with(
+                op="llm.generate", description="OmniRoute Chat Completion"
+            )

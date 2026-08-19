@@ -49,7 +49,6 @@ def test_sentry_init_enabled_when_dsn_provided():
         assert kwargs["before_send"] == sanitize_sentry_event
 
 
-
 def test_sanitize_sentry_event_strips_sensitive_headers():
     """Authorization headers, cookies, and API keys are removed from event."""
     event = {

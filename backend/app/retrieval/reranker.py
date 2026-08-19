@@ -20,7 +20,6 @@ from backend.app.monitoring import trace_span
 logger = logging.getLogger(__name__)
 
 
-
 def sigmoid(x: float) -> float:
     """Calibrate logits to [0, 1] range."""
     return 1.0 / (1.0 + math.exp(-x))
@@ -155,6 +154,7 @@ class CrossEncoderReranker:
                 },
             )
             n = len(extracted_chunks)
-            fallback = [(c, max(0.1, 1.0 - (i / max(1, n)))) for i, c in enumerate(extracted_chunks)]
+            fallback = [
+                (c, max(0.1, 1.0 - (i / max(1, n)))) for i, c in enumerate(extracted_chunks)
+            ]
             return fallback[:k]
-

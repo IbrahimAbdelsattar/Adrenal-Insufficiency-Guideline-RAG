@@ -125,7 +125,6 @@ class OpenRouterEmbedder:
         )
         return vec
 
-
     # ------------------------------------------------------------------
 
     def _embed_batch(self, client: httpx.Client, batch: list[str]) -> list[list[float]]:
@@ -155,9 +154,7 @@ class OpenRouterEmbedder:
                             "model": self.model_id,
                             "inputs": len(batch),
                             "attempt": attempt,
-                            "duration_ms": round(
-                                (time.perf_counter() - attempt_started) * 1000, 2
-                            ),
+                            "duration_ms": round((time.perf_counter() - attempt_started) * 1000, 2),
                         },
                     )
                     return self._parse(response.json(), expected=len(batch))

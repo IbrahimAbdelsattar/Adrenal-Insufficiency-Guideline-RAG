@@ -32,54 +32,15 @@ export interface RetrievalResult {
   retriever_mode?: string;
 }
 
-/**
- * Scope classification returned by the backend.
- *
- * in_scope:
- *   The question is related to the current clinical topic
- *   and relevant evidence was found.
- *
- * no_evidence:
- *   The question appears related to the topic, but the
- *   retrieved evidence is not strong enough.
- *
- * out_of_scope:
- *   The question is outside the current scope of Eva AI.
- */
-export type ScopeStatus =
-  | "in_scope"
-  | "no_evidence"
-  | "out_of_scope";
+export type ScopeStatus = "in_scope" | "no_evidence" | "out_of_scope";
 
 export interface SearchResponse {
   query: string;
-
-  /**
-   * Retrieved chunks.
-   *
-   * For out_of_scope queries this will be an empty array,
-   * because unrelated evidence should not be shown to the user.
-   */
   results: RetrievalResult[];
-
   result_count: number;
-
-  /**
-   * True only when strong evidence was found.
-   */
   evidence_found: boolean;
-
-  /**
-   * Indicates whether the query is inside or outside
-   * the current knowledge scope.
-   */
   scope_status: ScopeStatus;
-
-  /**
-   * Human-readable explanation of the scope/evidence state.
-   */
   scope_message: string;
-
   embedding_model: string;
   latency_ms: number;
   disclaimer: string;
@@ -92,13 +53,11 @@ export interface Citation {
   section_number: string;
   page_number: number;
   source_url: string;
-  /**
-   * How the backend attributed this citation:
-   *   source_marker       - the answer cited [Source N] explicitly (claim-level)
-   *   recommendation_id   - a bare [1.8.6] marker was mapped back to its chunk
-   *   fallback_all_sources- no markers found; every supplied source is listed
-   *                         (block-level provenance, not claim-level)
-   */
+  recommendation_ids?: string;
+  excerpt?: string;
+  text?: string;
+  score?: number;
+  absolute_relevance?: number;
   resolved_by?: "source_marker" | "recommendation_id" | "fallback_all_sources";
 }
 

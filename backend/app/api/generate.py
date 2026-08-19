@@ -111,9 +111,7 @@ async def _retrieve_and_scope(request: GenerateRequest, trace: RagTrace):
         return settings, top_k, results, scope_status, scope_msg, filtered_results
 
     retriever = get_shared_retriever(settings)
-    with trace.stage(
-        "retrieval", top_k=top_k, retriever_type=settings.retriever_type
-    ) as span:
+    with trace.stage("retrieval", top_k=top_k, retriever_type=settings.retriever_type) as span:
         results = await asyncio.to_thread(retriever.search, request.query, top_k)
         span["results"] = len(results)
         span["top_relevance"] = round(results[0].absolute_relevance, 4) if results else 0.0
@@ -134,7 +132,6 @@ async def _retrieve_and_scope(request: GenerateRequest, trace: RagTrace):
     trace.set(scope_status=scope_status)
     REGISTRY.increment(f"generate.scope.{scope_status}")
     return settings, top_k, results, scope_status, scope_msg, filtered_results
-
 
 
 def _expand_with_graph(
@@ -259,7 +256,7 @@ async def generate_answer(request: GenerateRequest) -> GenerateResponse:
     # Stage 0: Conversational Greeting / Capability Inquiry
     if is_greeting(request.query):
         elapsed_ms = int((time.perf_counter() - started) * 1000)
-        is_ar = any("\u0600" <= c <= "\u06FF" for c in request.query)
+        is_ar = any("\u0600" <= c <= "\u06ff" for c in request.query)
         greeting_text = GREETING_RESPONSE_AR if is_ar else GREETING_RESPONSE_EN
         trace.set(evidence_found=True, citations=0)
         trace.emit(status="ok_greeting")
@@ -277,7 +274,6 @@ async def generate_answer(request: GenerateRequest) -> GenerateResponse:
     with trace.stage("guardrail", level=logging.DEBUG) as span:
         injected = detect_prompt_injection(request.query)
         span["injection_detected"] = injected
-
 
     if injected:
         elapsed_ms = int((time.perf_counter() - started) * 1000)
@@ -351,7 +347,6 @@ async def generate_answer(request: GenerateRequest) -> GenerateResponse:
             span["evidence_chars"] = len(evidence_text)
             span["est_prompt_tokens"] = estimate_tokens(SYSTEM_PROMPT + user_prompt)
         trace.set(sources=len(cited_sources), evidence_chars=len(evidence_text))
-
 
         client = LLMClient(settings)
         with trace.stage("llm"):
@@ -443,7 +438,7 @@ async def generate_answer_stream(request: GenerateRequest) -> StreamingResponse:
 
         # Stage 0: Conversational Greeting / Capability Inquiry
         if is_greeting(request.query):
-            is_ar = any("\u0600" <= c <= "\u06FF" for c in request.query)
+            is_ar = any("\u0600" <= c <= "\u06ff" for c in request.query)
             greeting_text = GREETING_RESPONSE_AR if is_ar else GREETING_RESPONSE_EN
             yield _sse(
                 "meta",
@@ -471,7 +466,6 @@ async def generate_answer_stream(request: GenerateRequest) -> StreamingResponse:
         with trace.stage("guardrail", level=logging.DEBUG) as span:
             injected = detect_prompt_injection(request.query)
             span["injection_detected"] = injected
-
 
         if injected:
             logger.warning(
@@ -589,7 +583,6 @@ async def generate_answer_stream(request: GenerateRequest) -> StreamingResponse:
             span["evidence_chars"] = len(evidence_text)
             span["est_prompt_tokens"] = estimate_tokens(SYSTEM_PROMPT + user_prompt)
         trace.set(sources=len(cited_sources), evidence_chars=len(evidence_text))
-
 
         client = LLMClient(settings)
 

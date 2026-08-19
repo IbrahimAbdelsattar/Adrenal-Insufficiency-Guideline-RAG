@@ -203,7 +203,6 @@ class GenerateRequest(BaseModel):
     history: list[dict] = Field(default_factory=list)
 
 
-
 class GenerateResponse(BaseModel):
     """Response body for POST /api/generate."""
 

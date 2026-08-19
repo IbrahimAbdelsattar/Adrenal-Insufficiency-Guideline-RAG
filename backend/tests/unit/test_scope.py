@@ -94,3 +94,12 @@ def test_evidence_above_floor_wins_even_when_later_results_are_weak():
 
     assert status == "in_scope"
     assert len(shown) == 2
+
+
+def test_clinical_domain_overview_query_is_in_scope():
+    results = [_result(0.53, below_floor=True, rank=1)]
+    status, _, shown = classify_scope(
+        results, scope_threshold=0.58, query="how can i get benefit from nice ng243"
+    )
+    assert status == "in_scope"
+    assert len(shown) == 1
