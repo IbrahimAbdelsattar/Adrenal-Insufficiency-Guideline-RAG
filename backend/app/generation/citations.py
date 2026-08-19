@@ -311,7 +311,6 @@ def validate_grounding(text: str, sources: Sequence[RetrievalResult]) -> Groundi
             unsupported_claims=unsupported,
         )
 
-
     citations = resolve_citations(text, sources)
     return GroundingResult(status="verified", citations=citations)
 

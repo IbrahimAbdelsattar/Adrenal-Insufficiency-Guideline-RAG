@@ -184,7 +184,6 @@ class HybridRetriever:
                         below_floor=relevance < floor,
                         dense_score=dense_map.get(cid) if dense_map else None,
                         bm25_score=bm25_map.get(cid) if bm25_map else None,
-
                         rerank_score=score if self._reranker is not None else None,
                         retriever_mode="hybrid_rerank" if self._reranker is not None else "hybrid",
                     )

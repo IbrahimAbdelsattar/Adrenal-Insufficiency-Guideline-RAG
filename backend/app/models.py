@@ -145,7 +145,6 @@ class RetrievalResult(BaseModel):
         return self.score
 
 
-
 class PerDocumentStats(BaseModel):
     doc_id: str
     pages_processed: int

@@ -11,12 +11,12 @@ client = TestClient(app)
 @pytest.mark.parametrize("endpoint", ["/api/generate", "/api/generate/stream"])
 def test_capability_question_returns_a_live_intro_without_retrieval(monkeypatch, endpoint):
     """Conversational capability questions must not be rejected as out of scope."""
-    import backend.app.api.generate as generate_module
+    import backend.app.generation.service as service_module
 
     def retrieval_must_not_run(_settings):
         raise AssertionError("Capability inquiries should not invoke retrieval")
 
-    monkeypatch.setattr(generate_module, "get_shared_retriever", retrieval_must_not_run)
+    monkeypatch.setattr(service_module, "get_shared_retriever", retrieval_must_not_run)
 
     response = client.post(endpoint, json={"query": "how can you help me", "top_k": 3})
 
@@ -39,7 +39,7 @@ def mock_llm(monkeypatch):
 @pytest.fixture
 def mock_retriever(monkeypatch):
     """Mocks get_shared_retriever for generation integration tests."""
-    import backend.app.api.generate as generate_module
+    import backend.app.generation.service as service_module
     from backend.app.models import Chunk, RetrievalResult
 
     c = Chunk.from_stored(
@@ -66,12 +66,12 @@ def mock_retriever(monkeypatch):
         def search(self, query: str, top_k: int) -> list:
             return [RetrievalResult(chunk=c, score=0.95, rank=1, below_floor=False)]
 
-    monkeypatch.setattr(generate_module, "get_shared_retriever", lambda s: FixedRetriever())
+    monkeypatch.setattr(service_module, "get_shared_retriever", lambda s: FixedRetriever())
 
 
 def test_generate_api_abstains_when_no_evidence(monkeypatch):
     """When no evidence is found or out of scope, the endpoint should return an abstention message without calling LLM."""
-    import backend.app.api.generate as generate_module
+    import backend.app.generation.service as service_module
     from backend.app.generation.client import LLMClient
 
     called = False
@@ -86,7 +86,7 @@ def test_generate_api_abstains_when_no_evidence(monkeypatch):
             return []
 
     monkeypatch.setattr(LLMClient, "generate_completion", mock_generate)
-    monkeypatch.setattr(generate_module, "get_shared_retriever", lambda s: MockRetriever())
+    monkeypatch.setattr(service_module, "get_shared_retriever", lambda s: MockRetriever())
 
     response = client.post(
         "/api/generate",

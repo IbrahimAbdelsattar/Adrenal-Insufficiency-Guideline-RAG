@@ -3,7 +3,7 @@
 import time
 from pathlib import Path
 
-from backend.app.api.generate import _cache_key
+from backend.app.generation.service import cache_key as _cache_key
 from backend.app.models import Chunk, RetrievalResult
 from backend.app.retrieval.cache import TTLLRUCache, normalize_query
 
@@ -161,7 +161,15 @@ def test_retrieval_cache_integration():
 
 
 def test_generation_response_cache_integration():
-    from backend.app.api.generate import _RESPONSE_CACHE, _cache_get, _cache_put
+    from backend.app.generation.service import (
+        _RESPONSE_CACHE,
+    )
+    from backend.app.generation.service import (
+        cache_get as _cache_get,
+    )
+    from backend.app.generation.service import (
+        cache_put as _cache_put,
+    )
 
     _RESPONSE_CACHE.clear()
     key = "3|adrenal crisis hydrocortisone|ng243_p14_c1"

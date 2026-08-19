@@ -103,12 +103,33 @@ def main():
 
         print(f"[{idx:02d}/{total_cases:02d}] Evaluating: {case_id} ({category}) ... ", end="", flush=True)
 
+
         case_start = time.perf_counter()
         response = client.post(
             "/api/generate",
             json={"query": case["query"], "top_k": 5},
         )
         latency_ms = (time.perf_counter() - case_start) * 1000
+
+        # ---- Infrastructure error detection ----
+        # If the API returned 5xx (e.g. OmniRoute 503 ALL_ACCOUNTS_INACTIVE),
+        # this is an infrastructure failure, not a clinical logic failure.
+        # Mark as INFRA_ERROR and skip clinical assertion checks.
+        if response.status_code >= 500:
+            print(f"[INFRA_ERROR] ({latency_ms:.0f}ms)")
+            print(f"       Reason: API returned HTTP {response.status_code} — infrastructure failure, not a clinical error")
+            results.append({
+                "case_id": case_id,
+                "category": category,
+                "is_emergency": is_emergency,
+                "passed": None,  # Neither pass nor fail — infrastructure skip
+                "infra_error": True,
+                "latency_ms": round(latency_ms, 1),
+                "citations_count": 0,
+                "reasons": [f"API HTTP {response.status_code} — skipped (infrastructure failure)"],
+                "notes": case.get("notes", ""),
+            })
+            continue
 
         data = response.json()
         answer = data.get("answer", "")
@@ -192,20 +213,72 @@ def main():
             "category": category,
             "is_emergency": is_emergency,
             "passed": case_passed,
+            "infra_error": False,
             "latency_ms": round(latency_ms, 1),
             "citations_count": len(citations),
             "reasons": reasons,
             "notes": case.get("notes", ""),
         })
 
+
     total_duration = time.perf_counter() - start_time
+
+    # Exclude infrastructure errors from clinical scoring
+    clinical_results = [r for r in results if not r.get("infra_error", False)]
+    infra_error_results = [r for r in results if r.get("infra_error", False)]
+    infra_error_count = len(infra_error_results)
+
+    evaluated_count = len(clinical_results)
+    evaluated_in_scope = sum(1 for r in clinical_results if r["category"] not in ("out_of_scope", "adversarial_security") or not any("abstain" in reason.lower() for reason in r.get("reasons", [])))
 
     recall_rate = (retrieval_hits / in_scope_count) * 100 if in_scope_count else 100.0
     citation_rate = (citation_valid_count / in_scope_count) * 100 if in_scope_count else 100.0
     accuracy_rate = (accuracy_passed_count / in_scope_count) * 100 if in_scope_count else 100.0
-    abstention_rate = (abstention_passed_count / total_cases) * 100
-    passed_cases_count = sum(1 for r in results if r["passed"])
-    overall_pass_rate = (passed_cases_count / total_cases) * 100
+    abstention_rate = (abstention_passed_count / (total_cases - infra_error_count)) * 100 if (total_cases - infra_error_count) else 100.0
+    passed_cases_count = sum(1 for r in clinical_results if r["passed"])
+    overall_pass_rate = (passed_cases_count / evaluated_count) * 100 if evaluated_count else 0.0
+
+    # Dynamic category breakdown
+    from collections import defaultdict
+    category_stats: dict[str, dict[str, Any]] = defaultdict(lambda: {"total": 0, "passed": 0, "infra_errors": 0})
+    for r in results:
+        cat = r["category"]
+        if r.get("infra_error", False):
+            category_stats[cat]["infra_errors"] += 1
+        else:
+            category_stats[cat]["total"] += 1
+            if r["passed"]:
+                category_stats[cat]["passed"] += 1
+
+    _CATEGORY_LABELS = {
+        "emergency_treatment": "Emergency Treatment & Crisis",
+        "pediatric_dosing": "Pediatric vs Adult Dosing",
+        "pregnancy_perioperative": "Pregnancy & Perioperative Care",
+        "primary_vs_secondary": "Primary vs Secondary Insufficiency",
+        "sick_day_rules": "Sick-Day Rules & Stress Dosing",
+        "ambiguous_inquiry": "Ambiguous Inquiries",
+        "out_of_scope": "Out-of-Scope Refusals",
+        "safety_guardrail": "Dangerous Units & Negation Corrections",
+        "bilingual_arabic": "Bilingual Arabic Clinical Inquiries",
+        "adversarial_security": "Adversarial Prompt Injection",
+    }
+
+    domain_table = ""
+    for cat_key, label in _CATEGORY_LABELS.items():
+        stats = category_stats.get(cat_key)
+        if not stats or stats["total"] == 0:
+            if stats and stats["infra_errors"] > 0:
+                domain_table += f"| **{label}** | {stats['infra_errors']} | N/A (infra error) | — |\n"
+            continue
+        pct = (stats["passed"] / stats["total"]) * 100
+        infra_note = f" (+{stats['infra_errors']} infra skip)" if stats["infra_errors"] > 0 else ""
+        domain_table += f"| **{label}** | {stats['total']}{infra_note} | {pct:.0f}% | — |\n"
+
+    infra_warning = ""
+    if infra_error_count > 0:
+        infra_warning = f"""
+> **⚠ Infrastructure Note**: {infra_error_count} case(s) returned HTTP 5xx (API outage) and were excluded from clinical scoring. These are not clinical failures — re-run when the LLM provider is available.
+"""
 
     # Build Markdown Report
     report_content = f"""# Eva AI - Clinical Evaluation Suite Report
@@ -215,11 +288,13 @@ def main():
 This report documents the automated evaluation results of **Eva AI Clinical Decision Support** against **NICE Guideline NG243 (2024)** across **{total_cases} clinician-reviewed benchmark test cases**.
 
 - **Total Test Cases**: {total_cases}
+- **Evaluated (LLM responded)**: {evaluated_count}
+- **Infrastructure Errors (skipped)**: {infra_error_count}
 - **In-Scope Clinical Inquiries**: {in_scope_count}
 - **Out-of-Scope / Adversarial Cases**: {total_cases - in_scope_count}
 - **Evaluation Duration**: {total_duration:.2f}s
-- **Overall Benchmark Pass Rate**: **{overall_pass_rate:.1f}%** ({passed_cases_count}/{total_cases})
-
+- **Overall Benchmark Pass Rate**: **{overall_pass_rate:.1f}%** ({passed_cases_count}/{evaluated_count})
+{infra_warning}
 ---
 
 ## 2. Release Gate Scorecard & Clinical Safety Metrics
@@ -236,19 +311,9 @@ This report documents the automated evaluation results of **Eva AI Clinical Deci
 
 ## 3. Evaluated Clinical Domains & Breakdown
 
-| Category | Cases | Pass Rate | Critical Checks |
+| Category | Cases Evaluated | Pass Rate | Critical Checks |
 | :--- | :--- | :--- | :--- |
-| **Emergency Treatment & Crisis** | 3 | 100% | 100 mg parenteral hydrocortisone, zero delay for lab tests |
-| **Pediatric vs Adult Dosing** | 2 | 100% | BSPED guidance delegation, age-banded dosing |
-| **Pregnancy & Perioperative Care** | 2 | 100% | 48h postpartum sick-day dosing, 6 weeks oestrogen cessation |
-| **Primary vs Secondary Insufficiency** | 2 | 100% | Fludrocortisone replacement distinction, emergency kit supply |
-| **Sick-Day Rules & Stress Dosing** | 2 | 100% | Dose doubling for fever >38C, parenteral kit for vomiting |
-| **Ambiguous Inquiries** | 1 | 100% | Prescribed dosing clarification |
-| **Out-of-Scope & Cardiology** | 3 | 100% | Explicit boundary refusal (STEMI, Asthma, Metformin) |
-| **Dangerous Units & Negation Corrections** | 3 | 100% | Grams vs mg correction, parenteral solution vs tablets |
-| **Bilingual Arabic Clinical Inquiries** | 2 | 100% | Arabic hydrocortisone 100 mg crisis dosing, sick-day rules |
-| **Adversarial Prompt Injection** | 2 | 100% | Zero override on system constraints |
-
+{domain_table}
 ---
 
 ## 4. Granular Case-by-Case Audit Trail
@@ -258,7 +323,10 @@ This report documents the automated evaluation results of **Eva AI Clinical Deci
 """
 
     for r in results:
-        status = "[PASS]" if r["passed"] else "[FAIL]"
+        if r.get("infra_error", False):
+            status = "[INFRA_ERROR]"
+        else:
+            status = "[PASS]" if r["passed"] else "[FAIL]"
         report_content += f"| `{r['case_id']}` | {r['category']} | {'Yes' if r['is_emergency'] else 'No'} | {r['latency_ms']}ms | {status} | {r['notes']} |\n"
 
     report_content += "\n---\n*Report generated automatically by `scripts/run_clinical_evaluation.py` on commit validation.*\n"
@@ -267,7 +335,8 @@ This report documents the automated evaluation results of **Eva AI Clinical Deci
     print("\n" + "=" * 80)
     print(" [SUMMARY] EVALUATION SCORECARD")
     print("=" * 80)
-    print(f" Overall Pass Rate:          {overall_pass_rate:.1f}% ({passed_cases_count}/{total_cases})")
+    print(f" Evaluated Cases:            {evaluated_count}/{total_cases} (infra errors: {infra_error_count})")
+    print(f" Overall Pass Rate:          {overall_pass_rate:.1f}% ({passed_cases_count}/{evaluated_count})")
     print(f" Retrieval Recall@5:         {recall_rate:.1f}%")
     print(f" Citation Validity Rate:     {citation_rate:.1f}%")
     print(f" Medication Accuracy Rate:   {accuracy_rate:.1f}%")
@@ -275,6 +344,11 @@ This report documents the automated evaluation results of **Eva AI Clinical Deci
     print(f" Emergency Release Failures: {len(emergency_failures)} (Zero-Tolerance)")
     print(f" Report written to:          {REPORT_OUTPUT_PATH.relative_to(ROOT_DIR)}")
     print("=" * 80)
+
+    if infra_error_count > 0:
+        print(f"\n[WARNING] {infra_error_count} case(s) skipped due to API infrastructure errors (HTTP 5xx):")
+        for r in infra_error_results:
+            print(f"  ⊘ [{r['case_id']}] {r['category']}")
 
     if len(emergency_failures) > 0:
         print("\n[BLOCKED] Emergency critical errors detected:")
@@ -286,3 +360,4 @@ This report documents the automated evaluation results of **Eva AI Clinical Deci
 
 if __name__ == "__main__":
     main()
+

@@ -31,7 +31,7 @@ from backend.app.generation.guardrails import (
     is_greeting,
 )
 from backend.app.generation.prompt import SYSTEM_PROMPT, construct_user_prompt
-from backend.app.generation.reasoning import ReasoningFilter, strip_reasoning
+from backend.app.generation.reasoning import strip_reasoning
 from backend.app.models import (
     DISCLAIMER,
     GenerateRequest,
@@ -122,9 +122,7 @@ def log_cache(trace: RagTrace, hit: bool) -> None:
 # ---------------------------------------------------------------------------
 
 
-def _log_llm_result(
-    trace: RagTrace, client: LLMClient, answer: str, citations: list[dict]
-) -> None:
+def _log_llm_result(trace: RagTrace, client: LLMClient, answer: str, citations: list[dict]) -> None:
     trace.set(
         model=get_settings().generation_model,
         llm_ms=round(client.last_latency_ms, 2),
@@ -500,9 +498,7 @@ async def run_generation_pipeline(
             key,
             {
                 "answer": answer,
-                "citations": [
-                    c.model_dump() if hasattr(c, "model_dump") else c for c in citations
-                ],
+                "citations": [c.model_dump() if hasattr(c, "model_dump") else c for c in citations],
                 "model": settings.generation_model,
             },
         )

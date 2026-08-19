@@ -95,7 +95,9 @@ def test_individual_clinical_case(case: dict[str, Any]):
 
     # 1. Abstention Gate
     if should_abstain:
-        assert not evidence_found, f"[{case_id}] Expected abstention/refusal, but evidence was accepted."
+        assert not evidence_found, (
+            f"[{case_id}] Expected abstention/refusal, but evidence was accepted."
+        )
         return
 
     assert evidence_found, f"[{case_id}] Expected in-scope clinical guidance, but system abstained."

@@ -90,7 +90,6 @@ _CLINICAL_DOMAIN_KEYWORDS = {
 }
 
 
-
 def is_clinical_domain_query(query: str) -> bool:
     """Return True if the query explicitly mentions NICE NG243 or clinical adrenal terminology."""
     if not query:

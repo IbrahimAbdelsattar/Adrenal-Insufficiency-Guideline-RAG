@@ -27,7 +27,6 @@ from backend.app.generation.prompt import SYSTEM_PROMPT, construct_user_prompt
 from backend.app.generation.reasoning import ReasoningFilter
 from backend.app.generation.service import (
     GROUNDING_FAILED_MESSAGE,
-    INJECTION_REFUSAL_MESSAGE,
     REASONING_ONLY_MESSAGE,
     cache_get,
     cache_key,
@@ -38,7 +37,6 @@ from backend.app.generation.service import (
 )
 from backend.app.models import DISCLAIMER, GenerateRequest, GenerateResponse
 from backend.app.monitoring import REGISTRY, RagTrace, estimate_tokens
-from backend.app.retrieval.cache import normalize_query
 
 logger = logging.getLogger(__name__)
 
@@ -142,8 +140,9 @@ async def generate_answer_stream(request: GenerateRequest) -> StreamingResponse:
         try:
             settings, top_k, results, scope_status, _, filtered_results = await (
                 # Import here to avoid circular dependency at module level
-                __import__("backend.app.generation.service", fromlist=["retrieve_and_scope"])
-                .retrieve_and_scope(request, trace)
+                __import__(
+                    "backend.app.generation.service", fromlist=["retrieve_and_scope"]
+                ).retrieve_and_scope(request, trace)
             )
         except Exception as exc:
             trace.set(error=str(exc), error_type=type(exc).__name__)
@@ -287,9 +286,7 @@ async def generate_answer_stream(request: GenerateRequest) -> StreamingResponse:
             key,
             {
                 "answer": answer,
-                "citations": [
-                    c.model_dump() if hasattr(c, "model_dump") else c for c in citations
-                ],
+                "citations": [c.model_dump() if hasattr(c, "model_dump") else c for c in citations],
                 "model": model,
             },
         )
@@ -298,7 +295,9 @@ async def generate_answer_stream(request: GenerateRequest) -> StreamingResponse:
         trace.set(
             evidence_found=True,
             grounding_status="verified",
-            first_visible_token_ms=round(first_byte_sent, 2) if first_byte_sent is not None else None,
+            first_visible_token_ms=round(first_byte_sent, 2)
+            if first_byte_sent is not None
+            else None,
         )
 
         full_text = "".join(visible_chunks)
@@ -333,8 +332,8 @@ async def generate_answer_stream(request: GenerateRequest) -> StreamingResponse:
 
 def _finalize_answer_stream(parts: list[str], trace: RagTrace) -> str | None:
     """Finalize a streamed answer (same logic as service._finalize_answer)."""
-    from backend.app.generation.reasoning import strip_reasoning
     from backend.app.generation.citations import strip_trailing_disclaimer
+    from backend.app.generation.reasoning import strip_reasoning
 
     raw = "".join(parts)
     answer = strip_reasoning(raw)
@@ -346,7 +345,9 @@ def _finalize_answer_stream(parts: list[str], trace: RagTrace) -> str | None:
     return cleaned or None
 
 
-def _log_stream_llm_result(trace: RagTrace, client: LLMClient, answer: str, citations: list[dict]) -> None:
+def _log_stream_llm_result(
+    trace: RagTrace, client: LLMClient, answer: str, citations: list[dict]
+) -> None:
     """Log LLM telemetry for the stream path."""
     trace.set(
         model=get_settings().generation_model,

@@ -117,7 +117,6 @@ def tokenize_clinical_text(text: str) -> list[str]:
     return tokens
 
 
-
 class BM25Retriever:
     """BM25Okapi sparse lexical retriever over ChromaDB or direct chunks."""
 
