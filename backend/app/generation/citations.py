@@ -83,7 +83,6 @@ def _to_citation(source_id: str, res: RetrievalResult, resolved_by: str) -> dict
     }
 
 
-
 def extract_recommendation_citations(text: str, sources: Sequence[RetrievalResult]) -> list[dict]:
     """Map bare recommendation markers like [1.8.6] back to the chunks that carry them.
 
