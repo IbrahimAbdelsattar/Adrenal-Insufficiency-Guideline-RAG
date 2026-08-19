@@ -147,22 +147,30 @@ export function ChatMessage({
                 components={{
                   h1: ({ children }) => (
                     <h3 className="mb-3 mt-5 text-lg font-bold first:mt-0">
-                      <HighlightMatches query={msg.query || ""}>{children}</HighlightMatches>
+                      <CitationMarkers onCite={onCite}>
+                        <HighlightMatches query={msg.query || ""}>{children}</HighlightMatches>
+                      </CitationMarkers>
                     </h3>
                   ),
                   h2: ({ children }) => (
                     <h4 className="mb-3 mt-4 text-base font-bold first:mt-0">
-                      <HighlightMatches query={msg.query || ""}>{children}</HighlightMatches>
+                      <CitationMarkers onCite={onCite}>
+                        <HighlightMatches query={msg.query || ""}>{children}</HighlightMatches>
+                      </CitationMarkers>
                     </h4>
                   ),
                   h3: ({ children }) => (
                     <h5 className="mb-2 mt-3 text-sm font-bold first:mt-0">
-                      <HighlightMatches query={msg.query || ""}>{children}</HighlightMatches>
+                      <CitationMarkers onCite={onCite}>
+                        <HighlightMatches query={msg.query || ""}>{children}</HighlightMatches>
+                      </CitationMarkers>
                     </h5>
                   ),
                   p: ({ children }) => (
                     <p className="mb-3 last:mb-0">
-                      <HighlightMatches query={msg.query || ""}>{children}</HighlightMatches>
+                      <CitationMarkers onCite={onCite}>
+                        <HighlightMatches query={msg.query || ""}>{children}</HighlightMatches>
+                      </CitationMarkers>
                     </p>
                   ),
                   ul: ({ children }) => (
@@ -171,10 +179,16 @@ export function ChatMessage({
                   ol: ({ children }) => (
                     <ol className="mb-3 list-decimal space-y-1 pl-5 last:mb-0">{children}</ol>
                   ),
-                  li: ({ children }) => <li className="pl-1">{children}</li>,
+                  li: ({ children }) => (
+                    <li className="pl-1">
+                      <CitationMarkers onCite={onCite}>{children}</CitationMarkers>
+                    </li>
+                  ),
                   blockquote: ({ children }) => (
                     <blockquote className="mb-3 border-l-2 border-accent-bright/60 pl-3 text-ink-dim">
-                      <HighlightMatches query={msg.query || ""}>{children}</HighlightMatches>
+                      <CitationMarkers onCite={onCite}>
+                        <HighlightMatches query={msg.query || ""}>{children}</HighlightMatches>
+                      </CitationMarkers>
                     </blockquote>
                   ),
                   strong: ({ children }) => (
@@ -209,12 +223,16 @@ export function ChatMessage({
                   ),
                   th: ({ children }) => (
                     <th className="border-b border-line/60 bg-ink/5 px-2 py-1.5 font-bold">
-                      <HighlightMatches query={msg.query || ""}>{children}</HighlightMatches>
+                      <CitationMarkers onCite={onCite}>
+                        <HighlightMatches query={msg.query || ""}>{children}</HighlightMatches>
+                      </CitationMarkers>
                     </th>
                   ),
                   td: ({ children }) => (
                     <td className="border-b border-line/40 px-2 py-1.5 align-top">
-                      <HighlightMatches query={msg.query || ""}>{children}</HighlightMatches>
+                      <CitationMarkers onCite={onCite}>
+                        <HighlightMatches query={msg.query || ""}>{children}</HighlightMatches>
+                      </CitationMarkers>
                     </td>
                   ),
                   hr: () => <hr className="my-3 border-line/60" />,
@@ -235,6 +253,27 @@ export function ChatMessage({
           )}
         </div>
 
+        {/* Clarifying Questions -- shown alongside the answer, never blocking it */}
+        {msg.role === "assistant" && hasClarifying && (
+          <div className="mt-4 rounded-xl border border-accent-bright/30 bg-accent-bright/5 p-3 space-y-2">
+            <p className="text-[11px] font-bold text-accent-bright">
+              {typedT.clarifyingTitle || "A bit more context would help answer this precisely:"}
+            </p>
+            <div className="flex flex-wrap gap-1.5">
+              {msg.clarifying_questions?.map((q, i) => (
+                <button
+                  key={i}
+                  type="button"
+                  onClick={() => onAskClarifying(q)}
+                  className="mono-button rounded-lg px-2.5 py-1 text-left text-[11px] font-semibold text-ink-dim hover:text-accent-bright transition-all cursor-pointer"
+                >
+                  {q}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* Evidence Panel */}
         {msg.role === "assistant" && hasCitations && (
           <EvidencePanel
@@ -248,6 +287,7 @@ export function ChatMessage({
             onToggleFullText={onToggleFullText}
             t={typedT}
             msgId={msg.id}
+            highlightedCitationKey={highlightedCitationKey}
           />
         )}
 
@@ -258,14 +298,29 @@ export function ChatMessage({
               {msg.model || "eva-ai"}
             </span>
             <div className="flex items-center gap-2">
+              {hasCitations && (
+                <button
+                  type="button"
+                  onClick={() => onCopyEvidence(`${msg.id}-all-evidence`, buildAllEvidenceText())}
+                  className="mono-button px-2.5 py-1 rounded-lg text-ink-faint hover:text-ink transition-all cursor-pointer font-semibold"
+                >
+                  {copiedEvidenceId === `${msg.id}-all-evidence`
+                    ? `✓ ${typedT.copiedAllEvidence || "All Evidence Copied!"}`
+                    : `📄 ${typedT.copyAllEvidence || "Copy All Evidence"}`}
+                </button>
+              )}
               <button
                 type="button"
-                onClick={() => onCopy(msg.id, msg.content)}
+                onClick={() => onCopy(msg.id, buildAnswerWithCitations())}
                 className="mono-button px-2.5 py-1 rounded-lg text-ink-faint hover:text-ink transition-all cursor-pointer font-semibold"
               >
                 {copiedId === msg.id
                   ? `✓ ${typedT.copied || "Copied!"}`
-                  : `📋 ${typedT.copyAnswer || "Copy"}`}
+                  : `📋 ${
+                      hasCitations
+                        ? typedT.copyWithCitations || "Copy Answer + Citations"
+                        : typedT.copyAnswer || "Copy"
+                    }`}
               </button>
             </div>
           </div>

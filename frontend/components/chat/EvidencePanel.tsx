@@ -16,6 +16,19 @@ interface EvidencePanelProps {
   onToggleFullText: (citationKey: string) => void;
   t: Record<string, unknown>;
   msgId: string;
+  highlightedCitationKey?: string | null;
+}
+
+function formatRetrievedAt(iso: string | undefined): string | null {
+  if (!iso) return null;
+  try {
+    return new Date(iso).toLocaleString(undefined, {
+      dateStyle: "medium",
+      timeStyle: "short",
+    });
+  } catch {
+    return null;
+  }
 }
 
 export function EvidencePanel({
@@ -29,6 +42,7 @@ export function EvidencePanel({
   onToggleFullText,
   t,
   msgId,
+  highlightedCitationKey,
 }: EvidencePanelProps) {
   if (!citations || citations.length === 0) return null;
 
@@ -83,13 +97,24 @@ export function EvidencePanel({
         <div className="space-y-3 pt-2 animate-fade-in-up">
           {citations.map((c, idx) => {
             const citationKey = `${msgId}-${c.source_id}-${idx}`;
+            const anchorKey = `${msgId}-${c.source_id}`;
             const isConcise = Boolean(fullTextCitationMap[citationKey]);
             const displayText = isConcise && c.excerpt ? c.excerpt : (c.text || c.excerpt || "");
+            const isHighlighted = highlightedCitationKey === anchorKey;
+            const isWeak = Boolean(c.below_floor);
+            const retrievedAt = formatRetrievedAt(c.retrieved_at);
 
             return (
               <div
                 key={idx}
-                className="mono-card rounded-xl p-3 text-xs space-y-2 border border-accent-bright/20 bg-card/60"
+                data-citation-anchor={anchorKey}
+                className={`mono-card rounded-xl p-3 text-xs space-y-2 border transition-all duration-300 ${
+                  isHighlighted
+                    ? "ring-2 ring-accent-bright border-accent-bright/60 bg-accent-bright/10"
+                    : isWeak
+                      ? "border-dashed border-caution/50 bg-card/60"
+                      : "border-accent-bright/20 bg-card/60"
+                }`}
               >
                 {/* Evidence Header */}
                 <div className="flex flex-wrap items-center justify-between gap-2 border-b border-line/30 pb-2">
@@ -110,8 +135,11 @@ export function EvidencePanel({
                   </div>
                   <div className="flex items-center gap-2">
                     {c.absolute_relevance !== undefined && (
-                      <span className="font-mono text-[10px] text-ink-dim mono-inset px-2 py-0.5 rounded">
-                        {typedT.relevanceScore || "Relevance"}: {Math.round(c.absolute_relevance * 100)}%
+                      <span
+                        className="font-mono text-[10px] text-ink-dim mono-inset px-2 py-0.5 rounded"
+                        title={typedT.retrievalScoreHint || "Ranking signal only — not clinical confidence"}
+                      >
+                        {typedT.relevanceScore || "Retrieval Score"}: {Math.round(c.absolute_relevance * 100)}%
                       </span>
                     )}
                     {c.source_url && (
@@ -125,6 +153,46 @@ export function EvidencePanel({
                       </a>
                     )}
                   </div>
+                </div>
+
+                {/* Provenance Badges: citation kind, weak match, source metadata */}
+                <div className="flex flex-wrap items-center gap-1.5 text-[10px]">
+                  <span
+                    className={`mono-pill px-2 py-0.5 font-bold uppercase tracking-wide ${
+                      c.resolved_by === "recommendation_id"
+                        ? "text-ink-faint border-line/50"
+                        : "text-accent-bright border-accent-bright/40"
+                    }`}
+                    title={
+                      c.resolved_by === "recommendation_id"
+                        ? "The model cited the guideline's own numbering; resolved to this chunk but not validated against one specific sentence"
+                        : "The model cited this source marker directly against the claim above"
+                    }
+                  >
+                    {c.resolved_by === "recommendation_id"
+                      ? typedT.relatedRecommendation || "Related Recommendation"
+                      : typedT.directCitation || "Direct Citation"}
+                  </span>
+                  {isWeak && (
+                    <span className="mono-pill px-2 py-0.5 font-bold uppercase tracking-wide text-caution border-caution/40">
+                      {typedT.weakMatchBadge || "Weak Match"}
+                    </span>
+                  )}
+                  {c.requires_caution && (
+                    <span className="mono-pill px-2 py-0.5 font-bold uppercase tracking-wide text-caution border-caution/40">
+                      {typedT.cautionBadge || "Non-Current Source"}
+                    </span>
+                  )}
+                  {c.publication_year ? (
+                    <span className="text-ink-faint">
+                      {typedT.publishedLabel || "Published"} {c.publication_year}
+                    </span>
+                  ) : null}
+                  {retrievedAt && (
+                    <span className="text-ink-faint">
+                      · {typedT.retrievedLabel || "Retrieved"} {retrievedAt}
+                    </span>
+                  )}
                 </div>
 
                 {/* Evidence Text */}
