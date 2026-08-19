@@ -198,6 +198,27 @@ class SearchResponse(BaseModel):
     disclaimer: str
 
 
+class InputRiskTier(StrEnum):
+    """Clinical and operational risk classification for incoming user queries."""
+    EMERGENCY_CRITICAL = "emergency_critical"
+    SICK_DAY_STRESS = "sick_day_stress"
+    PEDIATRIC_SPECIALIST = "pediatric_specialist"
+    STEROID_WITHDRAWAL = "steroid_withdrawal"
+    ADVERSARIAL_SECURITY = "adversarial_security"
+    OUT_OF_SCOPE = "out_of_scope"
+    ROUTINE_CLINICAL = "routine_clinical"
+
+
+class InputRiskAssessment(BaseModel):
+    """Structured clinical risk assessment and triage metadata."""
+    tier: InputRiskTier
+    is_emergency: bool = False
+    risk_score: float = Field(default=0.0, ge=0.0, le=1.0)
+    detected_risk_factors: list[str] = Field(default_factory=list)
+    recommended_triage_action: str = ""
+    safety_banner: str = ""
+
+
 class GenerateRequest(BaseModel):
     """Request body for POST /api/generate."""
 
@@ -228,6 +249,7 @@ class GenerateResponse(BaseModel):
     # with no age group or clinical context) -- a UI hint, never a gate on
     # generation. Usually empty.
     clarifying_questions: list[str] = Field(default_factory=list)
+    risk_assessment: InputRiskAssessment | None = None
 
 
 class GoldenQuestion(BaseModel):

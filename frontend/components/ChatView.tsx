@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect } from "react";
 import type { Language } from "@/lib/translations";
 import { translations } from "@/lib/translations";
-import type { Citation, GroundingStatus } from "@/lib/api";
+import type { Citation, GroundingStatus, InputRiskAssessment } from "@/lib/api";
 import { useChatSessions } from "@/hooks/useChatSessions";
 import { useStreamingChat } from "@/hooks/useStreamingChat";
 import { ChatMessage } from "@/components/chat/ChatMessage";
@@ -23,6 +23,7 @@ export interface ChatMessage {
   timestamp: string;
   grounding_status?: GroundingStatus;
   clarifying_questions?: string[];
+  risk_assessment?: InputRiskAssessment;
 }
 
 export interface ChatSession {

@@ -1,5 +1,5 @@
 #!/bin/bash
-BASE="http://127.0.0.1:8020/api/generate"
+BASE="http://127.0.0.1:8030/api/generate"
 
 run() {
   local category="$1"
