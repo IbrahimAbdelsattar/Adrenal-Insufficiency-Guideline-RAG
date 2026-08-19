@@ -192,7 +192,17 @@ def _abstention_response(
         disclaimer=DISCLAIMER,
         model=get_settings().generation_model,
         latency_ms=elapsed_ms,
+        grounding_status="abstained",
     )
+
+
+GROUNDING_FAILED_MESSAGE = (
+    "Eva AI generated a response but could not verify that every clinical claim in it "
+    "-- doses, routes, timing, thresholds, or emergency instructions -- is directly "
+    "supported by a cited passage in the retrieved guideline. Rather than show an "
+    "answer that might state an unverified dose or instruction, it has been withheld. "
+    "Please try rephrasing your question, or consult the guideline directly."
+)
 
 
 REASONING_ONLY_MESSAGE = (
@@ -268,6 +278,7 @@ async def generate_answer(request: GenerateRequest) -> GenerateResponse:
             disclaimer=DISCLAIMER,
             model=settings.generation_model,
             latency_ms=elapsed_ms,
+            grounding_status="verified",  # canned text, no clinical claims to ground
         )
 
     # Stage 0.5: Prompt Injection / Adversarial Guardrail
@@ -291,6 +302,7 @@ async def generate_answer(request: GenerateRequest) -> GenerateResponse:
             disclaimer=DISCLAIMER,
             model=settings.generation_model,
             latency_ms=elapsed_ms,
+            grounding_status="abstained",
         )
 
     try:
@@ -334,6 +346,9 @@ async def generate_answer(request: GenerateRequest) -> GenerateResponse:
                 model=cached.get("model", settings.generation_model),
                 latency_ms=elapsed_ms,
                 cache_hit=True,
+                # Never written to cache unless grounding passed (see below),
+                # so a cache hit is always a previously-verified answer.
+                grounding_status="verified",
             )
 
         # 5. Assemble evidence context and synthesize via OmniRoute
@@ -359,23 +374,46 @@ async def generate_answer(request: GenerateRequest) -> GenerateResponse:
             trace.set(reasoning_only=True, raw_chars=len(raw_answer))
             raise PipelineError(REASONING_ONLY_MESSAGE)
 
-        # 6. Extract and map citations
+        # 6. Grounding gate: every clinical claim must resolve to a real
+        # citation, or the answer is withheld rather than shown unverified.
         with trace.stage("citations", level=logging.DEBUG) as span:
-            citations = resolve_citations(answer, cited_sources)
-            span["resolved"] = len(citations)
-        # Cited nothing while evidence was supplied: the answer may be
-        # ungrounded, which is exactly the failure clinicians must see.
-        if not citations:
+            grounding = validate_grounding(answer, cited_sources)
+            span["resolved"] = len(grounding.citations)
+            span["grounding_status"] = grounding.status
+            span["grounding_reason"] = grounding.reason
+
+        if grounding.status != "verified":
             logger.warning(
-                "Answer produced no resolvable citations despite %d source(s).",
-                len(cited_sources),
+                "Grounding validation failed: reason=%s invalid_markers=%s unsupported_claims=%d",
+                grounding.reason,
+                grounding.invalid_markers,
+                len(grounding.unsupported_claims),
                 extra={
-                    "event": "citations.empty",
+                    "event": "grounding.failed",
+                    "reason": grounding.reason,
+                    "invalid_markers": grounding.invalid_markers,
+                    "unsupported_claims": grounding.unsupported_claims,
                     "sources": len(cited_sources),
                     "answer_chars": len(answer),
                 },
             )
+            _log_llm_result(trace, client, answer, [])
+            trace.set(evidence_found=True, grounding_status="failed")
+            elapsed_ms = trace.emit(status="abstained_grounding_failed")
+            # Never cache an ungrounded answer: a stale unverifiable answer
+            # replayed to the next matching query would be worse, not better.
+            return GenerateResponse(
+                query=request.query,
+                answer=GROUNDING_FAILED_MESSAGE,
+                citations=[],
+                evidence_found=True,
+                disclaimer=DISCLAIMER,
+                model=settings.generation_model,
+                latency_ms=elapsed_ms,
+                grounding_status="failed",
+            )
 
+        citations = grounding.citations
         _cache_put(
             key,
             {
@@ -386,7 +424,7 @@ async def generate_answer(request: GenerateRequest) -> GenerateResponse:
         )
 
         _log_llm_result(trace, client, answer, citations)
-        trace.set(evidence_found=True)
+        trace.set(evidence_found=True, grounding_status="verified")
         elapsed_ms = trace.emit(status="ok")
 
         return GenerateResponse(
@@ -397,6 +435,7 @@ async def generate_answer(request: GenerateRequest) -> GenerateResponse:
             disclaimer=DISCLAIMER,
             model=settings.generation_model,
             latency_ms=elapsed_ms,
+            grounding_status="verified",
         )
 
     except PipelineError as exc:
@@ -456,6 +495,7 @@ async def generate_answer_stream(request: GenerateRequest) -> StreamingResponse:
                     "citations": [],
                     "latency_ms": int((time.perf_counter() - started) * 1000),
                     "disclaimer": DISCLAIMER,
+                    "grounding_status": "verified",
                 },
             )
             trace.set(evidence_found=True, citations=0)
@@ -488,6 +528,7 @@ async def generate_answer_stream(request: GenerateRequest) -> StreamingResponse:
                     "citations": [],
                     "latency_ms": int((time.perf_counter() - started) * 1000),
                     "disclaimer": DISCLAIMER,
+                    "grounding_status": "abstained",
                 },
             )
             trace.set(refusal="prompt_injection", evidence_found=False)
@@ -533,6 +574,7 @@ async def generate_answer_stream(request: GenerateRequest) -> StreamingResponse:
                     "citations": [],
                     "latency_ms": int((time.perf_counter() - started) * 1000),
                     "disclaimer": DISCLAIMER,
+                    "grounding_status": "abstained",
                 },
             )
             trace.set(evidence_found=False, abstained=True, abstain_rule=scope_status)
@@ -569,6 +611,9 @@ async def generate_answer_stream(request: GenerateRequest) -> StreamingResponse:
                     "citations": cached["citations"],
                     "latency_ms": int((time.perf_counter() - started) * 1000),
                     "disclaimer": DISCLAIMER,
+                    # Never cached unless grounding passed, so a cache hit is
+                    # always a previously-verified answer.
+                    "grounding_status": "verified",
                 },
             )
             trace.set(evidence_found=True, citations=len(cached["citations"]), cache_hit=True)
@@ -590,7 +635,16 @@ async def generate_answer_stream(request: GenerateRequest) -> StreamingResponse:
         # `parts` keeps the raw completion so the final answer is computed the
         # same way as the non-streaming path; the filter only decides what the
         # user is allowed to watch arrive, so reasoning never renders live.
+        #
+        # Visible text is buffered rather than yielded as it arrives: grounding
+        # can only be validated once the complete answer exists, and a dose or
+        # emergency instruction that later fails validation must never have
+        # been visible to a clinician even transiently. This trades this
+        # endpoint's usual low-latency token-by-token delivery for that
+        # guarantee -- the client waits for the full, grounding-checked answer
+        # instead of watching it render live.
         visible = ReasoningFilter()
+        visible_chunks: list[str] = []
         llm_started = time.perf_counter()
         try:
             async for delta in client.stream_completion(
@@ -600,22 +654,11 @@ async def generate_answer_stream(request: GenerateRequest) -> StreamingResponse:
                 shown = visible.feed(delta)
                 if shown:
                     if first_byte_sent is None:
-                        # What the user perceives: the first token that is
-                        # actually rendered, after reasoning has been filtered.
                         first_byte_sent = (time.perf_counter() - started) * 1000
-                        REGISTRY.observe("generate_stream.first_visible_token", first_byte_sent)
-                        logger.info(
-                            "First visible token after %.0f ms.",
-                            first_byte_sent,
-                            extra={
-                                "event": "stream.first_visible_token",
-                                "duration_ms": round(first_byte_sent, 2),
-                            },
-                        )
-                    yield _sse("token", {"text": shown})
+                    visible_chunks.append(shown)
             tail = visible.flush()
             if tail:
-                yield _sse("token", {"text": tail})
+                visible_chunks.append(tail)
         except PipelineError as exc:
             trace.set(error=str(exc), error_type="PipelineError")
             trace.emit(status="error", level=logging.ERROR)
@@ -643,20 +686,50 @@ async def generate_answer_stream(request: GenerateRequest) -> StreamingResponse:
             yield _sse("error", {"detail": REASONING_ONLY_MESSAGE})
             return
 
+        # Grounding gate: every clinical claim must resolve to a real citation,
+        # or the answer is withheld rather than shown unverified. Nothing from
+        # `visible_chunks` has reached the client yet, so a failure here is a
+        # true abstention, not a retraction of something already displayed.
         with trace.stage("citations", level=logging.DEBUG) as span:
-            citations = resolve_citations(answer, cited_sources)
-            span["resolved"] = len(citations)
-        if not citations:
+            grounding = validate_grounding(answer, cited_sources)
+            span["resolved"] = len(grounding.citations)
+            span["grounding_status"] = grounding.status
+            span["grounding_reason"] = grounding.reason
+
+        if grounding.status != "verified":
             logger.warning(
-                "Streamed answer produced no resolvable citations despite %d source(s).",
-                len(cited_sources),
+                "Streamed answer failed grounding validation: reason=%s "
+                "invalid_markers=%s unsupported_claims=%d",
+                grounding.reason,
+                grounding.invalid_markers,
+                len(grounding.unsupported_claims),
                 extra={
-                    "event": "citations.empty",
+                    "event": "grounding.failed",
+                    "reason": grounding.reason,
+                    "invalid_markers": grounding.invalid_markers,
+                    "unsupported_claims": grounding.unsupported_claims,
                     "sources": len(cited_sources),
                     "answer_chars": len(answer),
+                    "streaming": True,
                 },
             )
+            _log_llm_result(trace, client, answer, [])
+            trace.set(evidence_found=True, grounding_status="failed")
+            yield _sse("token", {"text": GROUNDING_FAILED_MESSAGE})
+            yield _sse(
+                "done",
+                {
+                    "citations": [],
+                    "latency_ms": int((time.perf_counter() - started) * 1000),
+                    "disclaimer": DISCLAIMER,
+                    "grounding_status": "failed",
+                },
+            )
+            # Never cache an ungrounded answer.
+            trace.emit(status="abstained_grounding_failed")
+            return
 
+        citations = grounding.citations
         _cache_put(
             key,
             {
@@ -669,10 +742,18 @@ async def generate_answer_stream(request: GenerateRequest) -> StreamingResponse:
         _log_llm_result(trace, client, answer, citations)
         trace.set(
             evidence_found=True,
+            grounding_status="verified",
             first_visible_token_ms=round(first_byte_sent, 2)
             if first_byte_sent is not None
             else None,
         )
+
+        # Grounding passed: release the buffered visible text as one event.
+        # (Not sent incrementally during generation -- see the buffering
+        # comment above the stream loop.)
+        full_text = "".join(visible_chunks)
+        if full_text:
+            yield _sse("token", {"text": full_text})
 
         yield _sse(
             "done",
@@ -680,6 +761,7 @@ async def generate_answer_stream(request: GenerateRequest) -> StreamingResponse:
                 "citations": citations,
                 "latency_ms": int((time.perf_counter() - started) * 1000),
                 "disclaimer": DISCLAIMER,
+                "grounding_status": "verified",
             },
         )
         trace.emit(status="ok")

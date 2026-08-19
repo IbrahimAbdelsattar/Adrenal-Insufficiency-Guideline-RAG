@@ -71,13 +71,20 @@ def test_bare_recommendation_marker_resolves_to_page_and_section():
     _assert_complete(citations)
 
 
-def test_resolve_citations_never_returns_empty_for_grounded_answer():
-    """An answer built from evidence must always carry provenance to the UI."""
+def test_resolve_citations_returns_empty_when_the_model_cites_nothing():
+    """No markers means no provenance -- never fabricate it by attaching every source.
+
+    This used to fall back to attaching every retrieved chunk as a "citation"
+    when the model produced no [Source N]/[N.N.N] markers. That proved
+    evidence was *retrieved*, not that the answer's claims are *supported* by
+    it, and let an ungrounded answer reach the clinician wearing a citation
+    list it never earned. Callers must treat an empty result as ungrounded
+    (see `validate_grounding` and citations.py's module docstring), not
+    silently attribute the answer to everything it was shown.
+    """
     sources = [_result(_chunk("c1", 27, "1.7"), 1), _result(_chunk("c2", 28, "1.7"), 2)]
     citations = resolve_citations("Answer with no markers at all.", sources)
-    assert len(citations) == 2
-    assert all(c["resolved_by"] == "fallback_all_sources" for c in citations)
-    _assert_complete(citations)
+    assert citations == []
 
 
 def test_resolve_citations_prefers_explicit_markers_over_fallback():

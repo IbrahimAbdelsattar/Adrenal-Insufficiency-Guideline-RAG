@@ -81,7 +81,7 @@ jobs:
 
       - name: Install Frontend Dependencies
         working-directory: ./frontend
-        run: npm ci
+        run: npm ci || npm install --no-audit --no-fund
 
       - name: TypeScript Typecheck
         working-directory: ./frontend

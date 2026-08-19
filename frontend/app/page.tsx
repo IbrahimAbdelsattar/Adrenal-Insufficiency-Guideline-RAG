@@ -222,7 +222,7 @@ export default function Page() {
    */
 
   return (
-    <div className="grid gap-8 lg:grid-cols-[1fr_22rem]">
+    <div className="grid gap-8 lg:grid-cols-[1fr_22rem] items-start">
 
       {/* ====================================================== */}
       {/* Main Eva AI Area                                      */}

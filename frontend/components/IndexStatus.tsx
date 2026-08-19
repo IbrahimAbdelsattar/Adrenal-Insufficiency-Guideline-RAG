@@ -73,7 +73,7 @@ export function IndexStatus() {
   const built = new Date(manifest.built_at).toLocaleString(lang === "ar" ? "ar-SA" : "en-US");
 
   return (
-    <aside className="mono-card space-y-5 rounded-2xl p-5">
+    <aside className="mono-card space-y-5 rounded-2xl p-5 sticky top-6 max-h-[calc(100vh-4.5rem)] overflow-y-auto overscroll-contain pb-3">
       {/* Eva AI Store Header & Monomorphic Pulse Badge */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
@@ -118,7 +118,7 @@ export function IndexStatus() {
       {/* Registered Guidelines Section */}
       {sources.length > 0 && (
         <div className="border-t border-line/60 pt-4">
-          <h3 className="flex items-center gap-1.5 text-xs font-extrabold uppercase tracking-wider text-ink-dim">
+          <h3 className="flex items-center gap-1.5 text-xs font-extrabold uppercase tracking-wider text-ink-dim sticky top-0 bg-card/95 backdrop-blur-sm z-10 py-1">
             <svg className="h-3.5 w-3.5 text-accent-bright" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
             </svg>
