@@ -668,7 +668,7 @@ Eva AI implements enterprise-grade, privacy-preserving error tracking, performan
 
 ---
 
-## 🧪 Testing & Quality Verification
+## 🧪 Testing & Quality Assurance
 
 Run the full automated test suite using `pytest`:
 
