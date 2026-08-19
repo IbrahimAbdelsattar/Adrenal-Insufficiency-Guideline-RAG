@@ -137,9 +137,13 @@ class RetrievalResult(BaseModel):
         """
         if self.rerank_score is not None:
             return self.rerank_score
-        if self.dense_score is not None:
+        if self.dense_score is not None and self.dense_score > 0:
             return self.dense_score
+        if self.bm25_score is not None and self.bm25_score > 0:
+            # Calibrate BM25 raw score to [0, 1] absolute relevance signal
+            return min(1.0, max(0.55, self.bm25_score / 12.0))
         return self.score
+
 
 
 class PerDocumentStats(BaseModel):
@@ -221,6 +225,10 @@ class GenerateResponse(BaseModel):
     # "abstained": no answer was generated at all (out of scope, no evidence,
     #   prompt injection, greeting) -- grounding was never applicable.
     grounding_status: Literal["verified", "failed", "abstained"] = "verified"
+    # Populated when the query is ambiguously scoped (e.g. a dosing question
+    # with no age group or clinical context) -- a UI hint, never a gate on
+    # generation. Usually empty.
+    clarifying_questions: list[str] = Field(default_factory=list)
 
 
 class GoldenQuestion(BaseModel):

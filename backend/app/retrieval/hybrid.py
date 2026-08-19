@@ -91,8 +91,16 @@ class HybridRetriever:
             cand_k = max(k, self._candidate_k)
             floor = self._settings.relevance_floor
 
-            # Stage 1: Dual candidate retrieval
-            dense_results = self._dense.search(query, top_k=cand_k)
+            # Stage 1: Dual candidate retrieval with graceful dense-to-lexical fallback
+            try:
+                dense_results = self._dense.search(query, top_k=cand_k)
+            except Exception as exc:
+                logger.warning(
+                    "Dense vector search failed (falling back to BM25): %s",
+                    exc,
+                    extra={"event": "retrieval.dense.failed", "error": str(exc)},
+                )
+                dense_results = []
 
             with stage_timer("retrieval.bm25.search", logger, candidate_k=cand_k) as span:
                 bm25_results = self._bm25.search(query, top_k=cand_k)
@@ -160,16 +168,23 @@ class HybridRetriever:
                 cid = chunk.chunk_id
                 # `score` is RRF-normalised, so the top hit is always 1.0 and cannot
                 # be compared to a floor. Judge weak matches on the absolute signal:
-                # the cross-encoder score when reranking, else dense cosine.
-                relevance = score if self._reranker is not None else dense_map.get(cid, 0.0)
+                # the cross-encoder score when reranking, else dense cosine, else BM25.
+                if self._reranker is not None:
+                    relevance = score
+                elif dense_map:
+                    relevance = dense_map.get(cid, 0.0)
+                else:
+                    relevance = bm25_map.get(cid, score)
+
                 results.append(
                     RetrievalResult(
                         chunk=chunk,
                         score=score,
                         rank=rank,
                         below_floor=relevance < floor,
-                        dense_score=dense_map.get(cid, 0.0),
-                        bm25_score=bm25_map.get(cid, 0.0),
+                        dense_score=dense_map.get(cid) if dense_map else None,
+                        bm25_score=bm25_map.get(cid) if bm25_map else None,
+
                         rerank_score=score if self._reranker is not None else None,
                         retriever_mode="hybrid_rerank" if self._reranker is not None else "hybrid",
                     )

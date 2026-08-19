@@ -11,7 +11,6 @@ cost of an answer can be attributed without re-running it.
 
 from __future__ import annotations
 
-import asyncio
 import json
 import logging
 import time
@@ -19,237 +18,40 @@ import time
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import StreamingResponse
 
-from backend.app import graph
-from backend.app.config import Settings, get_settings
+from backend.app.config import get_settings
 from backend.app.errors import PipelineError
 from backend.app.generation.assembler import assemble_evidence, select_sources
-from backend.app.generation.citations import (
-    should_abstain,
-    strip_trailing_disclaimer,
-    validate_grounding,
-)
+from backend.app.generation.citations import validate_grounding
 from backend.app.generation.client import LLMClient
-from backend.app.generation.guardrails import (
-    GREETING_RESPONSE_AR,
-    GREETING_RESPONSE_EN,
-    detect_prompt_injection,
-    is_greeting,
-)
 from backend.app.generation.prompt import SYSTEM_PROMPT, construct_user_prompt
-from backend.app.generation.reasoning import ReasoningFilter, strip_reasoning
-from backend.app.models import DISCLAIMER, GenerateRequest, GenerateResponse, RetrievalResult
-from backend.app.monitoring import REGISTRY, RagTrace, estimate_tokens
-from backend.app.retrieval.cache import TTLLRUCache, normalize_query
-from backend.app.retrieval.factory import get_shared_retriever, get_shared_store
-from backend.app.retrieval.scope import (
-    NO_EVIDENCE_MESSAGE,
-    OUT_OF_SCOPE_MESSAGE,
-    classify_scope,
+from backend.app.generation.reasoning import ReasoningFilter
+from backend.app.generation.service import (
+    GROUNDING_FAILED_MESSAGE,
+    INJECTION_REFUSAL_MESSAGE,
+    REASONING_ONLY_MESSAGE,
+    cache_get,
+    cache_key,
+    cache_put,
+    expand_with_graph,
+    log_cache,
+    run_generation_pipeline,
 )
+from backend.app.models import DISCLAIMER, GenerateRequest, GenerateResponse
+from backend.app.monitoring import REGISTRY, RagTrace, estimate_tokens
+from backend.app.retrieval.cache import normalize_query
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api", tags=["generation"])
-
-# Memory-bounded TTL + LRU response cache for repeat queries
-_RESPONSE_CACHE: TTLLRUCache[str, dict] = TTLLRUCache(
-    maxsize=get_settings().response_cache_size,
-    ttl_seconds=get_settings().cache_ttl_seconds,
-    manifest_path=get_settings().index_dir / "manifest.json",
-    name="generation_response_cache",
-)
-
-
-def _cache_key(
-    query: str,
-    top_k: int,
-    results: list[RetrievalResult],
-    history: list[dict] | None = None,
-) -> str:
-    norm_q = normalize_query(query)
-    ids = "+".join(r.chunk.chunk_id for r in results)
-    hist_suffix = ""
-    if history:
-        hist_parts = [
-            f"{h.get('role', '')}:{normalize_query(h.get('content', ''))}"
-            for h in history[-4:]
-            if h.get("content")
-        ]
-        if hist_parts:
-            hist_suffix = "|hist:" + "+".join(hist_parts)
-    return f"{top_k}|{norm_q}|{ids}{hist_suffix}"
-
-
-def _cache_get(key: str) -> dict | None:
-    return _RESPONSE_CACHE.get(key)
-
-
-def _cache_put(key: str, entry: dict, maxsize: int | None = None) -> None:
-    _RESPONSE_CACHE.put(key, entry)
-
-
-def _log_cache(trace: RagTrace, hit: bool) -> None:
-    REGISTRY.increment("generate.cache.hit" if hit else "generate.cache.miss")
-    trace.set(cache_hit=hit, cache_size=len(_RESPONSE_CACHE))
-
-
-async def _retrieve_and_scope(request: GenerateRequest, trace: RagTrace):
-    """Shared first stage: retrieve candidates and classify scope with retrieval cache."""
-    from backend.app.api.search import _RETRIEVAL_CACHE
-
-    settings = get_settings()
-    top_k = request.top_k or settings.top_k
-
-    retrieval_cache_key = (normalize_query(request.query), top_k, settings.retriever_type)
-    cached_retrieval = _RETRIEVAL_CACHE.get(retrieval_cache_key)
-
-    if cached_retrieval is not None:
-        results, scope_status, scope_msg, filtered_results = cached_retrieval
-        trace.record_retrieval(results)
-        trace.set(scope_status=scope_status, retrieval_cached=True)
-        REGISTRY.increment(f"generate.scope.{scope_status}")
-        return settings, top_k, results, scope_status, scope_msg, filtered_results
-
-    retriever = get_shared_retriever(settings)
-    with trace.stage("retrieval", top_k=top_k, retriever_type=settings.retriever_type) as span:
-        results = await asyncio.to_thread(retriever.search, request.query, top_k)
-        span["results"] = len(results)
-        span["top_relevance"] = round(results[0].absolute_relevance, 4) if results else 0.0
-
-    trace.record_retrieval(results)
-
-    with trace.stage("scope", scope_threshold=settings.scope_threshold) as span:
-        scope_status, scope_msg, filtered_results = classify_scope(
-            results, settings.scope_threshold, query=request.query
-        )
-
-        span["scope_status"] = scope_status
-        span["kept"] = len(filtered_results)
-
-    # Save to shared retrieval cache
-    _RETRIEVAL_CACHE.put(retrieval_cache_key, (results, scope_status, scope_msg, filtered_results))
-
-    trace.set(scope_status=scope_status)
-    REGISTRY.increment(f"generate.scope.{scope_status}")
-    return settings, top_k, results, scope_status, scope_msg, filtered_results
-
-
-def _expand_with_graph(
-    settings: Settings, results: list[RetrievalResult], trace: RagTrace | None = None
-):
-    """Append graph-linked evidence (adjacent section / shared recommendations)."""
-    if not settings.graph_expansion or not results:
-        if trace is not None:
-            trace.set(graph_expanded=0)
-        return results
-
-    def _run() -> list[RetrievalResult]:
-        adjacency = graph.load_graph(settings.index_path)
-        extra_ids = graph.pick_expansion_ids(results, adjacency, settings.graph_max_expand)
-        if not extra_ids:
-            return list(results)
-
-        extra_chunks = get_shared_store(settings).get_chunks(extra_ids)
-        if not extra_chunks:
-            return list(results)
-
-        expanded = list(results) + graph.wrap_expanded(extra_chunks, results)
-        logger.info(
-            "Graph expansion added %d evidence chunk(s)",
-            len(extra_chunks),
-            extra={
-                "event": "graph.expansion",
-                "added": len(extra_chunks),
-                "added_chunk_ids": [c.chunk_id for c in extra_chunks],
-                "max_expand": settings.graph_max_expand,
-            },
-        )
-        return expanded
-
-    if trace is None:
-        return _run()
-
-    with trace.stage("graph_expansion", max_expand=settings.graph_max_expand) as span:
-        expanded = _run()
-        span["added"] = len(expanded) - len(results)
-
-    trace.set(graph_expanded=len(expanded) - len(results), evidence_chunks=len(expanded))
-    return expanded
-
-
-def _abstention_response(
-    request: GenerateRequest, scope_status: str, elapsed_ms: int
-) -> GenerateResponse:
-    if scope_status == "out_of_scope":
-        answer = OUT_OF_SCOPE_MESSAGE
-    else:
-        answer = f"{NO_EVIDENCE_MESSAGE} Please try rephrasing or broadening your clinical query."
-    return GenerateResponse(
-        query=request.query,
-        answer=answer,
-        citations=[],
-        evidence_found=False,
-        disclaimer=DISCLAIMER,
-        model=get_settings().generation_model,
-        latency_ms=elapsed_ms,
-        grounding_status="abstained",
-    )
-
-
-GROUNDING_FAILED_MESSAGE = (
-    "Eva AI generated a response but could not verify that every clinical claim in it "
-    "-- doses, routes, timing, thresholds, or emergency instructions -- is directly "
-    "supported by a cited passage in the retrieved guideline. Rather than show an "
-    "answer that might state an unverified dose or instruction, it has been withheld. "
-    "Please try rephrasing your question, or consult the guideline directly."
-)
-
-
-REASONING_ONLY_MESSAGE = (
-    "The model returned only its internal reasoning and no answer, which usually "
-    "means GENERATION_MAX_TOKENS is too low for a reasoning model. Raise it, or "
-    "set GENERATION_MODEL to a non-reasoning model."
-)
-
-
-def _finalize_answer(raw: str) -> str | None:
-    """Clean a raw completion into a displayable answer.
-
-    Chain-of-thought is stripped before anything else: it is not an answer, and
-    it names sources the model goes on to reject, so leaving it in would both
-    show a clinician the model's scratchpad and fabricate citations from it.
-
-    Returns None when nothing survives -- the model spent its whole budget
-    thinking. Callers must surface an error rather than render the reasoning.
-    """
-    answer = strip_reasoning(raw)
-    if not answer:
-        return None
-    return strip_trailing_disclaimer(answer.strip()) or None
-
-
-def _log_llm_result(trace: RagTrace, client: LLMClient, answer: str, citations: list[dict]) -> None:
-    """Fold the client's per-call telemetry into the request trace."""
-    trace.set(
-        model=get_settings().generation_model,
-        llm_ms=round(client.last_latency_ms, 2),
-        llm_ttft_ms=round(client.last_ttft_ms, 2) if client.last_ttft_ms is not None else None,
-        llm_attempts=client.last_attempts,
-        finish_reason=client.last_finish_reason,
-        answer_chars=len(answer),
-        citations=len(citations),
-        **{k: v for k, v in client.last_usage.items() if v is not None},
-    )
 
 
 def _sse(event: str, data: dict) -> str:
     return f"event: {event}\ndata: {json.dumps(data, ensure_ascii=False)}\n\n"
 
 
-INJECTION_REFUSAL_MESSAGE = (
-    "This request cannot be processed. Eva AI only answers clinical questions "
-    "about adrenal insufficiency based on NICE NG243. Please rephrase your question."
-)
+# ---------------------------------------------------------------------------
+# JSON endpoint
+# ---------------------------------------------------------------------------
 
 
 @router.post("/generate")
@@ -263,199 +65,18 @@ async def generate_answer(request: GenerateRequest) -> GenerateResponse:
     trace = RagTrace("generate", query=request.query, top_k=request.top_k, settings=settings)
     started = time.perf_counter()
 
-    # Stage 0: Conversational Greeting / Capability Inquiry
-    if is_greeting(request.query):
-        elapsed_ms = int((time.perf_counter() - started) * 1000)
-        is_ar = any("\u0600" <= c <= "\u06ff" for c in request.query)
-        greeting_text = GREETING_RESPONSE_AR if is_ar else GREETING_RESPONSE_EN
-        trace.set(evidence_found=True, citations=0)
-        trace.emit(status="ok_greeting")
-        return GenerateResponse(
-            query=request.query,
-            answer=greeting_text,
-            citations=[],
-            evidence_found=True,
-            disclaimer=DISCLAIMER,
-            model=settings.generation_model,
-            latency_ms=elapsed_ms,
-            grounding_status="verified",  # canned text, no clinical claims to ground
-        )
+    result = await run_generation_pipeline(request, trace, started)
 
-    # Stage 0.5: Prompt Injection / Adversarial Guardrail
-    with trace.stage("guardrail", level=logging.DEBUG) as span:
-        injected = detect_prompt_injection(request.query)
-        span["injection_detected"] = injected
+    if result.status == "error":
+        raise HTTPException(status_code=503, detail=result.error_detail)
 
-    if injected:
-        elapsed_ms = int((time.perf_counter() - started) * 1000)
-        logger.warning(
-            "Prompt injection detected; refusing to generate.",
-            extra={"event": "guardrail.injection", "query_chars": len(request.query)},
-        )
-        trace.set(refusal="prompt_injection", evidence_found=False)
-        trace.emit(status="refused_injection")
-        return GenerateResponse(
-            query=request.query,
-            answer=INJECTION_REFUSAL_MESSAGE,
-            citations=[],
-            evidence_found=False,
-            disclaimer=DISCLAIMER,
-            model=settings.generation_model,
-            latency_ms=elapsed_ms,
-            grounding_status="abstained",
-        )
+    assert result.response is not None  # noqa: S101
+    return result.response
 
-    try:
-        # 1. Retrieve candidate evidence (shared retriever: no per-request rebuild)
-        settings, top_k, results, scope_status, _, filtered_results = await _retrieve_and_scope(
-            request, trace
-        )
 
-        # 2. Apply scope classification guardrail
-        abstain = should_abstain(results)
-        if scope_status in ("out_of_scope", "no_evidence") or abstain:
-            elapsed_ms = int((time.perf_counter() - started) * 1000)
-            trace.set(evidence_found=False, abstained=True, abstain_rule=scope_status)
-            trace.emit(status=f"abstained_{scope_status}")
-            return _abstention_response(request, scope_status, elapsed_ms)
-
-        # 3. Expand evidence with graph-linked chunks (lightweight Graph RAG)
-        evidence_results = _expand_with_graph(settings, filtered_results or results, trace)
-
-        # 4. Response cache: identical query + identical evidence
-        with trace.stage("cache_lookup", level=logging.DEBUG) as span:
-            key = _cache_key(request.query, top_k, evidence_results, request.history)
-            cached = _cache_get(key)
-            span["hit"] = cached is not None
-        _log_cache(trace, cached is not None)
-
-        if cached is not None:
-            elapsed_ms = int((time.perf_counter() - started) * 1000)
-            logger.info(
-                "Response cache hit; skipping LLM call.",
-                extra={"event": "cache.hit", "latency_ms": elapsed_ms},
-            )
-            trace.set(evidence_found=True, citations=len(cached["citations"]))
-            trace.emit(status="ok_cached")
-            return GenerateResponse(
-                query=request.query,
-                answer=cached["answer"],
-                citations=cached["citations"],
-                evidence_found=True,
-                disclaimer=DISCLAIMER,
-                model=cached.get("model", settings.generation_model),
-                latency_ms=elapsed_ms,
-                cache_hit=True,
-                # Never written to cache unless grounding passed (see below),
-                # so a cache hit is always a previously-verified answer.
-                grounding_status="verified",
-            )
-
-        # 5. Assemble evidence context and synthesize via OmniRoute
-        # cited_sources is what the LLM actually sees numbered [Source 1..N];
-        # citations must resolve against it, not the unfiltered result list.
-        with trace.stage("prompt_build", level=logging.DEBUG) as span:
-            cited_sources = select_sources(evidence_results)
-            evidence_text = assemble_evidence(evidence_results)
-            user_prompt = construct_user_prompt(request.query, evidence_text, request.history)
-            span["sources"] = len(cited_sources)
-            span["evidence_chars"] = len(evidence_text)
-            span["est_prompt_tokens"] = estimate_tokens(SYSTEM_PROMPT + user_prompt)
-        trace.set(sources=len(cited_sources), evidence_chars=len(evidence_text))
-
-        client = LLMClient(settings)
-        with trace.stage("llm"):
-            raw_answer = await client.generate_completion(
-                system_prompt=SYSTEM_PROMPT,
-                user_prompt=user_prompt,
-            )
-        answer = _finalize_answer(raw_answer)
-        if answer is None:
-            trace.set(reasoning_only=True, raw_chars=len(raw_answer))
-            raise PipelineError(REASONING_ONLY_MESSAGE)
-
-        # 6. Grounding gate: every clinical claim must resolve to a real
-        # citation, or the answer is withheld rather than shown unverified.
-        with trace.stage("citations", level=logging.DEBUG) as span:
-            grounding = validate_grounding(answer, cited_sources)
-            span["resolved"] = len(grounding.citations)
-            span["grounding_status"] = grounding.status
-            span["grounding_reason"] = grounding.reason
-
-        if grounding.status != "verified":
-            logger.warning(
-                "Grounding validation failed: reason=%s invalid_markers=%s unsupported_claims=%d",
-                grounding.reason,
-                grounding.invalid_markers,
-                len(grounding.unsupported_claims),
-                extra={
-                    "event": "grounding.failed",
-                    "reason": grounding.reason,
-                    "invalid_markers": grounding.invalid_markers,
-                    "unsupported_claims": grounding.unsupported_claims,
-                    "sources": len(cited_sources),
-                    "answer_chars": len(answer),
-                },
-            )
-            _log_llm_result(trace, client, answer, [])
-            trace.set(evidence_found=True, grounding_status="failed")
-            elapsed_ms = trace.emit(status="abstained_grounding_failed")
-            # Never cache an ungrounded answer: a stale unverifiable answer
-            # replayed to the next matching query would be worse, not better.
-            return GenerateResponse(
-                query=request.query,
-                answer=GROUNDING_FAILED_MESSAGE,
-                citations=[],
-                evidence_found=True,
-                disclaimer=DISCLAIMER,
-                model=settings.generation_model,
-                latency_ms=elapsed_ms,
-                grounding_status="failed",
-            )
-
-        citations = grounding.citations
-        _cache_put(
-            key,
-            {
-                "answer": answer,
-                "citations": [c.model_dump() if hasattr(c, "model_dump") else c for c in citations],
-                "model": settings.generation_model,
-            },
-        )
-
-        _log_llm_result(trace, client, answer, citations)
-        trace.set(evidence_found=True, grounding_status="verified")
-        elapsed_ms = trace.emit(status="ok")
-
-        return GenerateResponse(
-            query=request.query,
-            answer=answer,
-            citations=citations,
-            evidence_found=True,
-            disclaimer=DISCLAIMER,
-            model=settings.generation_model,
-            latency_ms=elapsed_ms,
-            grounding_status="verified",
-        )
-
-    except PipelineError as exc:
-        trace.set(error=str(exc), error_type="PipelineError")
-        trace.emit(status="error", level=logging.ERROR)
-        logger.error(
-            "Generation pipeline error: %s",
-            exc,
-            extra={"event": "generate.error", "error_type": "PipelineError"},
-        )
-        raise HTTPException(status_code=503, detail=str(exc)) from exc
-    except Exception as exc:
-        trace.set(error=str(exc), error_type=type(exc).__name__)
-        trace.emit(status="error", level=logging.ERROR)
-        logger.exception(
-            "Generation failed: %s",
-            exc,
-            extra={"event": "generate.error", "error_type": type(exc).__name__},
-        )
-        raise HTTPException(status_code=503, detail=f"LLM Answer Generation failed: {exc}") from exc
+# ---------------------------------------------------------------------------
+# SSE endpoint
+# ---------------------------------------------------------------------------
 
 
 @router.post("/generate/stream")
@@ -475,127 +96,78 @@ async def generate_answer_stream(request: GenerateRequest) -> StreamingResponse:
         )
         first_byte_sent: float | None = None
 
-        # Stage 0: Conversational Greeting / Capability Inquiry
-        if is_greeting(request.query):
-            is_ar = any("\u0600" <= c <= "\u06ff" for c in request.query)
-            greeting_text = GREETING_RESPONSE_AR if is_ar else GREETING_RESPONSE_EN
+        # Run the shared pipeline to determine the outcome
+        result = await run_generation_pipeline(request, trace, started)
+
+        # Fast-path: greeting, injection, abstention, cache hit, grounding failed, error
+        # These all produce a single token event with the full answer text.
+        if result.status != "ok":
+            if result.status == "error":
+                yield _sse("error", {"detail": result.error_detail})
+                return
+
+            resp = result.response
+            if resp is None:
+                yield _sse("error", {"detail": "Unknown pipeline error"})
+                return
+
             yield _sse(
                 "meta",
                 {
                     "query": request.query,
-                    "model": model,
-                    "evidence_found": True,
-                    "cache_hit": False,
+                    "model": result.model or model,
+                    "evidence_found": result.evidence_found,
+                    "cache_hit": result.cache_hit,
+                    "clarifying_questions": result.clarifying_questions,
                 },
             )
-            yield _sse("token", {"text": greeting_text})
+            yield _sse("token", {"text": resp.answer})
             yield _sse(
                 "done",
                 {
-                    "citations": [],
-                    "latency_ms": int((time.perf_counter() - started) * 1000),
+                    "citations": resp.citations,
+                    "latency_ms": resp.latency_ms,
                     "disclaimer": DISCLAIMER,
-                    "grounding_status": "verified",
+                    "grounding_status": resp.grounding_status,
                 },
             )
-            trace.set(evidence_found=True, citations=0)
-            trace.emit(status="ok_greeting")
             return
 
-        # Stage 0.5: Prompt Injection / Adversarial Guardrail
-        with trace.stage("guardrail", level=logging.DEBUG) as span:
-            injected = detect_prompt_injection(request.query)
-            span["injection_detected"] = injected
+        # "ok" status: we need to re-run the LLM with streaming to emit tokens.
+        # The pipeline already validated grounding, so we just need to produce
+        # the same answer via streaming and re-validate (or trust the cache).
+        # For simplicity and correctness, we re-run the LLM stream and ground-check.
 
-        if injected:
-            logger.warning(
-                "Prompt injection detected on stream; refusing to generate.",
-                extra={"event": "guardrail.injection", "query_chars": len(request.query)},
-            )
-            yield _sse(
-                "meta",
-                {
-                    "query": request.query,
-                    "model": model,
-                    "evidence_found": False,
-                    "cache_hit": False,
-                },
-            )
-            yield _sse("token", {"text": INJECTION_REFUSAL_MESSAGE})
-            yield _sse(
-                "done",
-                {
-                    "citations": [],
-                    "latency_ms": int((time.perf_counter() - started) * 1000),
-                    "disclaimer": DISCLAIMER,
-                    "grounding_status": "abstained",
-                },
-            )
-            trace.set(refusal="prompt_injection", evidence_found=False)
-            trace.emit(status="refused_injection")
-            return
-
+        # Re-retrieve and re-expand to get the same evidence set
         try:
-            settings, top_k, results, scope_status, _, filtered_results = await _retrieve_and_scope(
-                request, trace
+            settings, top_k, results, scope_status, _, filtered_results = await (
+                # Import here to avoid circular dependency at module level
+                __import__("backend.app.generation.service", fromlist=["retrieve_and_scope"])
+                .retrieve_and_scope(request, trace)
             )
-        except PipelineError as exc:
-            trace.set(error=str(exc), error_type="PipelineError")
-            trace.emit(status="error", level=logging.ERROR)
-            yield _sse("error", {"detail": str(exc)})
-            return
         except Exception as exc:
             trace.set(error=str(exc), error_type=type(exc).__name__)
             trace.emit(status="error", level=logging.ERROR)
-            logger.exception(
-                "Stream retrieval failed: %s",
-                exc,
-                extra={"event": "generate_stream.error", "phase": "retrieval"},
-            )
             yield _sse("error", {"detail": f"Retrieval failed: {exc}"})
             return
 
-        # Abstention paths short-circuit with a single token event.
-        if scope_status in ("out_of_scope", "no_evidence") or should_abstain(results):
-            response = _abstention_response(request, scope_status, 0)
-            yield _sse(
-                "meta",
-                {
-                    "query": request.query,
-                    "model": model,
-                    "evidence_found": False,
-                    "cache_hit": False,
-                },
-            )
-            yield _sse("token", {"text": response.answer})
-            yield _sse(
-                "done",
-                {
-                    "citations": [],
-                    "latency_ms": int((time.perf_counter() - started) * 1000),
-                    "disclaimer": DISCLAIMER,
-                    "grounding_status": "abstained",
-                },
-            )
-            trace.set(evidence_found=False, abstained=True, abstain_rule=scope_status)
-            trace.emit(status=f"abstained_{scope_status}")
-            return
-
-        evidence_results = _expand_with_graph(settings, filtered_results or results, trace)
+        evidence_results = expand_with_graph(settings, filtered_results or results, trace)
 
         with trace.stage("cache_lookup", level=logging.DEBUG) as span:
-            key = _cache_key(request.query, top_k, evidence_results, request.history)
-            cached = _cache_get(key)
+            key = cache_key(request.query, top_k, evidence_results, request.history)
+            cached = cache_get(key)
             span["hit"] = cached is not None
-        _log_cache(trace, cached is not None)
+        log_cache(trace, cached is not None)
 
         yield _sse(
             "meta",
             {
                 "query": request.query,
-                "model": cached.get("model", model) if cached else model,
+                "model": model,
                 "evidence_found": True,
                 "cache_hit": cached is not None,
+                # Already computed by the status-check pass above (`result`).
+                "clarifying_questions": result.clarifying_questions,
             },
         )
 
@@ -611,8 +183,6 @@ async def generate_answer_stream(request: GenerateRequest) -> StreamingResponse:
                     "citations": cached["citations"],
                     "latency_ms": int((time.perf_counter() - started) * 1000),
                     "disclaimer": DISCLAIMER,
-                    # Never cached unless grounding passed, so a cache hit is
-                    # always a previously-verified answer.
                     "grounding_status": "verified",
                 },
             )
@@ -632,17 +202,6 @@ async def generate_answer_stream(request: GenerateRequest) -> StreamingResponse:
         client = LLMClient(settings)
 
         parts: list[str] = []
-        # `parts` keeps the raw completion so the final answer is computed the
-        # same way as the non-streaming path; the filter only decides what the
-        # user is allowed to watch arrive, so reasoning never renders live.
-        #
-        # Visible text is buffered rather than yielded as it arrives: grounding
-        # can only be validated once the complete answer exists, and a dose or
-        # emergency instruction that later fails validation must never have
-        # been visible to a clinician even transiently. This trades this
-        # endpoint's usual low-latency token-by-token delivery for that
-        # guarantee -- the client waits for the full, grounding-checked answer
-        # instead of watching it render live.
         visible = ReasoningFilter()
         visible_chunks: list[str] = []
         llm_started = time.perf_counter()
@@ -679,17 +238,12 @@ async def generate_answer_stream(request: GenerateRequest) -> StreamingResponse:
             trace.stages["llm"] = round(llm_ms, 2)
             REGISTRY.observe("generate_stream.llm", llm_ms)
 
-        answer = _finalize_answer("".join(parts))
+        answer = _finalize_answer_stream(parts, trace)
         if answer is None:
-            trace.set(reasoning_only=True, raw_chars=sum(len(p) for p in parts))
-            trace.emit(status="error_reasoning_only", level=logging.ERROR)
             yield _sse("error", {"detail": REASONING_ONLY_MESSAGE})
             return
 
-        # Grounding gate: every clinical claim must resolve to a real citation,
-        # or the answer is withheld rather than shown unverified. Nothing from
-        # `visible_chunks` has reached the client yet, so a failure here is a
-        # true abstention, not a retraction of something already displayed.
+        # Grounding gate
         with trace.stage("citations", level=logging.DEBUG) as span:
             grounding = validate_grounding(answer, cited_sources)
             span["resolved"] = len(grounding.citations)
@@ -713,7 +267,7 @@ async def generate_answer_stream(request: GenerateRequest) -> StreamingResponse:
                     "streaming": True,
                 },
             )
-            _log_llm_result(trace, client, answer, [])
+            _log_stream_llm_result(trace, client, answer, [])
             trace.set(evidence_found=True, grounding_status="failed")
             yield _sse("token", {"text": GROUNDING_FAILED_MESSAGE})
             yield _sse(
@@ -725,32 +279,28 @@ async def generate_answer_stream(request: GenerateRequest) -> StreamingResponse:
                     "grounding_status": "failed",
                 },
             )
-            # Never cache an ungrounded answer.
             trace.emit(status="abstained_grounding_failed")
             return
 
         citations = grounding.citations
-        _cache_put(
+        cache_put(
             key,
             {
                 "answer": answer,
-                "citations": [c.model_dump() if hasattr(c, "model_dump") else c for c in citations],
+                "citations": [
+                    c.model_dump() if hasattr(c, "model_dump") else c for c in citations
+                ],
                 "model": model,
             },
         )
 
-        _log_llm_result(trace, client, answer, citations)
+        _log_stream_llm_result(trace, client, answer, citations)
         trace.set(
             evidence_found=True,
             grounding_status="verified",
-            first_visible_token_ms=round(first_byte_sent, 2)
-            if first_byte_sent is not None
-            else None,
+            first_visible_token_ms=round(first_byte_sent, 2) if first_byte_sent is not None else None,
         )
 
-        # Grounding passed: release the buffered visible text as one event.
-        # (Not sent incrementally during generation -- see the buffering
-        # comment above the stream loop.)
         full_text = "".join(visible_chunks)
         if full_text:
             yield _sse("token", {"text": full_text})
@@ -773,4 +323,38 @@ async def generate_answer_stream(request: GenerateRequest) -> StreamingResponse:
             "Cache-Control": "no-cache",
             "X-Accel-Buffering": "no",
         },
+    )
+
+
+# ---------------------------------------------------------------------------
+# Stream helpers (local to this module)
+# ---------------------------------------------------------------------------
+
+
+def _finalize_answer_stream(parts: list[str], trace: RagTrace) -> str | None:
+    """Finalize a streamed answer (same logic as service._finalize_answer)."""
+    from backend.app.generation.reasoning import strip_reasoning
+    from backend.app.generation.citations import strip_trailing_disclaimer
+
+    raw = "".join(parts)
+    answer = strip_reasoning(raw)
+    if not answer:
+        trace.set(reasoning_only=True, raw_chars=len(raw))
+        trace.emit(status="error_reasoning_only", level=logging.ERROR)
+        return None
+    cleaned = strip_trailing_disclaimer(answer.strip())
+    return cleaned or None
+
+
+def _log_stream_llm_result(trace: RagTrace, client: LLMClient, answer: str, citations: list[dict]) -> None:
+    """Log LLM telemetry for the stream path."""
+    trace.set(
+        model=get_settings().generation_model,
+        llm_ms=round(client.last_latency_ms, 2),
+        llm_ttft_ms=round(client.last_ttft_ms, 2) if client.last_ttft_ms is not None else None,
+        llm_attempts=client.last_attempts,
+        finish_reason=client.last_finish_reason,
+        answer_chars=len(answer),
+        citations=len(citations),
+        **{k: v for k, v in client.last_usage.items() if v is not None},
     )

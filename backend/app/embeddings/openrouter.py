@@ -159,6 +159,9 @@ class OpenRouterEmbedder:
                     )
                     return self._parse(response.json(), expected=len(batch))
                 last_error = f"HTTP {response.status_code}: {response.text[:300]}"
+                # Fast fail if account credits are depleted or quota exhausted (retrying will not fix this)
+                if "depleted" in last_error.lower() or "credits" in last_error.lower():
+                    break
                 if response.status_code not in RETRY_STATUS:
                     break
 

@@ -58,8 +58,19 @@ export interface Citation {
   text?: string;
   score?: number;
   absolute_relevance?: number;
-  resolved_by?: "source_marker" | "recommendation_id" | "fallback_all_sources";
+  // "source_marker": the model wrote [Source N] directly against this claim
+  // (an explicit claim citation). "recommendation_id": the model cited the
+  // guideline's own numbering (e.g. [1.8.6]); resolved to an exact chunk,
+  // but never validated against a specific sentence -- an indirect match.
+  resolved_by?: "source_marker" | "recommendation_id";
+  below_floor?: boolean;
+  publication_year?: number;
+  document_type?: string;
+  requires_caution?: boolean;
+  retrieved_at?: string;
 }
+
+export type GroundingStatus = "verified" | "failed" | "abstained";
 
 export interface GenerateResponse {
   query: string;
@@ -70,6 +81,8 @@ export interface GenerateResponse {
   model: string;
   latency_ms: number;
   cache_hit?: boolean;
+  grounding_status?: GroundingStatus;
+  clarifying_questions?: string[];
 }
 
 export interface StreamMeta {
@@ -77,12 +90,14 @@ export interface StreamMeta {
   model: string;
   evidence_found: boolean;
   cache_hit: boolean;
+  clarifying_questions?: string[];
 }
 
 export interface StreamDone {
   citations: Citation[];
   latency_ms: number;
   disclaimer: string;
+  grounding_status?: GroundingStatus;
 }
 
 export interface StreamCallbacks {

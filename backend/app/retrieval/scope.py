@@ -69,7 +69,26 @@ _CLINICAL_DOMAIN_KEYWORDS = {
     "primary",
     "secondary",
     "tertiary",
+    # Arabic Clinical Terms
+    "كظر",
+    "كظرية",
+    "أزمة",
+    "أزمات",
+    "قصور",
+    "أديسون",
+    "كورتيزول",
+    "هيدروكورتيزون",
+    "فلودروكورتيزون",
+    "ستيرويد",
+    "حمى",
+    "أيام المرض",
+    "قيء",
+    "استفراغ",
+    "وريد",
+    "عضل",
+    "حقن",
 }
+
 
 
 def is_clinical_domain_query(query: str) -> bool:

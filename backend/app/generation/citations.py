@@ -3,6 +3,7 @@
 import re
 from collections.abc import Sequence
 from dataclasses import dataclass, field
+from datetime import UTC, datetime
 from typing import Literal
 
 from backend.app.models import RetrievalResult
@@ -68,7 +69,17 @@ _RECOMMENDATION_MARKER = re.compile(r"\[(\d+(?:\.\d+)+)\]")
 
 
 def _to_citation(source_id: str, res: RetrievalResult, resolved_by: str) -> dict:
-    """Build one citation dict. document / section / page / full text are always present."""
+    """Build one citation dict. document / section / page / full text are always present.
+
+    `resolved_by` is what the UI must use to distinguish an explicit claim
+    citation ("source_marker": the model wrote `[Source N]` right next to this
+    claim) from an indirect one ("recommendation_id": the model cited the
+    guideline's own numbering, which was resolved back to a chunk but was
+    never validated against a specific sentence). `score` is retrieval
+    ranking only -- callers must label it "retrieval score", never "clinical
+    confidence"; it says how well the chunk matched the query, not whether
+    the claim built from it is correct.
+    """
     return {
         "source_id": source_id,
         "document_name": res.chunk.document_name,
@@ -82,6 +93,16 @@ def _to_citation(source_id: str, res: RetrievalResult, resolved_by: str) -> dict
         "score": round(res.score, 4),
         "absolute_relevance": round(res.absolute_relevance, 4),
         "resolved_by": resolved_by,
+        "below_floor": res.below_floor,
+        "publication_year": res.chunk.publication_year,
+        "document_type": res.chunk.document_type,
+        "requires_caution": res.chunk.requires_caution,
+        # When this citation was resolved, not when the guideline was
+        # published -- lets the UI show "retrieved just now" vs. a stale
+        # cached answer being replayed. `publication_year` above is the
+        # closest honest proxy for a "source version" this corpus has; the
+        # ingestion pipeline does not track guideline revision numbers.
+        "retrieved_at": datetime.now(UTC).isoformat(),
     }
 
 
@@ -266,13 +287,22 @@ def validate_grounding(text: str, sources: Sequence[RetrievalResult]) -> Groundi
         )
 
     unsupported = []
-    for unit in _split_claim_units(text):
-        if not _CLINICAL_CLAIM_PATTERN.search(unit):
+    for line in text.split("\n"):
+        line = line.strip().lstrip("*-•").strip()
+        if not line or _HEADING_LINE.match(line):
             continue
-        valid, _ = _marker_validity(unit, n)
-        if valid or _RECOMMENDATION_MARKER.search(unit):
+        # If the line contains a valid citation or recommendation marker, claims in this block are grounded
+        line_valid, _ = _marker_validity(line, n)
+        if line_valid or _RECOMMENDATION_MARKER.search(line):
             continue
-        unsupported.append(unit[:160])
+
+        # If the line has no citation marker at all, check if any sentence makes an uncited clinical claim
+        for unit in _SENTENCE_SPLIT.split(line):
+            unit = unit.strip()
+            if not unit:
+                continue
+            if _CLINICAL_CLAIM_PATTERN.search(unit):
+                unsupported.append(unit[:160])
 
     if unsupported:
         return GroundingResult(
@@ -280,6 +310,7 @@ def validate_grounding(text: str, sources: Sequence[RetrievalResult]) -> Groundi
             reason="unsupported_clinical_claim",
             unsupported_claims=unsupported,
         )
+
 
     citations = resolve_citations(text, sources)
     return GroundingResult(status="verified", citations=citations)

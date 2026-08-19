@@ -19,7 +19,7 @@ from backend.app.retrieval.store import VectorStore
 
 logger = logging.getLogger(__name__)
 
-_TOKEN_PATTERN = re.compile(r"[a-z0-9]+(?:[\.\-][a-z0-9]+)*")
+_TOKEN_PATTERN = re.compile(r"[\w\d]+(?:[\.\-][\w\d]+)*", re.UNICODE)
 _STOPWORDS = {
     "a",
     "an",
@@ -55,13 +55,67 @@ _STOPWORDS = {
     "should",
     "do",
     "does",
+    "ما",
+    "هي",
+    "هو",
+    "في",
+    "من",
+    "على",
+    "إلى",
+    "عن",
+    "مع",
+    "هل",
+    "عند",
+}
+
+_ARABIC_CLINICAL_MAP = {
+    "هيدروكورتيزون": ["hydrocortisone", "100", "mg"],
+    "كورتيزول": ["cortisol"],
+    "فلودروكورتيزون": ["fludrocortisone"],
+    "كظرية": ["adrenal", "crisis"],
+    "كظري": ["adrenal"],
+    "الكظرية": ["adrenal"],
+    "الكظري": ["adrenal"],
+    "أزمة": ["crisis", "emergency"],
+    "أزمات": ["crisis"],
+    "قصور": ["insufficiency"],
+    "أديسون": ["addison"],
+    "مرض": ["disease"],
+    "حمى": ["fever"],
+    "قيء": ["vomiting"],
+    "استفراغ": ["vomiting"],
+    "وريد": ["intravenous", "iv"],
+    "وريدي": ["intravenous", "iv"],
+    "عضل": ["intramuscular", "im"],
+    "عضلي": ["intramuscular", "im"],
+    "حقن": ["injection"],
+    "طوارئ": ["emergency"],
+    "طارئة": ["emergency"],
+    "جرعة": ["dose"],
+    "جرعات": ["doses"],
+    "بالغين": ["adults"],
+    "أطفال": ["children", "paediatric", "bsped"],
+    "حمل": ["pregnancy"],
+    "ولادة": ["birth", "postpartum"],
 }
 
 
 def tokenize_clinical_text(text: str) -> list[str]:
-    """Tokenize clinical text preserving dosages, recommendation IDs, and hyphens."""
-    tokens = _TOKEN_PATTERN.findall(text.lower())
-    return [t for t in tokens if t not in _STOPWORDS and len(t) > 1]
+    """Tokenize clinical text preserving dosages, recommendation IDs, and bilingual medical terms."""
+    clean = text.lower()
+    raw_tokens = _TOKEN_PATTERN.findall(clean)
+    tokens: list[str] = []
+
+    for t in raw_tokens:
+        if t in _STOPWORDS:
+            continue
+        if t in _ARABIC_CLINICAL_MAP:
+            tokens.extend(_ARABIC_CLINICAL_MAP[t])
+        elif len(t) > 1:
+            tokens.append(t)
+
+    return tokens
+
 
 
 class BM25Retriever:
