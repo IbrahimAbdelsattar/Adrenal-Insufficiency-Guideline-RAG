@@ -23,7 +23,6 @@ const isExport = process.env.NEXT_OUTPUT === "export";
 const BACKEND_URL = process.env.BACKEND_URL ?? "http://127.0.0.1:8010";
 
 const nextConfig: NextConfig = {
-  distDir: process.env.NEXT_DIST_DIR || ".next",
   // standalone keeps the runtime image small (no full node_modules copy).
   output: isExport ? "export" : "standalone",
   outputFileTracingRoot: path.join(__dirname),
@@ -47,5 +46,9 @@ export default isExport
       project: process.env.SENTRY_PROJECT,
       silent: true,
       widenClientFileUpload: true,
+      autoInstrumentServerFunctions: false,
+      autoInstrumentMiddleware: false,
+      autoInstrumentAppDirectory: true,
     });
+
 
