@@ -209,6 +209,28 @@ def search(request: SearchRequest) -> SearchResponse:
     top_k = request.top_k or settings.top_k
     trace = RagTrace("search", query=request.query, top_k=top_k, settings=settings)
 
+    from backend.app.generation.guardrails import (
+        is_dosage_or_medication_query,
+        DOSAGE_REFUSAL_MESSAGE_AR,
+        DOSAGE_REFUSAL_MESSAGE_EN,
+    )
+    if is_dosage_or_medication_query(request.query):
+        is_ar = any("\u0600" <= c <= "\u06ff" for c in request.query)
+        refusal_msg = DOSAGE_REFUSAL_MESSAGE_AR if is_ar else DOSAGE_REFUSAL_MESSAGE_EN
+        trace.set(refusal="dosage_refusal", evidence_found=False)
+        trace.emit(status="refused_dosage")
+        return SearchResponse(
+            query=request.query,
+            results=[],
+            result_count=0,
+            evidence_found=False,
+            scope_status="out_of_scope",
+            scope_message=refusal_msg,
+            embedding_model=settings.embedding_model,
+            latency_ms=0,
+            disclaimer=DISCLAIMER,
+        )
+
     if not store.is_ready():
         logger.error(
             "Search rejected: index is empty.",

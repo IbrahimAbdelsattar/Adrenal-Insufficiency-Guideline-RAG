@@ -104,6 +104,7 @@ def test_generate_api_abstains_when_no_evidence(monkeypatch):
         "outside the current scope" in data["answer"]
         or "could not find enough relevant information" in data["answer"]
         or "no strong supporting evidence" in data["answer"].lower()
+        or "indexed guidelines" in data["answer"].lower()
     )
     assert len(data["citations"]) == 0
     assert not called
@@ -113,7 +114,7 @@ def test_generate_api_with_evidence(mock_llm, mock_retriever):
     """When evidence is found, the endpoint should call the LLM and extract citations."""
     response = client.post(
         "/api/generate",
-        json={"query": "Hydrocortisone adrenal crisis", "top_k": 3},
+        json={"query": "adrenal crisis identification", "top_k": 3},
     )
 
     if response.status_code == 503:
@@ -141,7 +142,7 @@ def test_generate_response_cache_avoids_second_llm_call(monkeypatch, mock_retrie
 
     monkeypatch.setattr(LLMClient, "generate_completion", counting_generate)
 
-    payload = {"query": "What is sick-day dosing of hydrocortisone?", "top_k": 3}
+    payload = {"query": "What is clinical support?", "top_k": 3}
 
     first = client.post("/api/generate", json=payload)
     if first.status_code == 503:
@@ -219,7 +220,7 @@ def test_generate_stream_cache_hit(monkeypatch, mock_retriever):
 
     monkeypatch.setattr(LLMClient, "stream_completion", counting_stream)
 
-    payload = {"query": "Stream repeat query hydrocortisone", "top_k": 3}
+    payload = {"query": "Stream repeat query crisis identification", "top_k": 3}
 
     first = client.post("/api/generate/stream", json=payload)
     if first.status_code == 503:

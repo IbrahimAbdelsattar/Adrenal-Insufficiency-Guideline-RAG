@@ -29,6 +29,9 @@ from backend.app.generation.client import LLMClient
 from backend.app.generation.guardrails import (
     detect_prompt_injection,
     is_greeting,
+    is_dosage_or_medication_query,
+    DOSAGE_REFUSAL_MESSAGE_AR,
+    DOSAGE_REFUSAL_MESSAGE_EN,
 )
 from backend.app.generation.prompt import SYSTEM_PROMPT, construct_user_prompt
 from backend.app.generation.reasoning import ReasoningFilter, strip_reasoning
@@ -36,6 +39,7 @@ from backend.app.generation.service import (
     GROUNDING_FAILED_MESSAGE,
     INJECTION_REFUSAL_MESSAGE,
     REASONING_ONLY_MESSAGE,
+    _finalize_answer,
     cache_get,
     cache_key,
     cache_put,
@@ -167,6 +171,39 @@ async def generate_answer_stream(request: GenerateRequest) -> StreamingResponse:
             )
             trace.set(refusal="prompt_injection", evidence_found=False)
             trace.emit(status="refused_injection")
+            return
+
+        # ------------------------------------------------------------------
+        # Stage 0.7: Dosage & Medication Query Guard
+        # ------------------------------------------------------------------
+        if is_dosage_or_medication_query(request.query):
+            is_ar = any("\u0600" <= c <= "\u06ff" for c in request.query)
+            refusal_msg = DOSAGE_REFUSAL_MESSAGE_AR if is_ar else DOSAGE_REFUSAL_MESSAGE_EN
+            logger.warning(
+                "Dosage or medication query detected on stream; refusing to generate.",
+                extra={"event": "guardrail.dosage_refusal", "query_chars": len(request.query)},
+            )
+            yield _sse(
+                "meta",
+                {
+                    "query": request.query,
+                    "model": model,
+                    "evidence_found": False,
+                    "cache_hit": False,
+                },
+            )
+            yield _sse("token", {"text": refusal_msg})
+            yield _sse(
+                "done",
+                {
+                    "citations": [],
+                    "latency_ms": int((time.perf_counter() - started) * 1000),
+                    "disclaimer": DISCLAIMER,
+                    "grounding_status": "abstained",
+                },
+            )
+            trace.set(refusal="dosage_refusal", evidence_found=False)
+            trace.emit(status="refused_dosage")
             return
 
         # ------------------------------------------------------------------
@@ -326,13 +363,13 @@ async def generate_answer_stream(request: GenerateRequest) -> StreamingResponse:
         # Stage 6: Finalize + grounding
         # ------------------------------------------------------------------
         raw = "".join(parts)
-        answer = strip_reasoning(raw)
-        if not answer:
+        answer = _finalize_answer(raw)
+        if answer is None:
             trace.set(reasoning_only=True, raw_chars=len(raw))
             trace.emit(status="error_reasoning_only", level=logging.ERROR)
             yield _sse("error", {"detail": REASONING_ONLY_MESSAGE})
             return
-        answer = strip_trailing_disclaimer(answer.strip()) or ""
+
 
         with trace.stage("citations", level=logging.DEBUG) as span:
             grounding = validate_grounding(answer, cited_sources)
@@ -394,9 +431,8 @@ async def generate_answer_stream(request: GenerateRequest) -> StreamingResponse:
             else None,
         )
 
-        full_text = "".join(visible_chunks)
-        if full_text:
-            yield _sse("token", {"text": full_text})
+        if answer:
+            yield _sse("token", {"text": answer})
 
         yield _sse(
             "done",

@@ -31,7 +31,7 @@ The application pairs a high-performance **FastAPI backend** with a **Next.js 15
 - 🚀 **Multi-Tier RAG Caching Architecture**: Sub-5ms response time on warm queries (**492x speedup**) with L1 Embedding, L2 Retrieval, and L3 Answer Caching with TTL/LRU eviction and automatic index manifest invalidation.
 - 🔍 **Retrieval & Evidence Inspector**: In-depth vector & BM25 ranking inspection with similarity scores and confidence floors.
 - ⚡ **Ultra-Low Latency OmniRoute Routing**: Optimized with `GENERATION_MODEL=eva-ai` (~1.6s vs 4.4s) and instant 0ms zero-LLM greeting handling.
-- 🛡️ **Fail-Closed Clinical Guardrails**: Adversarial prompt injection defense, out-of-scope refusal, and insufficient evidence abstention.
+- 🛡️ **Fail-Closed Clinical Guardrails**: Adversarial prompt injection defense, out-of-scope refusal, insufficient evidence abstention, and pre-retrieval dosage & prescription recommendation refusal.
 - 📊 **Full-Stack Sentry Observability**: Distributed tracing across RAG stages, continuous CPU profiling, and automatic PHI/PII sanitization.
 - 🌐 **Bilingual Medical Interface**: Native English and Arabic (RTL) support with localized terminology.
 
@@ -730,7 +730,7 @@ ai-hackthon/
 │   │   │   └── generate.py                    # Evidence-grounded generation & SSE streaming endpoints
 │   │   ├── generation/
 │   │   │   ├── client.py                      # OmniRoute / OpenRouter async LLM client with spans
-│   │   │   ├── guardrails.py                  # Prompt injection detection & 0ms greeting handling
+│   │   │   ├── guardrails.py                  # Prompt injection detection, 0ms greeting handling, and dosage/prescription query guardrail
 │   │   │   ├── prompt.py                      # NICE NG243 clinical system prompt with history
 │   │   │   ├── assembler.py                   # Context evidence assembler
 │   │   │   └── citations.py                   # Citation extractor & abstention logic

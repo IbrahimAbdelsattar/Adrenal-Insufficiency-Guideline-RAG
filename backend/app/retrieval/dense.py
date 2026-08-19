@@ -59,7 +59,7 @@ class DenseRetriever:
         )
         texts = [c.text for c in chunks]
         if isinstance(self.embedder, FallbackEmbedder):
-            embeddings = self.embedder.fallback.embed_documents(texts)
+            embeddings = self.embedder.secondary.embed_documents(texts)
         else:
             embeddings = self.embedder.embed_documents(texts)
         self._store.build(chunks, embeddings, collection_name=fallback_col)

@@ -27,8 +27,11 @@ from backend.app.generation.client import LLMClient
 from backend.app.generation.guardrails import (
     GREETING_RESPONSE_AR,
     GREETING_RESPONSE_EN,
+    DOSAGE_REFUSAL_MESSAGE_AR,
+    DOSAGE_REFUSAL_MESSAGE_EN,
     detect_prompt_injection,
     is_greeting,
+    is_dosage_or_medication_query,
 )
 from backend.app.generation.prompt import SYSTEM_PROMPT, construct_user_prompt
 from backend.app.generation.reasoning import strip_reasoning
@@ -148,7 +151,21 @@ def _finalize_answer(raw: str) -> str | None:
     answer = strip_reasoning(raw)
     if not answer:
         return None
-    return strip_trailing_disclaimer(answer.strip()) or None
+    answer_stripped = strip_trailing_disclaimer(answer.strip()) or ""
+    if not answer_stripped:
+        return None
+
+    from backend.app.generation.prompt import (
+        PHARMACOLOGICAL_DISCLAIMER,
+        contains_pharmacological_content,
+    )
+
+    if contains_pharmacological_content(answer_stripped):
+        if "Clinical Disclaimer" not in answer_stripped:
+            answer_stripped += PHARMACOLOGICAL_DISCLAIMER
+
+    return answer_stripped
+
 
 
 def _abstention_response(
@@ -363,6 +380,40 @@ async def run_generation_pipeline(
             model=settings.generation_model,
             evidence_found=False,
             clarifying_questions=[],  # refused outright, nothing to scope
+        )
+
+    # Stage 0.7: Dosage & Medication Query Guard
+    with trace.stage("guardrail_dosage", level=logging.DEBUG) as span:
+        is_dosage_query = is_dosage_or_medication_query(request.query)
+        span["dosage_query_detected"] = is_dosage_query
+
+    if is_dosage_query:
+        is_ar = any("\u0600" <= c <= "\u06ff" for c in request.query)
+        refusal_msg = DOSAGE_REFUSAL_MESSAGE_AR if is_ar else DOSAGE_REFUSAL_MESSAGE_EN
+        elapsed_ms = int((time.perf_counter() - started) * 1000)
+        logger.warning(
+            "Dosage or medication query detected; refusing to generate.",
+            extra={"event": "guardrail.dosage_refusal", "query_chars": len(request.query)},
+        )
+        trace.set(refusal="dosage_refusal", evidence_found=False)
+        trace.emit(status="refused_dosage")
+        return GenerationResult(
+            status="abstained",
+            response=GenerateResponse(
+                query=request.query,
+                answer=refusal_msg,
+                citations=[],
+                evidence_found=False,
+                disclaimer=DISCLAIMER,
+                model=settings.generation_model,
+                latency_ms=elapsed_ms,
+                grounding_status="abstained",
+            ),
+            query=request.query,
+            model=settings.generation_model,
+            evidence_found=False,
+            answer=refusal_msg,
+            clarifying_questions=[],
         )
 
     try:

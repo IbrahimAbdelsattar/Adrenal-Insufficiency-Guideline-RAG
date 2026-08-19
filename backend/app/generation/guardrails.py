@@ -151,3 +151,44 @@ def sanitize_query(query: str) -> str:
     legitimate clinical queries.
     """
     return re.sub(r"\s+", " ", query.strip())
+
+
+# ---------------------------------------------------------------------------
+# Dosage & Medication Recommendation Refusal Guard (Day 3 Update)
+# ---------------------------------------------------------------------------
+
+DOSAGE_REFUSAL_MESSAGE_EN = (
+    "I couldn't find enough information in the indexed guidelines to answer this confidently. "
+    "Eva AI searches NICE NG243 (adrenal insufficiency) but does not provide specific medication recommendations, "
+    "drug prescribing guidance, or detailed dosage tables. "
+    "Try rephrasing with general diagnostic or clinical signs, or consult a licensed healthcare professional directly."
+)
+
+DOSAGE_REFUSAL_MESSAGE_AR = (
+    "لم أتمكن من العثور على معلومات كافية في الإرشادات المؤرشفة للإجابة بثقة. "
+    "تجري إيفا (Eva AI) عمليات البحث في إرشادات NICE NG243 (قصور الكظر)، ولكنها لا تقدم توصيات دوائية محددة، "
+    "أو إرشادات لوصف الأدوية، أو جداول تفصيلية للجرعات. "
+    "يرجى محاولة إعادة الصياغة باستخدام علامات سريرية أو تشخيصية عامة، أو استشارة طبيب مختص مباشرة."
+)
+
+_DOSAGE_MED_KEYWORDS = [
+    # English keywords
+    "dose", "dosage", "dosing", "mg", "microgram", "mcg", "nmol", "nmol/L",
+    "milligram", "taper", "tapering", "regimen", "maintenance", "sick-day",
+    "sick day", "stress dose", "how much", "what amount", "should i take",
+    "can i take", "prescrib", "recommend", "medication", "drug", "steroid",
+    "hydrocortisone", "fludrocortisone", "prednisolone", "dexamethasone",
+    "corticosteroid",
+    # Arabic keywords
+    "جرع", "ملغ", "ميكروغرام", "هيدروكورتيزون", "فلودروكورتيزون", "بريدنيزولون",
+    "ديكساميثازون", "ستيرويد", "دواء", "أدوية", "علاج دوائي", "وصف"
+]
+
+
+def is_dosage_or_medication_query(query: str) -> bool:
+    """Return True if the query is related to dosages or prescribing/medication recommendations."""
+    if not query:
+        return False
+    lower_query = query.lower()
+    return any(k in lower_query for k in _DOSAGE_MED_KEYWORDS)
+

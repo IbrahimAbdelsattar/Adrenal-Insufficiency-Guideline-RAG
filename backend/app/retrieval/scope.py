@@ -19,19 +19,31 @@ import re
 
 from backend.app.models import RetrievalResult
 
+# ---------------------------------------------------------------------------
+# Refusal messages — "Honest, Not Unhelpful" format (Day 3 requirement)
+#
+# Each message does three things:
+#   1. States clearly that the available evidence is insufficient
+#   2. Explains what was searched, so the gap feels transparent, not evasive
+#   3. Suggests a next step — rephrasing or consulting a clinician
+# ---------------------------------------------------------------------------
+
 OUT_OF_SCOPE_MESSAGE = (
-    "This question is outside the current scope of Eva AI. "
-    "Eva AI currently covers adrenal insufficiency, including its "
-    "identification and management, based on the registered NICE NG243 "
-    "guideline."
+    "I couldn't find enough information in the indexed guidelines to answer this confidently. "
+    "Eva AI searches NICE NG243 (adrenal insufficiency), and this question falls outside "
+    "that guideline's domain entirely. "
+    "Try rephrasing with adrenal insufficiency terminology, or consult a clinician directly."
 )
 
 NO_EVIDENCE_MESSAGE = (
-    "The question appears related to the current clinical topic, but no "
-    "strong supporting evidence was found in the registered guideline."
+    "I couldn't find enough information in the indexed guidelines to answer this confidently. "
+    "Eva AI searched NICE NG243 but the retrieved evidence did not contain sufficient detail "
+    "to address your specific question. "
+    "Try rephrasing or broadening your clinical query, or consult a clinician directly."
 )
 
 IN_SCOPE_MESSAGE = "Relevant clinical evidence was found in the registered guideline."
+
 
 _CLINICAL_DOMAIN_KEYWORDS = {
     "ng243",
