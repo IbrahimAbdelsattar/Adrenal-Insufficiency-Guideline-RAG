@@ -44,10 +44,32 @@ class DenseRetriever:
                 self._embedder = OpenRouterEmbedder(self._settings)
         return self._embedder
 
+    def _ensure_fallback_collection(self, fallback_col: str) -> None:
+        """Populate fallback collection on the fly if primary collection has chunks but fallback does not."""
+        if self._store.is_ready(fallback_col):
+            return
+        chunks = self._store.all_chunks(self._store.collection_name)
+        if not chunks:
+            return
+        logger.info(
+            "Auto-populating fallback vector collection '%s' from %d stored chunks using fallback embedder...",
+            fallback_col,
+            len(chunks),
+            extra={"event": "retrieval.dense.auto_populate_fallback", "chunks": len(chunks)},
+        )
+        texts = [c.text for c in chunks]
+        if isinstance(self.embedder, FallbackEmbedder):
+            embeddings = self.embedder.fallback.embed_documents(texts)
+        else:
+            embeddings = self.embedder.embed_documents(texts)
+        self._store.build(chunks, embeddings, collection_name=fallback_col)
+        logger.info("Fallback vector collection '%s' is now ready with %d chunks.", fallback_col, len(chunks))
+
     def _resolve_target_collection(self) -> str:
         """Determine whether to query the primary or fallback vector collection."""
         if getattr(self.embedder, "is_fallback_active", False):
             fallback_col = self._store.fallback_collection_name
+            self._ensure_fallback_collection(fallback_col)
             if self._store.is_ready(fallback_col):
                 return fallback_col
         return self._store.collection_name
@@ -69,9 +91,10 @@ class DenseRetriever:
                 try:
                     hits = self._store.query(embedding, k, collection_name=target_collection)
                 except Exception as exc:
-                    # If query against primary collection failed due to dimension mismatch, try fallback collection
+                    # If query failed (e.g. dimension mismatch), auto-populate fallback collection and retry
                     fallback_col = self._store.fallback_collection_name
-                    if target_collection != fallback_col and self._store.is_ready(fallback_col):
+                    self._ensure_fallback_collection(fallback_col)
+                    if self._store.is_ready(fallback_col):
                         logger.warning(
                             "Dense query against '%s' failed (%s). Retrying against fallback collection '%s'.",
                             target_collection,
@@ -79,6 +102,7 @@ class DenseRetriever:
                             fallback_col,
                         )
                         hits = self._store.query(embedding, k, collection_name=fallback_col)
+                        target_collection = fallback_col
                     else:
                         raise
 
