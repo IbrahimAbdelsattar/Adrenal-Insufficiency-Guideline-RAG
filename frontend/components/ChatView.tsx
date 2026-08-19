@@ -50,6 +50,7 @@ export function ChatView({ lang, topK, onTopKChange }: ChatViewProps) {
   const [highlightedCitationKey, setHighlightedCitationKey] = useState<string | null>(null);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const messagesContainerRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   const t = translations[lang] || translations.en;
@@ -69,9 +70,17 @@ export function ChatView({ lang, topK, onTopKChange }: ChatViewProps) {
 
   const { isGenerating, error, handleSend: sendChat, clearError } = useStreamingChat();
 
-  // Scroll to bottom on new messages
+  // Scroll to bottom on new messages, but only if the user is already near
+  // the bottom — otherwise streaming tokens would repeatedly yank them back
+  // down while they're reading earlier text.
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    const container = messagesContainerRef.current;
+    if (!container) return;
+    const nearBottom =
+      container.scrollHeight - container.scrollTop - container.clientHeight < 120;
+    if (nearBottom) {
+      messagesEndRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
+    }
   }, [messages, isGenerating]);
 
   // Copy helpers
@@ -229,7 +238,10 @@ export function ChatView({ lang, topK, onTopKChange }: ChatViewProps) {
       )}
 
       {/* Messages */}
-      <div className="mono-card rounded-2xl p-4 sm:p-6 min-h-[420px] max-h-[620px] overflow-y-auto space-y-6">
+      <div
+        ref={messagesContainerRef}
+        className="mono-card rounded-2xl p-4 sm:p-6 min-h-[420px] max-h-[620px] overflow-y-auto space-y-6"
+      >
         {messages.length === 0 ? (
           /* Empty State */
           <div className="py-8 text-center space-y-6 animate-fade-in-up">

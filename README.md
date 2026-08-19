@@ -699,6 +699,9 @@ ai-hackthon/
 ├── DAY5_OBSERVABILITY_AND_ERROR_TRACKING.md  # Day 5 Full-Stack Sentry Observability & PHI Scrubbing
 ├── docs/
 │   ├── ERROR_TRACKING.md                      # Sentry Integration Guide & Architecture
+│   ├── FAILURES_AND_IMPROVEMENTS.md           # Systematic Failures, Root Cause & Improvements Log
+│   ├── EVALUATION_METRICS_CALCULATION.md      # Mathematical Formulas & Metrics Calculation Dossier
+│   ├── CLINICAL_EVALUATION_REPORT.md          # Benchmark Scorecards & Release Gate Audit
 │   ├── DAY2_RETRIEVAL_OPTIMIZATION.md
 │   ├── DAY3_GENERATION_AND_INTEGRATION.md
 │   ├── DAY4_PERFORMANCE_OPTIMIZATION.md

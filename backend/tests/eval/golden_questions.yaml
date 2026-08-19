@@ -141,3 +141,18 @@ questions:
     expected_sections: ["1.2"]
     expected_recommendation_ids: ["1.2.2", "1.2.3"]
     notes: 9am serum cortisol, serum electrolytes (sodium, potassium), and plasma ACTH if cortisol is equivocal.
+
+  - id: gq_19
+    question: What special considerations apply to children and young people when managing glucocorticoid replacement?
+    expected_doc_id: nice_ng243
+    expected_sections: ["1.3"]
+    expected_recommendation_ids: ["1.3.8", "1.3.9"]
+    notes: Pediatric glucocorticoid replacement requires specialist pediatric endocrinology supervision, monitoring of growth velocity, and calculation based on body surface area (mg/m2).
+
+  - id: gq_20
+    question: What specific clinical checks must be performed during the annual specialist endocrine review for a patient with established adrenal insufficiency?
+    expected_doc_id: nice_ng243
+    expected_sections: ["1.8"]
+    expected_recommendation_ids: ["1.8.1", "1.8.2"]
+    notes: Annual specialist review includes lying and standing blood pressure, body weight and BMI, serum electrolytes, verification of steroid emergency card, and review of sick-day self-management education.
+
