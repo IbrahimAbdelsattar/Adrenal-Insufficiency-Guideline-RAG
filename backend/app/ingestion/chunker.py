@@ -110,6 +110,13 @@ def chunk_blocks_section(
         pending, pending_tokens = [], 0
 
     for block in blocks:
+        # Back matter (glossary, rationale, context, update history) carries no
+        # section number by construction (sectioner.py) -- it cannot be cited
+        # as guideline recommendation and only dilutes retrieval, so it never
+        # reaches the index.
+        if not block.section_number:
+            continue
+
         # Drop navigational pointers before packing so they never reach the index.
         if not block.recommendation_id and is_navigational(block.text):
             continue

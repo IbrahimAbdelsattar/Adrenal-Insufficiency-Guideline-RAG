@@ -10,7 +10,7 @@ from __future__ import annotations
 import math
 import threading
 import time
-from typing import Iterable
+from collections.abc import Iterable
 
 from backend.app.config import get_settings
 from backend.app.errors import PipelineError

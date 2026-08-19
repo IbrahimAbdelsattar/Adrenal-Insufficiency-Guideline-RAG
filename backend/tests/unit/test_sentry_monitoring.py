@@ -4,8 +4,6 @@ from __future__ import annotations
 
 from unittest.mock import patch
 
-import pytest
-
 from backend.app.config import Settings
 from backend.app.monitoring.sentry import (
     init_sentry,
@@ -117,5 +115,5 @@ def test_sanitize_sentry_breadcrumb():
 
 def test_trace_span_context_manager():
     """trace_span operates cleanly as a context manager regardless of Sentry status."""
-    with trace_span(op="rag.test", description="Testing span execution") as span:
+    with trace_span(op="rag.test", description="Testing span execution"):
         pass

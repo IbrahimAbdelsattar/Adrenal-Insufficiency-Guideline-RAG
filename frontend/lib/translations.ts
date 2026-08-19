@@ -94,7 +94,6 @@ export const translations = {
     runIngestHint: "Run `python -m backend.app.cli ingest` to build.",
     loadingMeta: "Loading Eva AI metadata…",
     chatTab: "💬 RAG Chatbot",
-
     inspectorTab: "🔍 Retrieval Inspector",
     newChatBtn: "New Consultation",
     clearChatBtn: "Clear Chat",
@@ -108,6 +107,28 @@ export const translations = {
     chatWelcomeTitle: "Clinical RAG Chatbot",
     chatWelcomeSubtitle: "Ask questions regarding adrenal insufficiency management. Answers are synthesized exclusively from NICE Guideline NG243 evidence blocks with verifiable structural citations.",
     shortcutSend: "Press Enter ↵ to send, Shift+Enter for new line",
+    
+    // History & Evidence Inspector
+    consultationHistory: "Consultation History",
+    historySessionsCount: "sessions",
+    searchHistoryPlaceholder: "Search previous consultations...",
+    noHistoryFound: "No previous consultations found",
+    deleteSession: "Delete",
+    clearAllHistory: "Clear All",
+    exportSession: "Export Summary",
+    viewEvidence: "View Retrieved Evidence",
+    hideEvidence: "Hide Retrieved Evidence",
+    evidenceChunks: "Retrieved Evidence Chunks",
+    fullGuidelineText: "Full Guideline Text",
+    conciseExcerpt: "Concise Excerpt",
+    relevanceScore: "Relevance Score",
+    copyEvidence: "Copy Evidence",
+    copiedEvidence: "Evidence Copied!",
+    servedFromCache: "⚡ L3 Cache Hit (<5ms)",
+    synthesizedLive: "🤖 Synthesized live by eva-ai",
+    activeSession: "Active Consultation",
+    untitledSession: "New Clinical Inquiry",
+
     footerText:
       "Monomorphic Soft UI · Structural Provenance · Page-Level Citations",
     footerSub:
@@ -220,10 +241,32 @@ export const translations = {
     chatWelcomeTitle: "روبوت المحادثة السريري RAG",
     chatWelcomeSubtitle: "اطرح أسئلتك حول تشخيص وإدارة قصور الغدة الكظرية. يتم إنشاء الإجابات حصرياً ومباشرة من كتل أدلة دليل NICE NG243 مع إسناد واقتباسات دقيقة للصفحات.",
     shortcutSend: "اضغط Enter ↵ للإرسال، و Shift+Enter لسطر جديد",
+
+    // History & Evidence Inspector (Arabic)
+    consultationHistory: "سجل الاستشارات الطبية",
+    historySessionsCount: "استشارة",
+    searchHistoryPlaceholder: "البحث في الاستشارات السابقة...",
+    noHistoryFound: "لا توجد استشارات سابقة محفوظة",
+    deleteSession: "حذف",
+    clearAllHistory: "مسح الكل",
+    exportSession: "تصدير الملخص",
+    viewEvidence: "عرض الأدلة المسترجعة",
+    hideEvidence: "إخفاء الأدلة المسترجعة",
+    evidenceChunks: "القطع والأدلة الطبية المستند إليها",
+    fullGuidelineText: "النص الكامل للدليل",
+    conciseExcerpt: "المقتطف المختصر",
+    relevanceScore: "درجة الملاءمة",
+    copyEvidence: "نسخ الدليل",
+    copiedEvidence: "تم نسخ الدليل!",
+    servedFromCache: "⚡ استجابة فورية من الذاكرة المؤقتة L3 (<5ms)",
+    synthesizedLive: "🤖 توليد مباشر عبر eva-ai",
+    activeSession: "الاستشارة الحالية",
+    untitledSession: "استفسار سريري جديد",
+
     footerText:
       "تصميم مونومورفيك ناعم · موثوقية الهيكلية · اقتباسات دقيقة على مستوى الصفحة",
     footerSub:
       "ترتبط كل قطعة بمستند رسمي، ورقم الصفحة، وعنوان القسم، ورقم التوصية السريرية.",
   },
-
 };
+

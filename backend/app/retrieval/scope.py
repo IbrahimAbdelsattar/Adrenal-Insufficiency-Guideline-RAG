@@ -16,6 +16,7 @@ answered with unrelated guideline text.
 from __future__ import annotations
 
 import re
+
 from backend.app.models import RetrievalResult
 
 OUT_OF_SCOPE_MESSAGE = (

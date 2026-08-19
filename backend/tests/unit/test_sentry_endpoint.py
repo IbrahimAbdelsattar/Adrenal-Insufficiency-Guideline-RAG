@@ -14,7 +14,7 @@ client = TestClient(app)
 
 def test_sentry_test_endpoint_without_error_param():
     """GET /api/health/sentry-test returns diagnostic status."""
-    with patch("backend.app.monitoring.sentry.sentry_sdk.capture_message") as mock_msg:
+    with patch("backend.app.monitoring.sentry.sentry_sdk.capture_message"):
         response = client.get("/api/health/sentry-test")
         assert response.status_code == 200
         data = response.json()
@@ -25,7 +25,7 @@ def test_sentry_test_endpoint_without_error_param():
 
 def test_sentry_test_endpoint_triggers_test_exception():
     """GET /api/health/sentry-test?trigger_error=true captures an exception and returns error diagnostic."""
-    with patch("backend.app.monitoring.sentry.sentry_sdk.capture_exception") as mock_exc:
+    with patch("backend.app.monitoring.sentry.sentry_sdk.capture_exception"):
         response = client.get("/api/health/sentry-test?trigger_error=true")
         assert response.status_code == 200
         data = response.json()

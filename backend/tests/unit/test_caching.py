@@ -2,9 +2,10 @@
 
 import time
 from pathlib import Path
-from backend.app.retrieval.cache import TTLLRUCache, normalize_query
+
 from backend.app.api.generate import _cache_key
 from backend.app.models import Chunk, RetrievalResult
+from backend.app.retrieval.cache import TTLLRUCache, normalize_query
 
 
 def test_normalize_query_strips_whitespace_and_punctuation():

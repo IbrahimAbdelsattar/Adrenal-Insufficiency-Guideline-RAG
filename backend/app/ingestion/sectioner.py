@@ -27,6 +27,10 @@ _RECOMMENDATION_BARE = re.compile(r"^(\d+\.\d+\.\d+)\.?$")
 _MAX_SUBHEADING_WORDS = 12
 # Points a heading must exceed body text by. NG243: body 12.0, sub 16.5, section 21.0.
 _HEADING_SIZE_MARGIN = 1.5
+# Separates the sub-heading tier (16.5) from the section/back-matter tier
+# (21.0-25.5): anything at or above this is titled like a numbered section
+# even when it carries no number.
+_TOPMATTER_SIZE_MARGIN = 7.0
 
 
 @dataclass
@@ -74,6 +78,25 @@ def _is_subheading(line: Line, body_size: float) -> bool:
     return line.bold and line.size >= body_size + _HEADING_SIZE_MARGIN
 
 
+def _is_topmatter_heading(line: Line, body_size: float) -> bool:
+    """True for an unnumbered heading sized like a numbered section heading.
+
+    NG243's back matter -- "Terms used in this guideline", "Rationale and
+    impact", "Context", "Update information" -- is typeset at the same 21-25.5pt
+    bold tier as numbered `N.N` section headings (research.md D6), well above
+    the 16.5pt sub-heading tier. `_SECTION_HEADING` only matches by number, so
+    without this check these headings are caught by `_is_subheading` instead
+    and every page of glossary/appendix text that follows keeps being stamped
+    with the last real section number -- diluting retrieval for every query.
+    """
+    text = line.text.strip()
+    if not text or text.startswith(("-", "•")):
+        return False
+    if len(text.split()) > _MAX_SUBHEADING_WORDS:
+        return False
+    return line.bold and line.size >= body_size + _TOPMATTER_SIZE_MARGIN
+
+
 class _Accumulator:
     """Collects body lines until the next heading or recommendation closes the block."""
 
@@ -119,6 +142,13 @@ def detect_blocks(pages: list[CleanPage]) -> list[Block]:
     subsection_title = ""
     acc = _Accumulator()
     body_size = modal_body_size(pages)
+    # A heading that wraps onto a second line (e.g. "1.9 Managing glucocorticoid
+    # withdrawal to prevent" / "adrenal insufficiency") emits that continuation
+    # as its own bold, heading-sized line with no number. Without tracking it,
+    # the continuation itself was mistaken for a *new* heading -- wiping
+    # section_number right back to "" a line after it was correctly set.
+    # (kind, font size) of the heading currently allowed to keep wrapping.
+    pending_heading: tuple[str, float] | None = None
 
     def flush() -> None:
         drained = acc.drain()
@@ -145,6 +175,24 @@ def detect_blocks(pages: list[CleanPage]) -> list[Block]:
             if not text:
                 continue
 
+            if pending_heading is not None:
+                kind, opened_size = pending_heading
+                is_continuation = (
+                    line.bold
+                    and abs(line.size - opened_size) < 0.5
+                    and len(text.split()) <= _MAX_SUBHEADING_WORDS
+                    and _RECOMMENDATION.match(text) is None
+                    and _RECOMMENDATION_BARE.match(text) is None
+                    and _SECTION_HEADING.match(text) is None
+                )
+                if is_continuation:
+                    if kind == "sub":
+                        subsection_title = f"{subsection_title} {text}".strip()
+                    else:
+                        section_title = f"{section_title} {text}".strip()
+                    continue
+                pending_heading = None
+
             if (match := _RECOMMENDATION.match(text)) is not None:
                 flush()
                 acc.start(page.page_number, match.group(1), text)
@@ -161,11 +209,25 @@ def detect_blocks(pages: list[CleanPage]) -> list[Block]:
                 section_number = match.group(1)
                 section_title = text
                 subsection_title = ""
+                pending_heading = ("section", line.size)
+                continue
+
+            if _is_topmatter_heading(line, body_size):
+                # Unnumbered back matter: leave the numbered section behind.
+                # `section_number` is now "" so neither branch below captures
+                # its content, and the chunker drops any block that slips
+                # through with a blank `section_number` before indexing.
+                flush()
+                section_number = ""
+                section_title = text
+                subsection_title = ""
+                pending_heading = ("topmatter", line.size)
                 continue
 
             if _is_subheading(line, body_size):
                 flush()
                 subsection_title = text
+                pending_heading = ("sub", line.size)
                 continue
 
             if acc.active:

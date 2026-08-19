@@ -9,7 +9,7 @@ import time
 import unicodedata
 from collections import OrderedDict
 from pathlib import Path
-from typing import Any, Generic, TypeVar
+from typing import Any, TypeVar
 
 logger = logging.getLogger(__name__)
 
@@ -34,7 +34,7 @@ def normalize_query(query: str) -> str:
     return normalized
 
 
-class TTLLRUCache(Generic[K, V]):
+class TTLLRUCache[K, V]:
     """Thread-safe, memory-bounded Least-Recently-Used (LRU) cache with Time-To-Live (TTL)
 
     and automatic invalidation on index manifest modification.
