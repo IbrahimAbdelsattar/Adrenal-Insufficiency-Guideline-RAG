@@ -42,7 +42,8 @@ class Settings(BaseSettings):
     embedding_batch_size: int = Field(default=32, alias="EMBEDDING_BATCH_SIZE")
 
     # --- Generation (Day 3) ---
-    generation_model: str = Field(default="gemini/gemini-1.5-flash", alias="GENERATION_MODEL")
+    generation_model: str = Field(default="eva-ai", alias="GENERATION_MODEL")
+
     # Reasoning models spend part of this budget on a <think> block before
     # writing anything. At 1024 the whole budget went to reasoning and the
     # completion was truncated before an answer existed.

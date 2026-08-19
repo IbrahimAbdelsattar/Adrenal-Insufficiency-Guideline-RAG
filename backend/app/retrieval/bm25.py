@@ -7,13 +7,17 @@ drug names, dosages, and clinical abbreviations.
 
 from __future__ import annotations
 
+import logging
 import math
 import re
+import time
 from collections import Counter
 
 from backend.app.config import Settings, get_settings
 from backend.app.models import Chunk, RetrievalResult
 from backend.app.retrieval.store import VectorStore
+
+logger = logging.getLogger(__name__)
 
 _TOKEN_PATTERN = re.compile(r"[a-z0-9]+(?:[\.\-][a-z0-9]+)*")
 _STOPWORDS = {
@@ -86,11 +90,19 @@ class BM25Retriever:
 
     def _build_index(self) -> None:
         """Build in-memory BM25 inverted index from store or direct chunks."""
+        # Index building is a cold-start cost: log it so a slow first request
+        # is attributable rather than mysterious.
+        started = time.perf_counter()
+
         if not self._has_explicit_chunks and self._store is not None:
             self._chunks = self._store.all_chunks()
 
         if not self._chunks:
             self._indexed = True
+            logger.warning(
+                "BM25 index built over an empty corpus - lexical retrieval will return nothing.",
+                extra={"event": "retrieval.bm25.index", "chunks": 0},
+            )
             return
 
         self._corpus_tokens = [
@@ -116,6 +128,22 @@ class BM25Retriever:
         self._idf = idf
         self._indexed = True
 
+        elapsed_ms = (time.perf_counter() - started) * 1000
+        logger.info(
+            "BM25 index built: %d chunks, %d terms, avgdl=%.1f in %.0f ms",
+            len(self._chunks),
+            len(idf),
+            self._avgdl,
+            elapsed_ms,
+            extra={
+                "event": "retrieval.bm25.index",
+                "chunks": len(self._chunks),
+                "vocabulary": len(idf),
+                "avg_doc_len": round(self._avgdl, 2),
+                "duration_ms": round(elapsed_ms, 2),
+            },
+        )
+
     def search(self, query: str, top_k: int | None = None) -> list[RetrievalResult]:
         """Search chunks with BM25Okapi scoring."""
         if not self._indexed:
@@ -129,7 +157,13 @@ class BM25Retriever:
         query_tokens = tokenize_clinical_text(query)
 
         if not query_tokens:
+            logger.debug(
+                "BM25 query tokenized to nothing (all stopwords) - no lexical signal.",
+                extra={"event": "retrieval.bm25.empty_query"},
+            )
             return []
+
+        matched_terms = sum(1 for term in set(query_tokens) if term in self._idf)
 
         scores: list[float] = [0.0] * len(self._chunks)
         for term in query_tokens:
@@ -157,7 +191,7 @@ class BM25Retriever:
             range(len(self._chunks)), key=lambda i: norm_scores[i], reverse=True
         )[:k]
 
-        return [
+        results = [
             RetrievalResult(
                 chunk=self._chunks[i],
                 score=norm_scores[i],
@@ -168,3 +202,22 @@ class BM25Retriever:
             )
             for rank, i in enumerate(ranked_indices, start=1)
         ]
+
+        logger.debug(
+            "retrieval.bm25 results=%d query_terms=%d matched_terms=%d max_raw=%.3f",
+            len(results),
+            len(query_tokens),
+            matched_terms,
+            max_score,
+            extra={
+                "event": "retrieval.bm25",
+                "results": len(results),
+                "query_terms": len(query_tokens),
+                # Zero matched terms means the query shares no vocabulary with
+                # the corpus -- a strong out-of-scope signal on its own.
+                "matched_terms": matched_terms,
+                "max_raw_score": round(max_score, 4),
+                "chunk_ids": [r.chunk.chunk_id for r in results],
+            },
+        )
+        return results

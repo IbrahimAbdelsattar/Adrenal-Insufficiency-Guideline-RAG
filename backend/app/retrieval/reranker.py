@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import logging
 import math
+import time
 from collections.abc import Sequence
 from typing import Any
 
@@ -49,8 +50,19 @@ class CrossEncoderReranker:
                 from sentence_transformers import CrossEncoder
 
                 logger.info("Loading CrossEncoder model '%s'...", self._model_name)
+                started = time.perf_counter()
                 _MODEL_CACHE[self._model_name] = CrossEncoder(self._model_name)
-                logger.info("CrossEncoder loaded successfully: %s", self._model_name)
+                elapsed_ms = (time.perf_counter() - started) * 1000
+                logger.info(
+                    "CrossEncoder loaded in %.0f ms: %s",
+                    elapsed_ms,
+                    self._model_name,
+                    extra={
+                        "event": "rerank.model_load",
+                        "model": self._model_name,
+                        "duration_ms": round(elapsed_ms, 2),
+                    },
+                )
             except Exception as exc:
                 logger.warning(
                     "Could not initialise CrossEncoder reranker model '%s': %s. "
@@ -92,6 +104,7 @@ class CrossEncoderReranker:
 
             if model is not None:
                 try:
+                    started = time.perf_counter()
                     pairs = [[query, f"{c.section_title}: {c.text}"] for c in extracted_chunks]
                     scores = model.predict(pairs)
                     norm_scores = [sigmoid(float(s)) for s in scores]
@@ -100,14 +113,47 @@ class CrossEncoderReranker:
                         key=lambda x: x[1],
                         reverse=True,
                     )
+                    elapsed_ms = (time.perf_counter() - started) * 1000
+                    logger.debug(
+                        "rerank scored %d pairs in %.1f ms (top=%.4f)",
+                        len(pairs),
+                        elapsed_ms,
+                        ranked[0][1] if ranked else 0.0,
+                        extra={
+                            "event": "rerank.scored",
+                            "model": self._model_name,
+                            "pairs": len(pairs),
+                            "duration_ms": round(elapsed_ms, 2),
+                            "ms_per_pair": round(elapsed_ms / max(1, len(pairs)), 3),
+                            "top_score": round(ranked[0][1], 4) if ranked else 0.0,
+                            "min_score": round(min(norm_scores), 4) if norm_scores else 0.0,
+                        },
+                    )
                     return list(ranked)[:k]
                 except Exception as exc:
                     logger.error(
                         "CrossEncoder reranking failed at runtime: %s. Using fallback ordering.",
                         exc,
+                        extra={
+                            "event": "rerank.failed",
+                            "model": self._model_name,
+                            "candidates": len(extracted_chunks),
+                        },
                     )
 
             # Fallback: preserve input order with uniform step-decay scores.
+            # Logged at WARNING because relevance is now fusion order, not
+            # cross-encoder relevance -- scores below are not comparable.
+            logger.warning(
+                "rerank falling back to step-decay ordering for %d candidates.",
+                len(extracted_chunks),
+                extra={
+                    "event": "rerank.fallback",
+                    "model": self._model_name,
+                    "candidates": len(extracted_chunks),
+                    "disabled": self._disabled,
+                },
+            )
             n = len(extracted_chunks)
             fallback = [(c, max(0.1, 1.0 - (i / max(1, n)))) for i, c in enumerate(extracted_chunks)]
             return fallback[:k]

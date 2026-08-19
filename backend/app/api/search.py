@@ -11,6 +11,7 @@ from pydantic import BaseModel, Field
 from backend.app.config import get_settings
 from backend.app.errors import PipelineError
 from backend.app.models import DISCLAIMER, IndexManifest, SearchResponse
+from backend.app.monitoring import REGISTRY, RagTrace
 from backend.app.retrieval.factory import get_shared_retriever, get_shared_store
 from backend.app.retrieval.scope import classify_scope
 
@@ -75,10 +76,37 @@ def get_health() -> dict:
     }
 
 
+@router.get("/metrics", tags=["monitoring"])
+def get_metrics() -> dict:
+    """Rolling latency and counter snapshot for this worker process.
+
+    Per-stage `count / avg / p50 / p95 / max` over the last N observations
+    plus lifetime counters (cache hits, scope outcomes, LLM calls, retries,
+    errors). In-memory and per-process: a live read-out for tuning the RAG
+    pipeline, not a substitute for a metrics backend.
+    """
+    settings = get_settings()
+    snapshot = REGISTRY.snapshot()
+    return {
+        "status": "ok",
+        "config": {
+            "retriever_type": settings.retriever_type,
+            "generation_model": settings.generation_model,
+            "embedding_model": settings.embedding_model,
+            "top_k": settings.top_k,
+            "relevance_floor": settings.relevance_floor,
+            "scope_threshold": settings.scope_threshold,
+            "graph_expansion": settings.graph_expansion,
+        },
+        **snapshot,
+    }
+
+
 @router.get("/health/sentry-test")
 def sentry_test_diagnostic(trigger_error: bool = False) -> dict:
     """Diagnostic endpoint to test and verify Sentry error capture."""
     import sentry_sdk
+
     from backend.app.monitoring.sentry import is_sentry_enabled
 
     sentry_active = is_sentry_enabled()
@@ -156,8 +184,16 @@ def search(request: SearchRequest) -> SearchResponse:
 
     settings = get_settings()
     store = get_shared_store(settings)
+    top_k = request.top_k or settings.top_k
+    trace = RagTrace("search", query=request.query, top_k=top_k, settings=settings)
 
     if not store.is_ready():
+        logger.error(
+            "Search rejected: index is empty.",
+            extra={"event": "search.no_index"},
+        )
+        trace.set(error="index_empty")
+        trace.emit(status="error", level=logging.ERROR)
         raise HTTPException(
             status_code=503,
             detail=(
@@ -168,6 +204,18 @@ def search(request: SearchRequest) -> SearchResponse:
 
     manifest = store.read_manifest()
     if manifest and manifest.embedding_model != settings.embedding_model:
+        logger.error(
+            "Search rejected: index/embedding model mismatch (%s != %s).",
+            manifest.embedding_model,
+            settings.embedding_model,
+            extra={
+                "event": "search.model_mismatch",
+                "index_embedding_model": manifest.embedding_model,
+                "configured_embedding_model": settings.embedding_model,
+            },
+        )
+        trace.set(error="model_mismatch")
+        trace.emit(status="error", level=logging.ERROR)
         raise HTTPException(
             status_code=503,
             detail=(
@@ -178,27 +226,32 @@ def search(request: SearchRequest) -> SearchResponse:
 
     started = time.perf_counter()
     try:
-        retriever = get_shared_retriever(settings)
-        results = retriever.search(request.query, request.top_k or settings.top_k)
+        with trace.stage("retrieval", top_k=top_k, retriever_type=settings.retriever_type) as span:
+            retriever = get_shared_retriever(settings)
+            results = retriever.search(request.query, top_k)
+            span["results"] = len(results)
     except PipelineError as exc:
+        trace.set(error=str(exc), error_type="PipelineError")
+        trace.emit(status="error", level=logging.ERROR)
         raise HTTPException(status_code=503, detail=str(exc)) from exc
 
     latency_ms = int((time.perf_counter() - started) * 1000)
+    trace.record_retrieval(results)
 
-    above_floor = sum(1 for result in results if not result.below_floor)
-    top_score = results[0].score if results else 0.0
+    with trace.stage("scope", scope_threshold=settings.scope_threshold) as span:
+        scope_status, scope_message, filtered_results = classify_scope(
+            results, settings.scope_threshold
+        )
+        span["scope_status"] = scope_status
+        span["kept"] = len(filtered_results)
 
-    logger.info(
-        "search results=%d above_floor=%d top_score=%.3f latency_ms=%d",
-        len(results),
-        above_floor,
-        top_score,
-        latency_ms,
+    REGISTRY.increment(f"search.scope.{scope_status}")
+    trace.set(
+        scope_status=scope_status,
+        returned=len(filtered_results),
+        evidence_found=scope_status == "in_scope",
     )
-
-    scope_status, scope_message, filtered_results = classify_scope(
-        results, settings.scope_threshold
-    )
+    trace.emit(status="ok")
 
     return SearchResponse(
         query=request.query,

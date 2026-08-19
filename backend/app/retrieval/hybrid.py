@@ -15,7 +15,7 @@ import logging
 
 from backend.app.config import Settings, get_settings
 from backend.app.models import Chunk, RetrievalResult
-from backend.app.monitoring import trace_span
+from backend.app.monitoring import stage_timer, trace_span
 from backend.app.retrieval.bm25 import BM25Retriever
 from backend.app.retrieval.dense import DenseRetriever
 from backend.app.retrieval.reranker import CrossEncoderReranker
@@ -94,32 +94,60 @@ class HybridRetriever:
 
             # Stage 1: Dual candidate retrieval
             dense_results = self._dense.search(query, top_k=cand_k)
-            bm25_results = self._bm25.search(query, top_k=cand_k)
+
+            with stage_timer("retrieval.bm25.search", logger, candidate_k=cand_k) as span:
+                bm25_results = self._bm25.search(query, top_k=cand_k)
+                span["hits"] = len(bm25_results)
+                span["top_score"] = round(bm25_results[0].score, 4) if bm25_results else 0.0
 
             # Stage 2: Reciprocal Rank Fusion (RRF, k=60)
-            rrf_k = 60.0
-            scores: dict[str, float] = {}
-            chunks_map: dict[str, Chunk] = {}
+            with stage_timer("retrieval.hybrid.fusion", logger) as span:
+                rrf_k = 60.0
+                scores: dict[str, float] = {}
+                chunks_map: dict[str, Chunk] = {}
 
-            for rank, res in enumerate(dense_results, start=1):
-                cid = res.chunk.chunk_id
-                chunks_map[cid] = res.chunk
-                scores[cid] = scores.get(cid, 0.0) + (1.0 / (rrf_k + rank))
+                for rank, res in enumerate(dense_results, start=1):
+                    cid = res.chunk.chunk_id
+                    chunks_map[cid] = res.chunk
+                    scores[cid] = scores.get(cid, 0.0) + (1.0 / (rrf_k + rank))
 
-            for rank, res in enumerate(bm25_results, start=1):
-                cid = res.chunk.chunk_id
-                chunks_map[cid] = res.chunk
-                scores[cid] = scores.get(cid, 0.0) + (1.0 / (rrf_k + rank))
+                for rank, res in enumerate(bm25_results, start=1):
+                    cid = res.chunk.chunk_id
+                    chunks_map[cid] = res.chunk
+                    scores[cid] = scores.get(cid, 0.0) + (1.0 / (rrf_k + rank))
 
-            fused_sorted = sorted(scores.items(), key=lambda x: x[1], reverse=True)[:cand_k]
-            candidate_chunks = [chunks_map[cid] for cid, _ in fused_sorted]
+                fused_sorted = sorted(scores.items(), key=lambda x: x[1], reverse=True)[:cand_k]
+                candidate_chunks = [chunks_map[cid] for cid, _ in fused_sorted]
+
+                dense_ids = {r.chunk.chunk_id for r in dense_results}
+                bm25_ids = {r.chunk.chunk_id for r in bm25_results}
+                span["dense_hits"] = len(dense_results)
+                span["bm25_hits"] = len(bm25_results)
+                span["fused_candidates"] = len(candidate_chunks)
+                # How much the two retrievers agree: a near-zero overlap means
+                # the lexical and semantic sides are pulling apart.
+                span["overlap"] = len(dense_ids & bm25_ids)
 
             if not candidate_chunks:
+                logger.info(
+                    "retrieval.hybrid produced no candidates",
+                    extra={"event": "retrieval.hybrid.empty", "candidate_k": cand_k},
+                )
                 return []
 
             # Stage 3: Cross-Encoder Reranking (optional)
             if self._reranker is not None:
-                ranked_pairs = self._reranker.rerank(query, candidate_chunks)[:k]
+                with stage_timer(
+                    "retrieval.rerank", logger, candidates=len(candidate_chunks), top_k=k
+                ) as span:
+                    pre_rerank_top = candidate_chunks[0].chunk_id
+                    ranked_pairs = self._reranker.rerank(query, candidate_chunks)[:k]
+                    span["top_score"] = round(ranked_pairs[0][1], 4) if ranked_pairs else 0.0
+                    # True when the cross-encoder disagreed with fusion about
+                    # the best chunk -- the reason reranking is worth its cost.
+                    span["reordered"] = bool(
+                        ranked_pairs and ranked_pairs[0][0].chunk_id != pre_rerank_top
+                    )
             else:
                 max_rrf = fused_sorted[0][1] if fused_sorted else 1.0
                 ranked_pairs = [(chunks_map[cid], s / max_rrf) for cid, s in fused_sorted[:k]]
@@ -147,5 +175,24 @@ class HybridRetriever:
                         retriever_mode="hybrid_rerank" if self._reranker is not None else "hybrid",
                     )
                 )
+
+            logger.info(
+                "retrieval.hybrid results=%d above_floor=%d top_relevance=%.4f mode=%s",
+                len(results),
+                sum(1 for r in results if not r.below_floor),
+                results[0].absolute_relevance if results else 0.0,
+                "hybrid_rerank" if self._reranker is not None else "hybrid",
+                extra={
+                    "event": "retrieval.hybrid",
+                    "results": len(results),
+                    "above_floor": sum(1 for r in results if not r.below_floor),
+                    "top_score": round(results[0].score, 4) if results else 0.0,
+                    "top_relevance": round(results[0].absolute_relevance, 4) if results else 0.0,
+                    "relevance_floor": floor,
+                    "candidate_k": cand_k,
+                    "reranked": self._reranker is not None,
+                    "chunk_ids": [r.chunk.chunk_id for r in results],
+                },
+            )
             return results
 

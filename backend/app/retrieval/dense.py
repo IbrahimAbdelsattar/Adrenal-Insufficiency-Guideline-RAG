@@ -6,11 +6,15 @@ requires failure modes to stay observable.
 
 from __future__ import annotations
 
+import logging
+
 from backend.app.config import Settings, get_settings
 from backend.app.embeddings.base import Embedder
 from backend.app.models import RetrievalResult
-from backend.app.monitoring import trace_span
+from backend.app.monitoring import stage_timer, trace_span
 from backend.app.retrieval.store import VectorStore
+
+logger = logging.getLogger(__name__)
 
 
 class DenseRetriever:
@@ -40,10 +44,18 @@ class DenseRetriever:
             k = top_k or self._settings.top_k
             floor = self._settings.relevance_floor
 
-            embedding = self.embedder.embed_query(query)
-            hits = self._store.query(embedding, k)
+            # Embedding and the vector scan are timed apart: a slow dense stage
+            # is almost always the remote embedding call, not Chroma.
+            with stage_timer("retrieval.dense.embed", logger, top_k=k) as span:
+                embedding = self.embedder.embed_query(query)
+                span["dims"] = len(embedding)
 
-            return [
+            with stage_timer("retrieval.dense.query", logger, top_k=k) as span:
+                hits = self._store.query(embedding, k)
+                span["hits"] = len(hits)
+                span["top_score"] = round(hits[0][1], 4) if hits else 0.0
+
+            results = [
                 RetrievalResult(
                     chunk=chunk,
                     score=score,
@@ -55,3 +67,17 @@ class DenseRetriever:
                 for rank, (chunk, score) in enumerate(hits, start=1)
             ]
 
+            logger.debug(
+                "retrieval.dense results=%d above_floor=%d top_score=%.4f",
+                len(results),
+                sum(1 for r in results if not r.below_floor),
+                results[0].score if results else 0.0,
+                extra={
+                    "event": "retrieval.dense",
+                    "results": len(results),
+                    "above_floor": sum(1 for r in results if not r.below_floor),
+                    "relevance_floor": floor,
+                    "chunk_ids": [r.chunk.chunk_id for r in results],
+                },
+            )
+            return results

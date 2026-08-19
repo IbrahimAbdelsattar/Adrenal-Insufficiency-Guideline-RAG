@@ -200,6 +200,8 @@ class GenerateRequest(BaseModel):
 
     query: str
     top_k: int | None = Field(default=None)
+    history: list[dict] = Field(default_factory=list)
+
 
 
 class GenerateResponse(BaseModel):

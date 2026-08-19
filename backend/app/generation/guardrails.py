@@ -111,6 +111,29 @@ def detect_prompt_injection(query: str) -> bool:
     return False
 
 
+_GREETING_PATTERNS: list[re.Pattern[str]] = [
+    re.compile(r"^(hi|hello|hey|greetings|good morning|good afternoon|good evening|howdy)\b[!.? ]*$", re.I),
+    re.compile(r"^(who are you|what are you|what do you do|how can you help|help me|what is your purpose|what can you do)\??$", re.I),
+    re.compile(r"^(مرحبا|أهلا|اهلا|السلام عليكم|صباح الخير|مساء الخير|من أنت|من انت|ماذا تفعل|كيف تساعدني|ما هي قدراتك)\??$", re.I),
+]
+
+GREETING_RESPONSE_EN = (
+    "Hello! I am Eva-AI, a Clinical Decision Support assistant specialized in **adrenal insufficiency identification, diagnosis, crisis management, and sick-day dosing rules** strictly based on **NICE guideline NG243**.\n\n"
+    "How can I assist you with clinical guideline evidence today?"
+)
+
+GREETING_RESPONSE_AR = (
+    "مرحباً! أنا إيفا (Eva-AI)، مساعدة دعم القرار السريري المتخصصة في **تحديد وإدارة قصور الغدة الكظرية وإرشادات جرعات أيام المرض وحالات الطوارئ** استناداً حصرياً إلى **إرشادات NICE NG243**.\n\n"
+    "كيف يمكنني مساعدتك اليوم في الأدلة والإرشادات السريرية؟"
+)
+
+
+def is_greeting(query: str) -> bool:
+    """Return True if the query is a conversational greeting or capability inquiry."""
+    cleaned = query.strip()
+    return any(pattern.match(cleaned) for pattern in _GREETING_PATTERNS)
+
+
 def sanitize_query(query: str) -> str:
     """Lightly sanitize the query for safe logging and downstream use.
 
@@ -119,3 +142,4 @@ def sanitize_query(query: str) -> str:
     legitimate clinical queries.
     """
     return re.sub(r"\s+", " ", query.strip())
+

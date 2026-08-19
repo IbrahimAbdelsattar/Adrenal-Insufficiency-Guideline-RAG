@@ -93,11 +93,27 @@ export const translations = {
     indexNotReady: "Index Not Ready",
     runIngestHint: "Run `python -m backend.app.cli ingest` to build.",
     loadingMeta: "Loading Eva AI metadata…",
+    chatTab: "💬 RAG Chatbot",
+
+    inspectorTab: "🔍 Retrieval Inspector",
+    newChatBtn: "New Consultation",
+    clearChatBtn: "Clear Chat",
+    chatPlaceholder: "Ask Eva AI a clinical question based on NICE NG243 (e.g., adrenal crisis dosing)...",
+    clinicianRole: "Clinician",
+    assistantRole: "Eva AI (CDS)",
+    groundedInNice: "Strictly Grounded in NICE NG243",
+    copyAnswer: "Copy Answer",
+    copied: "Copied!",
+    sendBtn: "Send",
+    chatWelcomeTitle: "Clinical RAG Chatbot",
+    chatWelcomeSubtitle: "Ask questions regarding adrenal insufficiency management. Answers are synthesized exclusively from NICE Guideline NG243 evidence blocks with verifiable structural citations.",
+    shortcutSend: "Press Enter ↵ to send, Shift+Enter for new line",
     footerText:
       "Monomorphic Soft UI · Structural Provenance · Page-Level Citations",
     footerSub:
       "Every chunk maps to an official registered PDF, page number, section heading, and recommendation ID.",
   },
+
   ar: {
     brandSubtitle: "إدارة قصور الغدة الكظرية · دليل NICE NG243 الطبية",
     tagline: "دعم القرار الطبي",
@@ -190,9 +206,24 @@ export const translations = {
     indexNotReady: "الفهرس غير جاهز",
     runIngestHint: "قم بتشغيل `python -m backend.app.cli ingest` للبناء.",
     loadingMeta: "جاري تحميل بيانات Eva AI الطبية...",
+    chatTab: "💬 روبوت المحادثة السريري",
+    inspectorTab: "🔍 مفتش استرجاع الأدلة",
+    newChatBtn: "استشارة جديدة",
+    clearChatBtn: "مسح المحادثة",
+    chatPlaceholder: "اطرح سؤالاً سريرياً على Eva AI استناداً إلى إرشادات NICE NG243 (مثل جرعات أزمة الغدة الكظرية)...",
+    clinicianRole: "الطبيب السريري",
+    assistantRole: "إيفا (دعم القرار الطبي)",
+    groundedInNice: "موثق حصرياً من إرشادات NICE NG243",
+    copyAnswer: "نسخ الإجابة",
+    copied: "تم النسخ!",
+    sendBtn: "إرسال",
+    chatWelcomeTitle: "روبوت المحادثة السريري RAG",
+    chatWelcomeSubtitle: "اطرح أسئلتك حول تشخيص وإدارة قصور الغدة الكظرية. يتم إنشاء الإجابات حصرياً ومباشرة من كتل أدلة دليل NICE NG243 مع إسناد واقتباسات دقيقة للصفحات.",
+    shortcutSend: "اضغط Enter ↵ للإرسال، و Shift+Enter لسطر جديد",
     footerText:
       "تصميم مونومورفيك ناعم · موثوقية الهيكلية · اقتباسات دقيقة على مستوى الصفحة",
     footerSub:
       "ترتبط كل قطعة بمستند رسمي، ورقم الصفحة، وعنوان القسم، ورقم التوصية السريرية.",
   },
+
 };

@@ -25,11 +25,27 @@ Do not add any disclaimer or closing boilerplate; the application appends it.
 """
 
 
-def construct_user_prompt(query: str, evidence_text: str) -> str:
-    """Construct the final user prompt containing the evidence and the query."""
+def construct_user_prompt(
+    query: str,
+    evidence_text: str,
+    history: list[dict] | None = None,
+) -> str:
+    """Construct the final user prompt containing the evidence, conversation history, and query."""
+    context_prefix = ""
+    if history:
+        turns = []
+        for msg in history[-4:]:
+            role = "Clinician" if msg.get("role") == "user" else "Eva-AI"
+            content = str(msg.get("content", "")).strip()
+            if content:
+                turns.append(f"{role}: {content}")
+        if turns:
+            context_prefix = "PRIOR CONSULTATION CONTEXT:\n" + "\n".join(turns) + "\n\n---\n\n"
+
     return f"""EVIDENCE:
 {evidence_text}
 
 ---
 
-QUESTION: {query}"""
+{context_prefix}QUESTION: {query}"""
+

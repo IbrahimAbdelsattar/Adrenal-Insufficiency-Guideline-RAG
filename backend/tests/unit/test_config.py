@@ -37,11 +37,12 @@ def test_hybrid_candidate_k_default():
 
 def test_sentry_config_defaults():
     """Sentry configuration fields exist and have proper defaults."""
-    settings = Settings()
+    settings = Settings(_env_file=None, sentry_dsn="")
     assert hasattr(settings, "sentry_dsn")
     assert settings.sentry_dsn == ""
     assert hasattr(settings, "sentry_environment")
     assert settings.sentry_environment == "development"
     assert hasattr(settings, "sentry_traces_sample_rate")
     assert settings.sentry_traces_sample_rate == 1.0
+
 

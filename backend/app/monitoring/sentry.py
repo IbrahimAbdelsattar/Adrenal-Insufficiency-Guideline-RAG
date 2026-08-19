@@ -8,8 +8,9 @@ from __future__ import annotations
 
 import logging
 import re
+from collections.abc import Generator
 from contextlib import contextmanager
-from typing import Any, Generator
+from typing import Any
 
 import sentry_sdk
 from sentry_sdk.integrations.fastapi import FastApiIntegration
@@ -187,17 +188,14 @@ def is_sentry_enabled() -> bool:
 
 
 @contextmanager
-def trace_span(op: str, description: str) -> Generator[Any, None, None]:
+def trace_span(op: str, description: str) -> Generator[Any]:
     """Context manager for tracing custom operations in RAG & LLM pipelines.
 
     Safe to use even if Sentry is not configured (graceful no-op).
     """
     if _SENTRY_ENABLED:
-        try:
-            with sentry_sdk.start_span(op=op, name=description) as span:
-                yield span
-                return
-        except Exception:
-            # If tracing fails for any reason, don't break business logic
-            pass
-    yield None
+        with sentry_sdk.start_span(op=op, name=description) as span:
+            yield span
+    else:
+        yield None
+

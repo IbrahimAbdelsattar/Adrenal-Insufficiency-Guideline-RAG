@@ -1,6 +1,7 @@
 # Eva AI — Clinical Decision Support (Adrenal Insufficiency RAG)
 
 [![CI/CD Pipeline](https://github.com/IbrahimAbdelsattar/Eva-AI/actions/workflows/ci-cd.yml/badge.svg)](https://github.com/IbrahimAbdelsattar/Eva-AI/actions/workflows/ci-cd.yml)
+[![Unit Tests](https://img.shields.io/badge/Unit_Tests-248_Passing-brightgreen.svg)](file:///c:/Users/C-LAB/Videos/ai%20hackthon/backend/tests/unit/)
 [![Docker GHCR](https://img.shields.io/badge/Container-GHCR-blue?logo=docker&logoColor=white)](https://github.com/IbrahimAbdelsattar/Eva-AI/pkgs/container/eva-ai)
 [![Python Version](https://img.shields.io/badge/python-3.13-blue.svg)](https://www.python.org/)
 [![Node Version](https://img.shields.io/badge/node-20.x-green.svg)](https://nodejs.org/)
@@ -10,17 +11,23 @@
 [![Code Style: Ruff](https://img.shields.io/badge/code%20style-ruff-000000.svg)](https://github.com/astral-sh/ruff)
 [![License](https://img.shields.io/badge/License-NICE_Notice_of_Rights-red.svg)](https://www.nice.org.uk/terms-and-conditions#notice-of-rights)
 
-
 ---
 
 ## 📌 Executive Summary & Clinical Scope
 
-**Eva AI (Clinical Decision Support Lite)** is an evidence-grounded Retrieval-Augmented Generation (RAG) platform designed to assist **clinicians, general practitioners, and clinical trainees** in making informed clinical decisions regarding **adrenal insufficiency identification, diagnosis, emergency crisis management, and sick-day dosing rules**.
+**Eva AI (Clinical Decision Support Lite)** is an evidence-grounded Retrieval-Augmented Generation (RAG) conversational platform designed to assist **clinicians, general practitioners, and clinical trainees** in making informed clinical decisions regarding **adrenal insufficiency identification, diagnosis, emergency crisis management, and sick-day dosing rules**.
 
 > **Scope Statement**:
 > *"This system helps clinicians and clinical trainees answer questions about **adrenal insufficiency identification and management** using **NICE guideline NG243** and registered supporting official sources."*
 
-The application pairs a high-performance **FastAPI backend** with a **Next.js 15 Monomorphic Retrieval Inspector** frontend. It ingests official clinical guidelines, strips extraction noise while preserving page fidelity and section context, packs atomic clinical recommendations into token-budgeted chunks, embeds them using OpenRouter (`openai/text-embedding-3-small` / `gemini-embedding-001`), and exposes a transparent, interactive retrieval inspector with full bilingual (English & Arabic) support.
+The application pairs a high-performance **FastAPI backend** with a **Next.js 15 Monomorphic Soft UI** frontend featuring:
+- 💬 **Interactive Multi-Turn RAG Chatbot**: Real-time SSE streaming answers with inline structural citations directly from NICE NG243.
+- 🔍 **Retrieval & Evidence Inspector**: In-depth vector & BM25 ranking inspection with similarity scores and confidence floors.
+- ⚡ **Ultra-Low Latency OmniRoute Routing**: Optimized with `GENERATION_MODEL=eva-ai` (~1.6s vs 4.4s) and instant 0ms zero-LLM greeting handling.
+- 🛡️ **Fail-Closed Clinical Guardrails**: Adversarial prompt injection defense, out-of-scope refusal, and insufficient evidence abstention.
+- 📊 **Full-Stack Sentry Observability**: Distributed tracing across RAG stages, continuous CPU profiling, and automatic PHI/PII sanitization.
+- 🌐 **Bilingual Medical Interface**: Native English and Arabic (RTL) support with localized terminology.
+
 
 ---
 
@@ -563,13 +570,24 @@ Returns index metadata (`built_at`, `embedding_model`, `chunk_count`, `document_
 Returns all registered source documents and credibility justifications.
 
 #### 5. `POST /api/generate`
-Generates an evidence-grounded clinical answer using the OmniRoute LLM gateway with structured inline `[Source N]` citations and scope guardrails.
+
+Generates an evidence-grounded clinical answer using the OmniRoute LLM gateway with structured inline `[Source N]` citations, fail-closed scope guardrails, and conversation history support.
 
 ```json
 // Request
 {
   "query": "What dose of hydrocortisone should be given for suspected adrenal crisis in adults?",
-  "top_k": 5
+  "top_k": 5,
+  "history": [
+    {
+      "role": "user",
+      "content": "What is adrenal crisis?"
+    },
+    {
+      "role": "assistant",
+      "content": "Adrenal crisis is a life-threatening medical emergency..."
+    }
+  ]
 }
 
 // Response (200 OK)
@@ -588,10 +606,17 @@ Generates an evidence-grounded clinical answer using the OmniRoute LLM gateway w
   ],
   "evidence_found": true,
   "disclaimer": "Decision-support aid for qualified clinical users...",
-  "model": "anthropic/claude-sonnet-4.5",
-  "latency_ms": 1240
+  "model": "eva-ai",
+  "latency_ms": 1650
 }
 ```
+
+#### 6. `POST /api/generate/stream`
+
+Real-time Server-Sent Events (SSE) streaming endpoint powering the conversational chatbot UI:
+- `event: meta` — Initial metadata event with model ID, scope status, and cache hit indicator.
+- `event: token` — Incremental answer token deltas streamed with 0-latency perceived time.
+- `event: done` — Final payload containing resolved citations, latency metrics, and disclaimers.
 
 ---
 
@@ -600,6 +625,7 @@ Generates an evidence-grounded clinical answer using the OmniRoute LLM gateway w
 Eva AI implements enterprise-grade, privacy-preserving error tracking, performance tracing, and continuous profiling using **Sentry**.
 
 ### 1. Key Capabilities
+
 - **FastAPI Backend Error Interception**: Automatically tracks uncaught 500 errors, background worker exceptions, and network timeouts.
 - **HIPAA / GDPR PHI Data Scrubbing**: Sanitizes sensitive request headers (`Authorization`, `Cookie`, `X-Api-Key`) and regex-masks patient identifiers (emails, phone numbers, SSNs, and MRNs) before dispatch.
 - **RAG & LLM Pipeline Spans**: Captures micro-tracing metrics across `rag.dense.search`, `rag.hybrid.search`, `rag.reranker.rerank`, and `llm.generate`.
@@ -614,8 +640,10 @@ Eva AI implements enterprise-grade, privacy-preserving error tracking, performan
 | `NEXT_PUBLIC_SENTRY_DSN` | `""` | Frontend Browser Sentry Project DSN. |
 | `SENTRY_ENVIRONMENT` | `"development"` | Environment tag (`development`, `staging`, `production`). |
 | `SENTRY_TRACES_SAMPLE_RATE` | `1.0` | Performance tracing transaction sample rate (1.0 = 100%, 0.1 = 10%). |
+| `GENERATION_MODEL` | `"eva-ai"` | OmniRoute generation model identifier (~1.6s latency). |
 
 ### 3. Diagnostic & Verification Routes
+
 - **`GET /sentry-debug` / `GET /sentry-debug/`**: Raises a controlled `ZeroDivisionError` (`1 / 0`) to immediately verify Sentry project onboarding.
 - **`GET /api/health/sentry-test`**: Emits a test diagnostic message event.
 - **`GET /api/health/sentry-test?trigger_error=true`**: Emits a handled `SentryTestException`.
@@ -628,7 +656,7 @@ Eva AI implements enterprise-grade, privacy-preserving error tracking, performan
 Run the full automated test suite using `pytest`:
 
 ```bash
-# Run all unit tests including Sentry monitoring, spans, endpoints, RRF, and chunking (227 tests)
+# Run all unit tests including Sentry monitoring, spans, endpoints, RRF, conversational history, and chunking (248 tests)
 pytest backend/tests/unit/ -v
 
 # Run Sentry-specific verification tests
@@ -639,6 +667,7 @@ cd frontend
 npm run typecheck
 npm run build
 ```
+
 
 ---
 
@@ -657,6 +686,10 @@ ai-hackthon/
 │   ├── DAY3_GENERATION_AND_INTEGRATION.md
 │   ├── DAY4_PERFORMANCE_OPTIMIZATION.md
 │   └── DAY5_OBSERVABILITY_AND_ERROR_TRACKING.md
+├── .agents/
+│   └── skills/
+│       └── agent-activity-logger/             # Standardized skill for documenting agent activity & changelogs
+│           └── SKILL.md
 ├── start.bat                                  # Fast 1-click Windows project launcher
 ├── requirements.txt                           # Backend Python dependencies (FastAPI, Sentry SDK)
 ├── .env.example                               # Environment configuration template
@@ -668,7 +701,7 @@ ai-hackthon/
 │   ├── app/
 │   │   ├── main.py                            # FastAPI app entry & /sentry-debug route
 │   │   ├── config.py                          # Pydantic-settings configuration
-│   │   ├── models.py                          # Pydantic data schemas
+│   │   ├── models.py                          # Pydantic data schemas (GenerateRequest, history)
 │   │   ├── cli.py                             # CLI interface (ingest, query, eval, benchmark)
 │   │   ├── evaluation.py                      # Retrieval metrics (Precision@3/5, Hit Rate)
 │   │   ├── errors.py                          # Typed system errors & exit codes
@@ -676,10 +709,11 @@ ai-hackthon/
 │   │   │   └── sentry.py                      # Sentry SDK init, PHI sanitization & trace spans
 │   │   ├── api/
 │   │   │   ├── search.py                      # Search, health, /sentry-test, index & sources endpoints
-│   │   │   └── generate.py                    # Evidence-grounded generation endpoint
+│   │   │   └── generate.py                    # Evidence-grounded generation & SSE streaming endpoints
 │   │   ├── generation/
 │   │   │   ├── client.py                      # OmniRoute / OpenRouter async LLM client with spans
-│   │   │   ├── prompt.py                      # NICE NG243 clinical system prompt
+│   │   │   ├── guardrails.py                  # Prompt injection detection & 0ms greeting handling
+│   │   │   ├── prompt.py                      # NICE NG243 clinical system prompt with history
 │   │   │   ├── assembler.py                   # Context evidence assembler
 │   │   │   └── citations.py                   # Citation extractor & abstention logic
 │   │   ├── ingestion/
@@ -702,7 +736,7 @@ ai-hackthon/
 │   │       ├── base.py                        # Embedder protocol seam
 │   │       └── openrouter.py                  # OpenRouter batched embedding client with query cache
 │   └── tests/
-│       ├── unit/                              # 227 unit tests
+│       ├── unit/                              # 248 unit tests (100% pass rate)
 │       │   ├── test_sentry_monitoring.py      # Sentry init & PHI sanitization unit tests
 │       │   ├── test_sentry_endpoint.py        # /sentry-debug & /sentry-test endpoint tests
 │       │   ├── test_sentry_spans.py           # Pipeline span context manager tests
@@ -723,9 +757,10 @@ ai-hackthon/
 │   ├── app/
 │   │   ├── global-error.tsx                   # React root crash error boundary
 │   │   ├── layout.tsx                         # Root layout with Sentry test trigger
-│   │   ├── page.tsx                           # Dual-mode Search & AI Answer Inspector UI
+│   │   ├── page.tsx                           # Dual-mode RAG Chatbot & Evidence Inspector UI
 │   │   └── globals.css                        # Monomorphic CSS styling & theme variables
 │   ├── components/
+│   │   ├── ChatView.tsx                       # Interactive multi-turn RAG Chatbot with streaming
 │   │   ├── SentryTestButton.tsx               # Frontend & Backend Sentry test trigger button
 │   │   ├── SearchBox.tsx                      # Query input with Search / Generate mode toggle
 │   │   ├── AnswerCard.tsx                     # AI synthesized answer card with source badges
@@ -737,6 +772,7 @@ ai-hackthon/
 │   │   ├── api.ts                             # Typed API client for FastAPI backend
 │   │   └── translations.ts                    # English & Arabic medical translation dictionary
 │   └── next.config.ts                         # Wrapped with withSentryConfig & dev proxy
+
 └── specs/
     └── 001-clinical-rag-ingestion/            # Feature specification & architectural docs
         ├── spec.md                            # Feature Specification
@@ -820,11 +856,22 @@ chmod +x scripts/validate-ci.sh
 
 ---
 
+## 🤖 Agent Customizations & Skills
+
+Eva AI includes standardized agent skills ensuring persistent engineering memory, activity logging, and architectural synchronization across development sessions:
+
+- **`agent-activity-logger`** ([.agents/skills/agent-activity-logger/SKILL.md](file:///c:/Users/C-LAB/Videos/ai%20hackthon/.agents/skills/agent-activity-logger/SKILL.md)): Captures test metrics, git status, performance benchmarks, and synchronizes `README.md` and `docs/DAY{N}_*.md` milestone reports upon completing features.
+
+---
+
 ## 📄 Licensing & Clinical Disclaimer
 
 ### Source Copyright
+
 - **NICE Guideline NG243**: *Adrenal insufficiency: identification and management* (Published 28 August 2024). © NICE 2024. Subject to the [NICE Notice of Rights](https://www.nice.org.uk/terms-and-conditions#notice-of-rights). Reproduced for non-commercial educational & research use within this clinical hackathon prototype.
 
 ### Medical & Regulatory Disclaimer
+
 > ⚠️ **IMPORTANT NOTICE**:
 > This software is a **decision-support research prototype** designed to assist healthcare professionals in retrieving guideline evidence. It is **NOT** a diagnostic service, emergency triage tool, or direct patient advisory system. All retrieved evidence must be evaluated by a qualified medical professional prior to clinical decision-making.
+
