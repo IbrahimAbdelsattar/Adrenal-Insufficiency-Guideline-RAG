@@ -65,17 +65,12 @@ echo.
 
 echo [6/7] Testing Frontend Production Build...
 set NEXT_OUTPUT=export
-set NEXT_DIST_DIR=.next-build
 call npm run build
 if %ERRORLEVEL% NEQ 0 (
     echo [FAIL] Frontend production build failed.
-    if exist .next-build rmdir /s /q .next-build
-    if exist out rmdir /s /q out
     cd ..
     exit /b %ERRORLEVEL%
 )
-if exist .next-build rmdir /s /q .next-build
-if exist out rmdir /s /q out
 cd ..
 echo [PASS] Frontend production build succeeded.
 echo.

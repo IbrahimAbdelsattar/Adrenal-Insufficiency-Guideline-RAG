@@ -38,8 +38,7 @@ echo "[PASS] Frontend linting passed."
 echo ""
 
 echo "[6/7] Testing Frontend Production Build..."
-(cd frontend && NEXT_OUTPUT=export NEXT_DIST_DIR=.next-build npm run build)
-rm -rf frontend/.next-build frontend/out
+(cd frontend && NEXT_OUTPUT=export npm run build)
 echo "[PASS] Frontend production build succeeded."
 echo ""
 
