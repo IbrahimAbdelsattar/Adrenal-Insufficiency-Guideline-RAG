@@ -148,6 +148,14 @@ _SOURCE_MARKER = re.compile(r"\[Source\s*(\d+)[^\]]*\]", re.IGNORECASE)
 # as one alternation so a single scan over a claim unit answers "does this
 # look clinical" -- deliberately over-inclusive (a false positive just asks
 # for a citation that harmlessly exists), never under-inclusive.
+#
+# Deliberately excludes bare "emergency" / "adrenal crisis" -- this app's
+# entire domain is adrenal crisis, so those words appear in ordinary framing
+# prose ("Immediate Emergency Administration", "management of adrenal
+# crisis involves...") far more often than in an actual instruction. Only
+# the specific actionable phrasings below count as emergency-instruction
+# claims; a topic mention with no numeric/route/timing content needs no
+# citation of its own.
 _CLINICAL_CLAIM_PATTERN = re.compile(
     r"""
     \d+(?:\.\d+)?\s*(?:mg|mcg|microgram\w*|milligram\w*|g|ml|iu|units?|mmol|nmol)\b # dose / units
@@ -157,21 +165,42 @@ _CLINICAL_CLAIM_PATTERN = re.compile(
     | \bimmediately\b | \burgently\b | \bwithout\ delay\b   # timing / urgency
     | [<>≤≥]\s*\d+                                          # threshold comparison
     | \b\d+\s*(?:nmol/l|mmol/l|mg/dl|mmhg|bpm|%)\b           # lab / vital threshold
-    | \bemergency\b | \badrenal\ crisis\b | \bcall\ (?:999|911|112|an\ ambulance)\b
+    | \bcall\ (?:999|911|112|an\ ambulance)\b               # emergency instruction
     | \bseek\ (?:immediate|urgent)\ medical\b
     """,
     re.IGNORECASE | re.VERBOSE,
 )
 
-# Splits an answer into claim-sized units: bullet/numbered list lines are
-# usually one claim each, and multi-sentence paragraphs split on sentence
-# boundaries. Good enough to flag an uncited clinical sentence; it is not a
-# clause-level parser.
-_CLAIM_UNIT_SPLIT = re.compile(r"(?<=[.!?])\s+(?=[A-Z\[])|\n+")
+# A markdown/organizational heading, not a claim: "### 1. Immediate Emergency
+# Administration", "**Route:**", "1. Ongoing Parenteral Dosing". Headings
+# routinely contain trigger words ("Emergency", "Dosing") without making any
+# claim themselves -- the claim is in the content underneath, which is
+# checked on its own. Matched against a whole line, before any sentence split.
+_HEADING_LINE = re.compile(
+    r"^#{1,6}\s+\S"  # ATX heading: ### Title
+    r"|^\*{1,2}[^*\n]+\*{1,2}:?\s*$"  # **Bold label** on its own line
+    r"|^\*{0,2}\d+\.\s+[A-Z][^.!?]{0,80}$"  # 1. Short Title Case Heading
+)
+
+# Splits one line into claim-sized sentences. Good enough to flag an uncited
+# clinical sentence; it is not a clause-level parser.
+_SENTENCE_SPLIT = re.compile(r"(?<=[.!?])\s+(?=[A-Z\[])")
 
 
 def _split_claim_units(text: str) -> list[str]:
-    return [u.strip() for u in _CLAIM_UNIT_SPLIT.split(text) if u.strip()]
+    """Break an answer into claim-sized units, skipping heading lines.
+
+    Splits on lines first so a heading can be recognised and excluded before
+    any sentence-boundary heuristics run on it; each remaining line is then
+    split into sentences, since a single bullet can carry more than one claim.
+    """
+    units = []
+    for line in text.split("\n"):
+        line = line.strip().lstrip("*-•").strip()
+        if not line or _HEADING_LINE.match(line):
+            continue
+        units.extend(u.strip() for u in _SENTENCE_SPLIT.split(line) if u.strip())
+    return units
 
 
 def _marker_validity(text: str, n_sources: int) -> tuple[list[str], list[str]]:
