@@ -1,7 +1,8 @@
 # Eva AI — Clinical Decision Support (Adrenal Insufficiency RAG)
 
 [![CI/CD Pipeline](https://github.com/IbrahimAbdelsattar/Eva-AI/actions/workflows/ci-cd.yml/badge.svg)](https://github.com/IbrahimAbdelsattar/Eva-AI/actions/workflows/ci-cd.yml)
-[![Unit Tests](https://img.shields.io/badge/Unit_Tests-260_Passing-brightgreen.svg)](file:///c:/Users/C-LAB/Videos/ai%20hackthon/backend/tests/unit/)
+[![Unit Tests](https://img.shields.io/badge/Unit_Tests-317_Passing-brightgreen.svg)](file:///c:/Users/C-LAB/Videos/ai%20hackthon/backend/tests/unit/)
+[![Local Embedding Fallback](https://img.shields.io/badge/Embeddings-Gemini_%2B_Local_BGE_Fallback-blue.svg)](file:///c:/Users/C-LAB/Videos/ai%20hackthon/docs/DAY5_LOCAL_EMBEDDING_FALLBACK.md)
 
 [![Docker GHCR](https://img.shields.io/badge/Container-GHCR-blue?logo=docker&logoColor=white)](https://github.com/IbrahimAbdelsattar/Eva-AI/pkgs/container/eva-ai)
 [![Python Version](https://img.shields.io/badge/python-3.13-blue.svg)](https://www.python.org/)
@@ -26,6 +27,7 @@ The application pairs a high-performance **FastAPI backend** with a **Next.js 15
 - 📜 **Consultation History & Evidence Inspector**: Persistent multi-session consultation threads stored in `localStorage`, session search, markdown export, and expandable retrieved evidence accordions showing full verbatim guideline chunks, page citations, and relevance scores on every historical turn.
 - 🧠 **Layered Memory & State Architecture**: Bounded client-side `localStorage` session management paired with multi-turn conversation context windows (`history[-4:]`), documented in [docs/MEMORY_ARCHITECTURE.md](file:///c:/Users/C-LAB/Videos/ai%20hackthon/docs/MEMORY_ARCHITECTURE.md).
 - 🧭 **Conversational Capability Routing**: Common greetings and capability questions (for example, “How can you help me?”) return an immediate live introduction before clinical retrieval, while clinical questions retain strict evidence guardrails.
+- 🔄 **Zero-Network Local Embedding Fallback**: Resilient `FallbackEmbedder` routing to local `BAAI/bge-small-en-v1.5` via `sentence-transformers` on upstream API / Gemini 429 quota failure, ensuring uninterrupted clinical search and ingestion.
 - 🚀 **Multi-Tier RAG Caching Architecture**: Sub-5ms response time on warm queries (**492x speedup**) with L1 Embedding, L2 Retrieval, and L3 Answer Caching with TTL/LRU eviction and automatic index manifest invalidation.
 - 🔍 **Retrieval & Evidence Inspector**: In-depth vector & BM25 ranking inspection with similarity scores and confidence floors.
 - ⚡ **Ultra-Low Latency OmniRoute Routing**: Optimized with `GENERATION_MODEL=eva-ai` (~1.6s vs 4.4s) and instant 0ms zero-LLM greeting handling.
@@ -700,13 +702,14 @@ ai-hackthon/
 │   ├── DAY2_RETRIEVAL_OPTIMIZATION.md
 │   ├── DAY3_GENERATION_AND_INTEGRATION.md
 │   ├── DAY4_PERFORMANCE_OPTIMIZATION.md
-│   └── DAY5_OBSERVABILITY_AND_ERROR_TRACKING.md
+│   ├── DAY5_OBSERVABILITY_AND_ERROR_TRACKING.md
+│   └── DAY5_LOCAL_EMBEDDING_FALLBACK.md
 ├── .agents/
 │   └── skills/
 │       └── agent-activity-logger/             # Standardized skill for documenting agent activity & changelogs
 │           └── SKILL.md
 ├── start.bat                                  # Fast 1-click Windows project launcher
-├── requirements.txt                           # Backend Python dependencies (FastAPI, Sentry SDK)
+├── requirements.txt                           # Backend Python dependencies (FastAPI, Sentence-Transformers, Sentry SDK)
 ├── .env.example                               # Environment configuration template
 ├── data/
 │   ├── corpus/                                # Registered guideline PDFs (NICE NG243)
@@ -737,7 +740,7 @@ ai-hackthon/
 │   │   │   ├── cleaner.py                     # Frequency boilerplate cleaner & glyph repair
 │   │   │   ├── sectioner.py                   # NICE hierarchy detector (1.1 / 1.1.1)
 │   │   │   ├── chunker.py                     # Atomic recommendation chunker (Section & Fixed)
-│   │   │   └── pipeline.py                    # Pipeline orchestrator
+│   │   │   └── pipeline.py                    # Pipeline orchestrator with dual-index fallback
 │   │   ├── retrieval/
 │   │   │   ├── base.py                        # Retriever protocol seam
 │   │   │   ├── dense.py                       # Cosine top-K ChromaDB retriever with spans
@@ -746,12 +749,16 @@ ai-hackthon/
 │   │   │   ├── reranker.py                    # Cross-Encoder transformer reranker with spans
 │   │   │   ├── factory.py                     # Retriever factory (pluggable strategies)
 │   │   │   ├── scope.py                       # Clinical scope classifier & guardrail
-│   │   │   └── store.py                       # ChromaDB persistent store client
+│   │   │   └── store.py                       # ChromaDB persistent store with multi-collection support
 │   │   └── embeddings/
 │   │       ├── base.py                        # Embedder protocol seam
+│   │       ├── fallback.py                    # Resilient FallbackEmbedder wrapper (Gemini -> Local BGE)
+│   │       ├── local.py                       # Local SentenceTransformer embedder (BAAI/bge-small-en-v1.5)
 │   │       └── openrouter.py                  # OpenRouter batched embedding client with query cache
 │   └── tests/
-│       ├── unit/                              # 248 unit tests (100% pass rate)
+│       ├── unit/                              # 315+ unit tests (100% pass rate)
+│       │   ├── test_local_embedder.py         # Local SentenceTransformer unit tests
+│       │   ├── test_fallback_embedder.py      # Fallback embedder failover unit tests
 │       │   ├── test_sentry_monitoring.py      # Sentry init & PHI sanitization unit tests
 │       │   ├── test_sentry_endpoint.py        # /sentry-debug & /sentry-test endpoint tests
 │       │   ├── test_sentry_spans.py           # Pipeline span context manager tests
@@ -762,7 +769,7 @@ ai-hackthon/
 │       │   ├── test_hybrid.py                 # Hybrid RRF fusion & reranker fallback tests
 │       │   ├── test_reranker.py               # Cross-Encoder sigmoid calibration tests
 │       │   └── test_scope.py                  # Scope classification threshold tests
-│       ├── integration/                       # Pipeline, generate API, and latency integration tests
+│       ├── integration/                       # Pipeline, generate API, latency & embedding fallback tests
 │       └── eval/                              # Golden questions and retrieval evaluation
 ├── frontend/
 │   ├── sentry.client.config.ts                # Client-side Sentry configuration & sanitization

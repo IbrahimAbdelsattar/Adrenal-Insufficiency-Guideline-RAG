@@ -59,7 +59,11 @@ def get_health() -> dict:
         }
 
     index_model = manifest.embedding_model if manifest else ""
-    model_matches = (not index_model) or index_model == settings.embedding_model
+    model_matches = (
+        (not index_model)
+        or index_model == settings.embedding_model
+        or (settings.enable_embedding_fallback and index_model == settings.local_embedding_model)
+    )
 
     problems = []
 
@@ -67,7 +71,12 @@ def get_health() -> dict:
         problems.append("No index built - run: python -m backend.app.cli ingest")
 
     if not key_configured:
-        problems.append("OMNIROUTE_API_KEY is not set - search cannot embed queries")
+        if settings.enable_embedding_fallback:
+            problems.append(
+                f"OMNIROUTE_API_KEY is not set - active fallback to local model '{settings.local_embedding_model}'"
+            )
+        else:
+            problems.append("OMNIROUTE_API_KEY is not set - search cannot embed queries")
 
     if not model_matches:
         problems.append(
@@ -76,9 +85,11 @@ def get_health() -> dict:
         )
 
     return {
-        "status": "ok" if not problems else "degraded",
+        "status": "ok" if (not problems or (not key_configured and settings.enable_embedding_fallback and ready)) else "degraded",
         "index_ready": ready,
         "api_key_configured": key_configured,
+        "embedding_fallback_enabled": settings.enable_embedding_fallback,
+        "local_embedding_model": settings.local_embedding_model,
         "embedding_model": settings.embedding_model,
         "index_embedding_model": index_model,
         "model_matches_index": model_matches,
@@ -214,7 +225,12 @@ def search(request: SearchRequest) -> SearchResponse:
         )
 
     manifest = store.read_manifest()
-    if manifest and manifest.embedding_model != settings.embedding_model:
+    valid_model = (
+        manifest is None
+        or manifest.embedding_model == settings.embedding_model
+        or (settings.enable_embedding_fallback and manifest.embedding_model == settings.local_embedding_model)
+    )
+    if not valid_model and manifest:
         logger.error(
             "Search rejected: index/embedding model mismatch (%s != %s).",
             manifest.embedding_model,

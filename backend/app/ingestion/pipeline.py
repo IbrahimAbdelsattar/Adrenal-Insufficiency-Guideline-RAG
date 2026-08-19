@@ -195,9 +195,14 @@ def run_ingest(
 
     if embedder is None:
         # Imported here so --dry-run works without an API key configured.
-        from backend.app.embeddings.openrouter import OpenRouterEmbedder
+        if settings.enable_embedding_fallback:
+            from backend.app.embeddings.fallback import FallbackEmbedder
 
-        embedder = OpenRouterEmbedder(settings)
+            embedder = FallbackEmbedder(settings=settings)
+        else:
+            from backend.app.embeddings.openrouter import OpenRouterEmbedder
+
+            embedder = OpenRouterEmbedder(settings)
 
     report(f"Embedding  {len(all_chunks)} chunks via {embedder.model_id} ...")
     embed_start = time.perf_counter()
@@ -210,11 +215,34 @@ def run_ingest(
     )
 
     store = store or VectorStore(settings)
-    store.build(all_chunks, vectors)
+    primary_collection = store.collection_name
+    store.build(all_chunks, vectors, collection_name=primary_collection)
     report(
         f"Indexing   wrote {len(all_chunks)} entries to {settings.index_path} "
-        f"(collection: {store.collection_name})"
+        f"(collection: {primary_collection})"
     )
+
+    # If fallback is enabled and we used the primary embedder, also build the local fallback collection
+    if settings.enable_embedding_fallback and not getattr(embedder, "is_fallback_active", False):
+        try:
+            from backend.app.embeddings.local import LocalEmbedder
+
+            local_embedder = LocalEmbedder(settings)
+            report(f"Fallback   building local collection via {local_embedder.model_id} ...")
+            local_vectors = _embed_in_batches(
+                local_embedder, all_chunks, settings.embedding_batch_size, report
+            )
+            store.build(all_chunks, local_vectors, collection_name=store.fallback_collection_name)
+            report(
+                f"Fallback   wrote {len(all_chunks)} entries to fallback collection "
+                f"({store.fallback_collection_name})"
+            )
+        except Exception as exc:
+            logger.warning(
+                "Could not build local fallback collection: %s",
+                exc,
+                extra={"event": "ingest.fallback_build_failed", "error": str(exc)},
+            )
 
     manifest = IndexManifest(
         built_at=datetime.now(UTC),

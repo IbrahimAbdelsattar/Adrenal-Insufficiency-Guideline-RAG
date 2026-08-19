@@ -1,11 +1,11 @@
-"""ChromaDB persistence.
+"""ChromaDB persistence with multi-collection and fallback support.
 
 Metadata lives on the vector entry itself, never a sidecar file — that is
 Constitution Principle II enforced structurally rather than by convention.
 
 Ingestion is atomic at the collection level: a new collection is built under a
 temporary name and swapped in only on success, so a failed run leaves the previous
-index intact and queryable (FR-020).
+index intact and queryable (FR-020). Supports primary and fallback collections.
 """
 
 from __future__ import annotations
@@ -35,26 +35,37 @@ class VectorStore:
     def collection_name(self) -> str:
         return self._settings.chroma_collection
 
+    @property
+    def fallback_collection_name(self) -> str:
+        return self._settings.fallback_chroma_collection
+
     # --- read -------------------------------------------------------------
 
     def _get(self, name: str):
         return self._client.get_or_create_collection(name=name, metadata={"hnsw:space": "cosine"})
 
-    def count(self) -> int:
+    def count(self, collection_name: str | None = None) -> int:
+        col_name = collection_name or self.collection_name
         try:
-            return self._get(self.collection_name).count()
+            return self._get(col_name).count()
         except Exception:
             return 0
 
-    def is_ready(self) -> bool:
-        return self.count() > 0
+    def is_ready(self, collection_name: str | None = None) -> bool:
+        return self.count(collection_name) > 0
 
-    def query(self, embedding: list[float], top_k: int) -> list[tuple[Chunk, float]]:
-        """Cosine search. Returns (chunk, score) pairs, best first.
+    def query(
+        self,
+        embedding: list[float],
+        top_k: int,
+        collection_name: str | None = None,
+    ) -> list[tuple[Chunk, float]]:
+        """Cosine search over the designated collection. Returns (chunk, score) pairs, best first.
 
         Chroma reports cosine *distance*; score = 1 - distance, clamped to [0, 1].
         """
-        collection = self._get(self.collection_name)
+        col_name = collection_name or self.collection_name
+        collection = self._get(col_name)
         if collection.count() == 0:
             return []
 
@@ -77,9 +88,10 @@ class VectorStore:
             out.append((Chunk.from_stored(chunk_id, text, dict(metadata)), score))
         return out
 
-    def all_chunks(self) -> list[Chunk]:
-        """Every stored chunk. Used by the no-split-recommendations check."""
-        collection = self._get(self.collection_name)
+    def all_chunks(self, collection_name: str | None = None) -> list[Chunk]:
+        """Every stored chunk in the designated collection."""
+        col_name = collection_name or self.collection_name
+        collection = self._get(col_name)
         if collection.count() == 0:
             return []
         raw = collection.get(include=["documents", "metadatas"])
@@ -93,11 +105,12 @@ class VectorStore:
             )
         ]
 
-    def get_chunks(self, chunk_ids: list[str]) -> list[Chunk]:
-        """Fetch specific chunks by ID (graph expansion at query time)."""
+    def get_chunks(self, chunk_ids: list[str], collection_name: str | None = None) -> list[Chunk]:
+        """Fetch specific chunks by ID from designated collection."""
         if not chunk_ids:
             return []
-        collection = self._get(self.collection_name)
+        col_name = collection_name or self.collection_name
+        collection = self._get(col_name)
         raw = collection.get(ids=chunk_ids, include=["documents", "metadatas"])
         return [
             Chunk.from_stored(cid, text, dict(meta))
@@ -111,7 +124,12 @@ class VectorStore:
 
     # --- write ------------------------------------------------------------
 
-    def build(self, chunks: list[Chunk], embeddings: list[list[float]]) -> None:
+    def build(
+        self,
+        chunks: list[Chunk],
+        embeddings: list[list[float]],
+        collection_name: str | None = None,
+    ) -> None:
         """Build into a staging collection, then swap it in atomically."""
         if len(chunks) != len(embeddings):
             raise ValueError(
@@ -119,7 +137,8 @@ class VectorStore:
                 "to build a misaligned index."
             )
 
-        staging_name = f"{self.collection_name}{BUILD_SUFFIX}"
+        target_name = collection_name or self.collection_name
+        staging_name = f"{target_name}{BUILD_SUFFIX}"
         self._drop(staging_name)
         staging = self._get(staging_name)
 
@@ -134,8 +153,8 @@ class VectorStore:
             )
 
         # Swap: only now is the previous index discarded.
-        self._drop(self.collection_name)
-        staging.modify(name=self.collection_name)
+        self._drop(target_name)
+        staging.modify(name=target_name)
 
     def _drop(self, name: str) -> None:
         try:
