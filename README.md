@@ -23,6 +23,8 @@
 
 The application pairs a high-performance **FastAPI backend** with a **Next.js 15 Monomorphic Soft UI** frontend featuring:
 - 💬 **Interactive Multi-Turn RAG Chatbot**: Real-time SSE streaming answers with inline structural citations directly from NICE NG243.
+- 📜 **Consultation History & Evidence Inspector**: Persistent multi-session consultation threads stored in `localStorage`, session search, markdown export, and expandable retrieved evidence accordions showing full verbatim guideline chunks, page citations, and relevance scores on every historical turn.
+- 🧠 **Layered Memory & State Architecture**: Bounded client-side `localStorage` session management paired with multi-turn conversation context windows (`history[-4:]`), documented in [docs/MEMORY_ARCHITECTURE.md](file:///c:/Users/C-LAB/Videos/ai%20hackthon/docs/MEMORY_ARCHITECTURE.md).
 - 🧭 **Conversational Capability Routing**: Common greetings and capability questions (for example, “How can you help me?”) return an immediate live introduction before clinical retrieval, while clinical questions retain strict evidence guardrails.
 - 🚀 **Multi-Tier RAG Caching Architecture**: Sub-5ms response time on warm queries (**492x speedup**) with L1 Embedding, L2 Retrieval, and L3 Answer Caching with TTL/LRU eviction and automatic index manifest invalidation.
 - 🔍 **Retrieval & Evidence Inspector**: In-depth vector & BM25 ranking inspection with similarity scores and confidence floors.
