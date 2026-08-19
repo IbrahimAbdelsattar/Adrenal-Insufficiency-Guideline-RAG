@@ -38,7 +38,8 @@ echo "[PASS] Frontend linting passed."
 echo ""
 
 echo "[6/7] Testing Frontend Production Build..."
-(cd frontend && NEXT_OUTPUT=export npm run build)
+(cd frontend && NEXT_OUTPUT=export NEXT_DIST_DIR=.next-build npm run build)
+rm -rf frontend/.next-build frontend/out
 echo "[PASS] Frontend production build succeeded."
 echo ""
 
@@ -63,13 +64,14 @@ if command -v docker >/dev/null 2>&1 && docker info >/dev/null 2>&1; then
     if command -v cygpath >/dev/null 2>&1; then
         MOUNT_DIR="$(cygpath -w "$STUB_INDEX_DIR")"
     fi
-    docker run -d --name eva-ai-smoke -p 8000:8000 \
+    SMOKE_PORT=8008
+    docker run -d --name eva-ai-smoke -p "$SMOKE_PORT:8000" \
         -v "$MOUNT_DIR:/app/data/index" eva-ai:test
 
     echo "  Waiting for health endpoint..."
     HEALTHY=0
     for i in $(seq 1 30); do
-        if curl -s -f http://localhost:8000/api/health >/dev/null 2>&1; then
+        if curl -s -f "http://localhost:$SMOKE_PORT/api/health" >/dev/null 2>&1; then
             HEALTHY=1
             break
         fi

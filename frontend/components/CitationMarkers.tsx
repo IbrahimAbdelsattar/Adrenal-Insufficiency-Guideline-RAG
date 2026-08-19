@@ -50,9 +50,26 @@ function linkifyText(text: string, onCite: (sourceId: string) => void): ReactNod
   return parts;
 }
 
+function isCitationButton(node: ReactNode): boolean {
+  if (!isValidElement<{ className?: string }>(node)) return false;
+  return typeof node.props.className === "string" && node.props.className.includes("citation-marker");
+}
+
 function linkifyNode(node: ReactNode, onCite: (sourceId: string) => void): ReactNode {
   if (typeof node === "string") {
     return linkifyText(node, onCite);
+  }
+
+  // A nested <li><ul><li>...</li></ul></li> markdown list has react-markdown
+  // invoke the `li` renderer for the inner item first, then again for the
+  // outer one with the inner item's *already-rendered* output as children.
+  // Without this guard, the outer CitationMarkers pass re-scans the inner
+  // pass's output, finds the marker text still inside the button's own
+  // children prop, and wraps a second <button> around it -- invalid nested
+  // buttons and a hydration mismatch. Once a node is a citation button,
+  // leave it exactly as produced; never recurse into it again.
+  if (isCitationButton(node)) {
+    return node;
   }
 
   if (isValidElement<{ children?: ReactNode }>(node) && node.props.children !== undefined) {

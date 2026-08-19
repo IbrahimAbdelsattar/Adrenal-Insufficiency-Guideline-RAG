@@ -65,12 +65,17 @@ echo.
 
 echo [6/7] Testing Frontend Production Build...
 set NEXT_OUTPUT=export
+set NEXT_DIST_DIR=.next-build
 call npm run build
 if %ERRORLEVEL% NEQ 0 (
     echo [FAIL] Frontend production build failed.
+    if exist .next-build rmdir /s /q .next-build
+    if exist out rmdir /s /q out
     cd ..
     exit /b %ERRORLEVEL%
 )
+if exist .next-build rmdir /s /q .next-build
+if exist out rmdir /s /q out
 cd ..
 echo [PASS] Frontend production build succeeded.
 echo.
@@ -109,7 +114,7 @@ if %ERRORLEVEL% NEQ 0 (
 
 echo   Starting smoke-test container...
 docker rm -f eva-ai-smoke >nul 2>&1
-docker run -d --name eva-ai-smoke -p 8000:8000 -v "%STUB_INDEX_DIR%:/app/data/index" eva-ai:test
+docker run -d --name eva-ai-smoke -p 8008:8000 -v "%STUB_INDEX_DIR%:/app/data/index" eva-ai:test
 if %ERRORLEVEL% NEQ 0 (
     echo [FAIL] Container failed to start.
     rmdir /s /q "%STUB_INDEX_DIR%"
@@ -119,7 +124,7 @@ if %ERRORLEVEL% NEQ 0 (
 echo   Waiting for health endpoint...
 set "HEALTHY=0"
 for /l %%i in (1,1,30) do (
-    curl -s -f http://localhost:8000/api/health >nul 2>&1
+    curl -s -f http://localhost:8008/api/health >nul 2>&1
     if !ERRORLEVEL! EQU 0 (
         set "HEALTHY=1"
         goto :healthcheck_done

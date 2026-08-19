@@ -4,6 +4,8 @@ import Link from "next/link";
  * Required explicitly: `output: "export"` cannot synthesise the default
  * not-found page and fails the build without it.
  */
+export const dynamic = "force-static";
+
 export default function NotFound() {
   return (
     <div className="mx-auto max-w-md py-20 text-center">
