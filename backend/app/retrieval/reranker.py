@@ -14,8 +14,10 @@ from typing import Any
 
 from backend.app.config import Settings, get_settings
 from backend.app.models import Chunk, RetrievalResult
+from backend.app.monitoring import trace_span
 
 logger = logging.getLogger(__name__)
+
 
 
 def sigmoid(x: float) -> float:
@@ -76,35 +78,37 @@ class CrossEncoderReranker:
         Scores are normalized to [0, 1] via sigmoid calibration.
         On any error the input order is preserved with step-decay scoring.
         """
-        if not chunks:
-            return []
+        with trace_span(op="rag.reranker.rerank", description="CrossEncoder Rerank"):
+            if not chunks:
+                return []
 
-        # Extract Chunk objects if RetrievalResult instances were passed
-        extracted_chunks: list[Chunk] = [
-            item.chunk if isinstance(item, RetrievalResult) else item for item in chunks
-        ]
+            # Extract Chunk objects if RetrievalResult instances were passed
+            extracted_chunks: list[Chunk] = [
+                item.chunk if isinstance(item, RetrievalResult) else item for item in chunks
+            ]
 
-        k = top_k or len(extracted_chunks)
-        model = self._get_model()
+            k = top_k or len(extracted_chunks)
+            model = self._get_model()
 
-        if model is not None:
-            try:
-                pairs = [[query, f"{c.section_title}: {c.text}"] for c in extracted_chunks]
-                scores = model.predict(pairs)
-                norm_scores = [sigmoid(float(s)) for s in scores]
-                ranked = sorted(
-                    zip(extracted_chunks, norm_scores, strict=False),
-                    key=lambda x: x[1],
-                    reverse=True,
-                )
-                return list(ranked)[:k]
-            except Exception as exc:
-                logger.error(
-                    "CrossEncoder reranking failed at runtime: %s. Using fallback ordering.",
-                    exc,
-                )
+            if model is not None:
+                try:
+                    pairs = [[query, f"{c.section_title}: {c.text}"] for c in extracted_chunks]
+                    scores = model.predict(pairs)
+                    norm_scores = [sigmoid(float(s)) for s in scores]
+                    ranked = sorted(
+                        zip(extracted_chunks, norm_scores, strict=False),
+                        key=lambda x: x[1],
+                        reverse=True,
+                    )
+                    return list(ranked)[:k]
+                except Exception as exc:
+                    logger.error(
+                        "CrossEncoder reranking failed at runtime: %s. Using fallback ordering.",
+                        exc,
+                    )
 
-        # Fallback: preserve input order with uniform step-decay scores.
-        n = len(extracted_chunks)
-        fallback = [(c, max(0.1, 1.0 - (i / max(1, n)))) for i, c in enumerate(extracted_chunks)]
-        return fallback[:k]
+            # Fallback: preserve input order with uniform step-decay scores.
+            n = len(extracted_chunks)
+            fallback = [(c, max(0.1, 1.0 - (i / max(1, n)))) for i, c in enumerate(extracted_chunks)]
+            return fallback[:k]
+

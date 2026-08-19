@@ -90,6 +90,35 @@ class Settings(BaseSettings):
     # --- Cleaning ---
     boilerplate_page_ratio: float = Field(default=0.6, alias="BOILERPLATE_PAGE_RATIO")
 
+    # --- Logging & observability ---
+    log_level: str = Field(default="INFO", alias="LOG_LEVEL")
+    # "text" for humans, "json" for log aggregators in deployment.
+    log_format: str = Field(default="text", alias="LOG_FORMAT")
+    # Clinical queries can carry PHI. Logged text is always scrubbed and
+    # truncated; set LOG_QUERY_TEXT=false to drop it entirely.
+    log_query_text: bool = Field(default=True, alias="LOG_QUERY_TEXT")
+    log_query_max_chars: int = Field(default=200, alias="LOG_QUERY_MAX_CHARS")
+    # Requests slower than this are logged at WARNING so they stand out.
+    slow_request_ms: int = Field(default=5000, alias="SLOW_REQUEST_MS")
+    # Log the assembled evidence text and the LLM prompt/answer previews.
+    # Verbose and PHI-adjacent: off unless a pipeline is being debugged.
+    log_prompt_preview: bool = Field(default=False, alias="LOG_PROMPT_PREVIEW")
+    log_preview_chars: int = Field(default=400, alias="LOG_PREVIEW_CHARS")
+
+    # --- Sentry Error Tracking & Monitoring ---
+    sentry_dsn: str = Field(
+        default="",
+        validation_alias=AliasChoices("SENTRY_DSN", "SENTRY_BACKEND_DSN"),
+    )
+    sentry_environment: str = Field(
+        default="development",
+        alias="SENTRY_ENVIRONMENT",
+    )
+    sentry_traces_sample_rate: float = Field(
+        default=1.0,
+        alias="SENTRY_TRACES_SAMPLE_RATE",
+    )
+
     # --- Serving ---
     allowed_origins: str = Field(
         default="",

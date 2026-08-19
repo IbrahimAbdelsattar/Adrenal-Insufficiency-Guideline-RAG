@@ -75,6 +75,38 @@ def get_health() -> dict:
     }
 
 
+@router.get("/health/sentry-test")
+def sentry_test_diagnostic(trigger_error: bool = False) -> dict:
+    """Diagnostic endpoint to test and verify Sentry error capture."""
+    import sentry_sdk
+    from backend.app.monitoring.sentry import is_sentry_enabled
+
+    sentry_active = is_sentry_enabled()
+
+    if trigger_error:
+        class SentryTestException(Exception):
+            pass
+
+        try:
+            raise SentryTestException("Manual test exception triggered for Sentry verification")
+        except SentryTestException as exc:
+            sentry_sdk.capture_exception(exc)
+            return {
+                "status": "test_exception_captured",
+                "error_type": "SentryTestException",
+                "detail": str(exc),
+                "sentry_enabled": sentry_active,
+            }
+
+    sentry_sdk.capture_message("Sentry health test diagnostic executed.", level="info")
+    return {
+        "status": "ok",
+        "sentry_enabled": sentry_active,
+        "message": "Sentry test diagnostic triggered successfully.",
+    }
+
+
+
 @router.get("/index", response_model=IndexManifest)
 def get_index_status() -> IndexManifest:
     """The manifest describing how the current index was built (FR-030)."""

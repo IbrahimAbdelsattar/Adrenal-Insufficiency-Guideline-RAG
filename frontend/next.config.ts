@@ -1,5 +1,6 @@
 import path from "node:path";
 import type { NextConfig } from "next";
+import { withSentryConfig } from "@sentry/nextjs";
 
 /**
  * Two deployment shapes are supported.
@@ -16,11 +17,6 @@ import type { NextConfig } from "next";
  * BACKEND_URL points at the backend:
  *   local dev  -> http://127.0.0.1:8010
  *   compose    -> http://backend:8000  (service name on the compose network)
- *
- * WARNING: Next resolves `rewrites()` at BUILD time and serializes the result
- * into the build manifest. In Docker, BACKEND_URL must therefore be passed as a
- * build ARG — setting it only in the container environment is silently ignored
- * and the image keeps proxying to the local-dev default (ECONNREFUSED 8010).
  */
 const isExport = process.env.NEXT_OUTPUT === "export";
 
@@ -43,4 +39,9 @@ const nextConfig: NextConfig = {
   },
 };
 
-export default nextConfig;
+export default withSentryConfig(nextConfig, {
+  org: process.env.SENTRY_ORG,
+  project: process.env.SENTRY_PROJECT,
+  silent: true,
+  widenClientFileUpload: true,
+});

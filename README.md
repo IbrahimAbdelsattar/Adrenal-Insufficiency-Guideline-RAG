@@ -6,8 +6,10 @@
 [![Node Version](https://img.shields.io/badge/node-20.x-green.svg)](https://nodejs.org/)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.115+-009688.svg)](https://fastapi.tiangolo.com/)
 [![Next.js](https://img.shields.io/badge/Next.js-15.x-black.svg)](https://nextjs.org/)
+[![Sentry Monitoring](https://img.shields.io/badge/Sentry-Full--Stack_Monitoring-362D59?logo=sentry&logoColor=white)](https://sentry.io/)
 [![Code Style: Ruff](https://img.shields.io/badge/code%20style-ruff-000000.svg)](https://github.com/astral-sh/ruff)
 [![License](https://img.shields.io/badge/License-NICE_Notice_of_Rights-red.svg)](https://www.nice.org.uk/terms-and-conditions#notice-of-rights)
+
 
 ---
 
@@ -53,8 +55,10 @@ graph TD
         AnswerComp["AnswerCard Component"]
         CardComp["ChunkCard Component"]
         StatusComp["IndexStatus Component"]
+        SentryBtn["SentryTestButton Component"]
         LangToggle["LanguageToggle (EN / العربية)"]
         ThemeToggle["ThemeToggle (Light / Dark)"]
+        SentryClient["Sentry Client SDK (sentry.client.config.ts)"]
         ApiClient["API Client (frontend/lib/api.ts)"]
     end
 
@@ -63,6 +67,7 @@ graph TD
         SearchApi["Search & Health API (api/search.py)"]
         GenApi["Generate API (api/generate.py)"]
         CliApp["CLI Interface (cli.py)"]
+        SentryModule["Sentry Monitor & PHI Filter (monitoring/sentry.py)"]
         
         subgraph PipelineLayer["Ingestion Pipeline"]
             Reg["Source Registry (ingestion/registry.py)"]
@@ -88,6 +93,7 @@ graph TD
             CitationParser["Citation Extractor (generation/citations.py)"]
         end
     end
+
 
     subgraph StorageLayer["Data & Persistence"]
         Corpus["Registered PDFs (data/corpus/)"]
@@ -589,13 +595,49 @@ Generates an evidence-grounded clinical answer using the OmniRoute LLM gateway w
 
 ---
 
+## 📊 Full-Stack Observability & Error Tracking (Sentry)
+
+Eva AI implements enterprise-grade, privacy-preserving error tracking, performance tracing, and continuous profiling using **Sentry**.
+
+### 1. Key Capabilities
+- **FastAPI Backend Error Interception**: Automatically tracks uncaught 500 errors, background worker exceptions, and network timeouts.
+- **HIPAA / GDPR PHI Data Scrubbing**: Sanitizes sensitive request headers (`Authorization`, `Cookie`, `X-Api-Key`) and regex-masks patient identifiers (emails, phone numbers, SSNs, and MRNs) before dispatch.
+- **RAG & LLM Pipeline Spans**: Captures micro-tracing metrics across `rag.dense.search`, `rag.hybrid.search`, `rag.reranker.rerank`, and `llm.generate`.
+- **Continuous Profiling**: Profiles CPU-intensive operations (tokenization, cross-attention inference) via `profile_session_sample_rate=1.0`.
+- **Next.js 15 App Router Monitoring**: Client browser tracking (`sentry.client.config.ts`), Next.js 15 server instrumentation (`instrumentation.ts`), and fatal React render crash boundaries (`global-error.tsx`).
+
+### 2. Environment Configuration
+
+| Variable | Default | Description |
+|---|---|---|
+| `SENTRY_DSN` | `""` | Backend / SSR Sentry Project DSN. If empty, SDK stays quietly disabled. |
+| `NEXT_PUBLIC_SENTRY_DSN` | `""` | Frontend Browser Sentry Project DSN. |
+| `SENTRY_ENVIRONMENT` | `"development"` | Environment tag (`development`, `staging`, `production`). |
+| `SENTRY_TRACES_SAMPLE_RATE` | `1.0` | Performance tracing transaction sample rate (1.0 = 100%, 0.1 = 10%). |
+
+### 3. Diagnostic & Verification Routes
+- **`GET /sentry-debug` / `GET /sentry-debug/`**: Raises a controlled `ZeroDivisionError` (`1 / 0`) to immediately verify Sentry project onboarding.
+- **`GET /api/health/sentry-test`**: Emits a test diagnostic message event.
+- **`GET /api/health/sentry-test?trigger_error=true`**: Emits a handled `SentryTestException`.
+- **UI Footer Test Buttons**: Interactive triggers in the footer of `http://localhost:3000` to test both client and server error reporting with one click.
+
+---
+
 ## 🧪 Testing & Quality Verification
 
-Run the full test suite using `pytest`:
+Run the full automated test suite using `pytest`:
 
 ```bash
-# Run all unit, integration, and golden evaluation tests (151 tests)
-pytest backend/tests/ -v
+# Run all unit tests including Sentry monitoring, spans, endpoints, RRF, and chunking (227 tests)
+pytest backend/tests/unit/ -v
+
+# Run Sentry-specific verification tests
+pytest backend/tests/unit/test_sentry_monitoring.py backend/tests/unit/test_sentry_endpoint.py backend/tests/unit/test_sentry_spans.py -v
+
+# Frontend TypeScript strict check and production build
+cd frontend
+npm run typecheck
+npm run build
 ```
 
 ---
@@ -607,10 +649,16 @@ ai-hackthon/
 ├── README.md                                  # Full system specification & architecture guide
 ├── DAY2_RETRIEVAL_OPTIMIZATION.md             # Day 2 Retrieval Evaluation & Optimization Report
 ├── DAY3_GENERATION_AND_INTEGRATION.md         # Day 3 Evidence-Grounded Generation Specification
-├── Eva_AI_Comprehensive_Documentation.docx  # Generated Word document specification
+├── DAY4_PERFORMANCE_OPTIMIZATION.md          # Day 4 Latency & Graph RAG Optimization Report
+├── DAY5_OBSERVABILITY_AND_ERROR_TRACKING.md  # Day 5 Full-Stack Sentry Observability & PHI Scrubbing
+├── docs/
+│   ├── ERROR_TRACKING.md                      # Sentry Integration Guide & Architecture
+│   ├── DAY2_RETRIEVAL_OPTIMIZATION.md
+│   ├── DAY3_GENERATION_AND_INTEGRATION.md
+│   ├── DAY4_PERFORMANCE_OPTIMIZATION.md
+│   └── DAY5_OBSERVABILITY_AND_ERROR_TRACKING.md
 ├── start.bat                                  # Fast 1-click Windows project launcher
-├── generate_docx.js                           # Node script to build Word documentation
-├── requirements.txt                           # Backend Python dependencies
+├── requirements.txt                           # Backend Python dependencies (FastAPI, Sentry SDK)
 ├── .env.example                               # Environment configuration template
 ├── data/
 │   ├── corpus/                                # Registered guideline PDFs (NICE NG243)
@@ -618,17 +666,19 @@ ai-hackthon/
 │   └── index/                                 # Persistent ChromaDB vector store & manifest.json
 ├── backend/
 │   ├── app/
-│   │   ├── main.py                            # FastAPI app entry & static mount
+│   │   ├── main.py                            # FastAPI app entry & /sentry-debug route
 │   │   ├── config.py                          # Pydantic-settings configuration
 │   │   ├── models.py                          # Pydantic data schemas
 │   │   ├── cli.py                             # CLI interface (ingest, query, eval, benchmark)
 │   │   ├── evaluation.py                      # Retrieval metrics (Precision@3/5, Hit Rate)
 │   │   ├── errors.py                          # Typed system errors & exit codes
+│   │   ├── monitoring/
+│   │   │   └── sentry.py                      # Sentry SDK init, PHI sanitization & trace spans
 │   │   ├── api/
-│   │   │   ├── search.py                      # Search, health, index & sources endpoints
+│   │   │   ├── search.py                      # Search, health, /sentry-test, index & sources endpoints
 │   │   │   └── generate.py                    # Evidence-grounded generation endpoint
 │   │   ├── generation/
-│   │   │   ├── client.py                      # OmniRoute / OpenRouter async LLM client
+│   │   │   ├── client.py                      # OmniRoute / OpenRouter async LLM client with spans
 │   │   │   ├── prompt.py                      # NICE NG243 clinical system prompt
 │   │   │   ├── assembler.py                   # Context evidence assembler
 │   │   │   └── citations.py                   # Citation extractor & abstention logic
@@ -641,10 +691,10 @@ ai-hackthon/
 │   │   │   └── pipeline.py                    # Pipeline orchestrator
 │   │   ├── retrieval/
 │   │   │   ├── base.py                        # Retriever protocol seam
-│   │   │   ├── dense.py                       # Cosine top-K ChromaDB retriever
+│   │   │   ├── dense.py                       # Cosine top-K ChromaDB retriever with spans
 │   │   │   ├── bm25.py                        # BM25 lexical retriever with clinical tokenizer
-│   │   │   ├── hybrid.py                      # Hybrid Dense + BM25 Reciprocal Rank Fusion
-│   │   │   ├── reranker.py                    # Cross-Encoder transformer reranker
+│   │   │   ├── hybrid.py                      # Hybrid Dense + BM25 Reciprocal Rank Fusion with spans
+│   │   │   ├── reranker.py                    # Cross-Encoder transformer reranker with spans
 │   │   │   ├── factory.py                     # Retriever factory (pluggable strategies)
 │   │   │   ├── scope.py                       # Clinical scope classifier & guardrail
 │   │   │   └── store.py                       # ChromaDB persistent store client
@@ -652,7 +702,10 @@ ai-hackthon/
 │   │       ├── base.py                        # Embedder protocol seam
 │   │       └── openrouter.py                  # OpenRouter batched embedding client with query cache
 │   └── tests/
-│       ├── unit/                              # Cleaner, sectioner, chunker, bm25, hybrid, generation unit tests
+│       ├── unit/                              # 227 unit tests
+│       │   ├── test_sentry_monitoring.py      # Sentry init & PHI sanitization unit tests
+│       │   ├── test_sentry_endpoint.py        # /sentry-debug & /sentry-test endpoint tests
+│       │   ├── test_sentry_spans.py           # Pipeline span context manager tests
 │       │   ├── test_assembly.py               # Context assembly unit tests
 │       │   ├── test_bm25.py                   # BM25 tokenizer and search unit tests
 │       │   ├── test_citations.py              # Citation extraction and abstention tests
@@ -661,19 +714,19 @@ ai-hackthon/
 │       │   ├── test_reranker.py               # Cross-Encoder sigmoid calibration tests
 │       │   └── test_scope.py                  # Scope classification threshold tests
 │       ├── integration/                       # Pipeline, generate API, and latency integration tests
-│       │   ├── test_generate_api.py           # Generation API integration tests
-│       │   └── test_hybrid_api.py             # Hybrid search API integration tests
-│       └── eval/
-│           ├── golden_questions.yaml          # Golden clinical question dataset (18 queries)
-│           ├── golden_generation.yaml         # Golden generation evaluation test cases
-│           ├── test_retrieval_quality.py      # Automated retrieval hit-rate & Precision@k test
-│           └── test_generation_quality.py     # Automated generation quality & abstention test
+│       └── eval/                              # Golden questions and retrieval evaluation
 ├── frontend/
+│   ├── sentry.client.config.ts                # Client-side Sentry configuration & sanitization
+│   ├── sentry.server.config.ts                # Server-side Sentry configuration
+│   ├── sentry.edge.config.ts                  # Edge Sentry configuration
+│   ├── instrumentation.ts                     # Next.js 15 server instrumentation hook
 │   ├── app/
-│   │   ├── layout.tsx                         # Root layout with persistent disclaimer banner & header
+│   │   ├── global-error.tsx                   # React root crash error boundary
+│   │   ├── layout.tsx                         # Root layout with Sentry test trigger
 │   │   ├── page.tsx                           # Dual-mode Search & AI Answer Inspector UI
 │   │   └── globals.css                        # Monomorphic CSS styling & theme variables
 │   ├── components/
+│   │   ├── SentryTestButton.tsx               # Frontend & Backend Sentry test trigger button
 │   │   ├── SearchBox.tsx                      # Query input with Search / Generate mode toggle
 │   │   ├── AnswerCard.tsx                     # AI synthesized answer card with source badges
 │   │   ├── ChunkCard.tsx                      # Ranked evidence card with diagnostics panel
@@ -683,7 +736,7 @@ ai-hackthon/
 │   ├── lib/
 │   │   ├── api.ts                             # Typed API client for FastAPI backend
 │   │   └── translations.ts                    # English & Arabic medical translation dictionary
-│   └── next.config.ts                         # Dev rewrite proxy (/api/* -> :8000)
+│   └── next.config.ts                         # Wrapped with withSentryConfig & dev proxy
 └── specs/
     └── 001-clinical-rag-ingestion/            # Feature specification & architectural docs
         ├── spec.md                            # Feature Specification

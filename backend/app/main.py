@@ -16,8 +16,13 @@ from fastapi.staticfiles import StaticFiles
 
 from backend.app.api import generate, search
 from backend.app.config import REPO_ROOT, get_settings
+from backend.app.monitoring import init_sentry
 
 logger = logging.getLogger(__name__)
+
+# Initialize Sentry error tracking & monitoring
+_settings = get_settings()
+init_sentry(_settings)
 
 
 @asynccontextmanager
@@ -89,6 +94,16 @@ def favicon():
 @app.get("/favicon.png", include_in_schema=False)
 def favicon_png():
     return Response(status_code=204)
+
+
+@app.get("/sentry-debug", tags=["monitoring"])
+@app.get("/sentry-debug/", include_in_schema=False)
+async def trigger_error():
+    """Trigger a division by zero error to verify Sentry integration."""
+    divisor = 0
+    return 1 / divisor
+
+
 
 
 # Production only: serve the Next.js static export if it has been built.

@@ -4,7 +4,9 @@ import { useEffect, useState } from "react";
 import "./globals.css";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { LanguageToggle } from "@/components/LanguageToggle";
+import { SentryTestButton } from "@/components/SentryTestButton";
 import { translations, type Language } from "@/lib/translations";
+
 
 export default function RootLayout({
   children,
@@ -148,18 +150,22 @@ export default function RootLayout({
 
         {/* Eva AI Monomorphic Footer */}
         <footer className="mt-16 border-t border-line/60 bg-ground/80 py-8 text-center text-xs text-ink-faint">
-          <div className="mx-auto max-w-7xl px-4 sm:px-6">
+          <div className="mx-auto max-w-7xl px-4 sm:px-6 flex flex-col items-center gap-3">
             <p className="font-semibold text-ink-dim">
               <span className="font-brand-cursive text-sm text-accent-bright me-1">Eva</span>
               <span className="font-brand-serif text-accent-bright font-bold me-2">AI</span>
               · {t.footerText}
             </p>
-            <p className="mt-1 text-ink-faint">
+            <p className="mt-0.5 text-ink-faint">
               {t.footerSub}
             </p>
+            <div className="mt-2 pt-2 border-t border-line/40 w-full max-w-xs flex justify-center">
+              <SentryTestButton />
+            </div>
           </div>
         </footer>
       </body>
     </html>
   );
 }
+

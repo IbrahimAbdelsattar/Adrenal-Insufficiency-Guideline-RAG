@@ -9,6 +9,7 @@ from __future__ import annotations
 from backend.app.config import Settings, get_settings
 from backend.app.embeddings.base import Embedder
 from backend.app.models import RetrievalResult
+from backend.app.monitoring import trace_span
 from backend.app.retrieval.store import VectorStore
 
 
@@ -35,20 +36,22 @@ class DenseRetriever:
         return self._embedder
 
     def search(self, query: str, top_k: int | None = None) -> list[RetrievalResult]:
-        k = top_k or self._settings.top_k
-        floor = self._settings.relevance_floor
+        with trace_span(op="rag.dense.search", description="Dense Vector Search"):
+            k = top_k or self._settings.top_k
+            floor = self._settings.relevance_floor
 
-        embedding = self.embedder.embed_query(query)
-        hits = self._store.query(embedding, k)
+            embedding = self.embedder.embed_query(query)
+            hits = self._store.query(embedding, k)
 
-        return [
-            RetrievalResult(
-                chunk=chunk,
-                score=score,
-                rank=rank,
-                below_floor=score < floor,
-                dense_score=score,
-                retriever_mode="dense",
-            )
-            for rank, (chunk, score) in enumerate(hits, start=1)
-        ]
+            return [
+                RetrievalResult(
+                    chunk=chunk,
+                    score=score,
+                    rank=rank,
+                    below_floor=score < floor,
+                    dense_score=score,
+                    retriever_mode="dense",
+                )
+                for rank, (chunk, score) in enumerate(hits, start=1)
+            ]
+

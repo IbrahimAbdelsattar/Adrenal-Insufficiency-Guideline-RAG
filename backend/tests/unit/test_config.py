@@ -33,3 +33,15 @@ def test_hybrid_candidate_k_default():
     """Default hybrid candidate pool is 20."""
     settings = Settings()
     assert settings.hybrid_candidate_k == 20
+
+
+def test_sentry_config_defaults():
+    """Sentry configuration fields exist and have proper defaults."""
+    settings = Settings()
+    assert hasattr(settings, "sentry_dsn")
+    assert settings.sentry_dsn == ""
+    assert hasattr(settings, "sentry_environment")
+    assert settings.sentry_environment == "development"
+    assert hasattr(settings, "sentry_traces_sample_rate")
+    assert settings.sentry_traces_sample_rate == 1.0
+
