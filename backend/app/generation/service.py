@@ -112,6 +112,10 @@ def cache_put(key: str, entry: dict) -> None:
     _RESPONSE_CACHE.put(key, entry)
 
 
+def cache_clear() -> None:
+    _RESPONSE_CACHE.clear()
+
+
 def log_cache(trace: RagTrace, hit: bool) -> None:
     REGISTRY.increment("generate.cache.hit" if hit else "generate.cache.miss")
     trace.set(cache_hit=hit, cache_size=len(_RESPONSE_CACHE))
