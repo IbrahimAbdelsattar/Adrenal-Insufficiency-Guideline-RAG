@@ -113,7 +113,12 @@ async def generate_answer_stream(request: GenerateRequest) -> StreamingResponse:
             greeting_text = GREETING_RESPONSE_AR if is_ar else GREETING_RESPONSE_EN
             yield _sse(
                 "meta",
-                {"query": request.query, "model": model, "evidence_found": True, "cache_hit": False},
+                {
+                    "query": request.query,
+                    "model": model,
+                    "evidence_found": True,
+                    "cache_hit": False,
+                },
             )
             yield _sse("token", {"text": greeting_text})
             yield _sse(
@@ -143,7 +148,12 @@ async def generate_answer_stream(request: GenerateRequest) -> StreamingResponse:
             )
             yield _sse(
                 "meta",
-                {"query": request.query, "model": model, "evidence_found": False, "cache_hit": False},
+                {
+                    "query": request.query,
+                    "model": model,
+                    "evidence_found": False,
+                    "cache_hit": False,
+                },
             )
             yield _sse("token", {"text": INJECTION_REFUSAL_MESSAGE})
             yield _sse(
@@ -195,7 +205,12 @@ async def generate_answer_stream(request: GenerateRequest) -> StreamingResponse:
                 answer = f"{NO_EVIDENCE_MESSAGE} Please try rephrasing or broadening your clinical query."
             yield _sse(
                 "meta",
-                {"query": request.query, "model": model, "evidence_found": False, "cache_hit": False},
+                {
+                    "query": request.query,
+                    "model": model,
+                    "evidence_found": False,
+                    "cache_hit": False,
+                },
             )
             yield _sse("token", {"text": answer})
             yield _sse(
@@ -365,9 +380,7 @@ async def generate_answer_stream(request: GenerateRequest) -> StreamingResponse:
             key,
             {
                 "answer": answer,
-                "citations": [
-                    c.model_dump() if hasattr(c, "model_dump") else c for c in citations
-                ],
+                "citations": [c.model_dump() if hasattr(c, "model_dump") else c for c in citations],
                 "model": model,
             },
         )
@@ -376,7 +389,9 @@ async def generate_answer_stream(request: GenerateRequest) -> StreamingResponse:
         trace.set(
             evidence_found=True,
             grounding_status="verified",
-            first_visible_token_ms=round(first_byte_sent, 2) if first_byte_sent is not None else None,
+            first_visible_token_ms=round(first_byte_sent, 2)
+            if first_byte_sent is not None
+            else None,
         )
 
         full_text = "".join(visible_chunks)
@@ -409,9 +424,7 @@ async def generate_answer_stream(request: GenerateRequest) -> StreamingResponse:
 # ---------------------------------------------------------------------------
 
 
-def _log_stream_llm(
-    trace: RagTrace, client: LLMClient, answer: str, citations: list[dict]
-) -> None:
+def _log_stream_llm(trace: RagTrace, client: LLMClient, answer: str, citations: list[dict]) -> None:
     trace.set(
         model=get_settings().generation_model,
         llm_ms=round(client.last_latency_ms, 2),
