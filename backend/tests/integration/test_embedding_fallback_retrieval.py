@@ -1,7 +1,5 @@
 """Integration tests for Dense and Hybrid retrieval with embedding fallback."""
 
-
-
 from backend.app.config import Settings
 from backend.app.embeddings.fallback import FallbackEmbedder
 from backend.app.errors import EmbeddingProviderError

@@ -35,7 +35,7 @@ ROOT_DIR = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT_DIR))
 
 
-from backend.app.main import app
+from backend.app.main import app  # noqa: E402
 
 client = TestClient(app)
 EVAL_DATASET_PATH = ROOT_DIR / "backend/tests/eval/golden_generation.yaml"
@@ -244,12 +244,6 @@ def main():
     infra_error_count = len(infra_error_results)
 
     evaluated_count = len(clinical_results)
-    evaluated_in_scope = sum(
-        1
-        for r in clinical_results
-        if r["category"] not in ("out_of_scope", "adversarial_security")
-        or not any("abstain" in reason.lower() for reason in r.get("reasons", []))
-    )
 
     recall_rate = (retrieval_hits / in_scope_count) * 100 if in_scope_count else 100.0
     citation_rate = (citation_valid_count / in_scope_count) * 100 if in_scope_count else 100.0

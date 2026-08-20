@@ -26,9 +26,9 @@ if sys.platform == "win32":
 ROOT_DIR = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT_DIR))
 
-from backend.app.config import get_settings
-from backend.app.retrieval.factory import get_retriever
-from backend.app.retrieval.store import VectorStore
+from backend.app.config import get_settings  # noqa: E402
+from backend.app.retrieval.factory import get_retriever  # noqa: E402
+from backend.app.retrieval.store import VectorStore  # noqa: E402
 
 EVAL_DATASET_PATH = ROOT_DIR / "data/eval/evaluation_dataset.json"
 REPORT_OUTPUT_PATH = ROOT_DIR / "docs/RETRIEVAL_THRESHOLD_CALIBRATION.md"
@@ -208,7 +208,7 @@ Out-of-Scope Negative Controls Distribution:
   Max Score:     {max(s for _, s in neg_scores):.4f}
 ```
 
-> **Clinical Conclusion**:  
+> **Clinical Conclusion**:
 > A calibrated threshold of **$\\tau = 0.50$** provides the optimal trade-off: it captures **95%+ of authentic adrenal insufficiency inquiries** while cleanly filtering out **100% of non-endocrinology medical queries and adversarial jailbreaks**.
 
 ---

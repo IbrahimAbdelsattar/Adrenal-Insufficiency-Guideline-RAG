@@ -1,6 +1,5 @@
 """Unit tests for FallbackEmbedder."""
 
-
 import pytest
 
 from backend.app.config import Settings
