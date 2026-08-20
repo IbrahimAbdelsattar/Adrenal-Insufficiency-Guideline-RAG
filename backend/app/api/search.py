@@ -85,7 +85,9 @@ def get_health() -> dict:
         )
 
     return {
-        "status": "ok" if (not problems or (not key_configured and settings.enable_embedding_fallback and ready)) else "degraded",
+        "status": "ok"
+        if (not problems or (not key_configured and settings.enable_embedding_fallback and ready))
+        else "degraded",
         "index_ready": ready,
         "api_key_configured": key_configured,
         "embedding_fallback_enabled": settings.enable_embedding_fallback,
@@ -210,10 +212,11 @@ def search(request: SearchRequest) -> SearchResponse:
     trace = RagTrace("search", query=request.query, top_k=top_k, settings=settings)
 
     from backend.app.generation.guardrails import (
-        is_dosage_or_medication_query,
         DOSAGE_REFUSAL_MESSAGE_AR,
         DOSAGE_REFUSAL_MESSAGE_EN,
+        is_dosage_or_medication_query,
     )
+
     if is_dosage_or_medication_query(request.query):
         is_ar = any("\u0600" <= c <= "\u06ff" for c in request.query)
         refusal_msg = DOSAGE_REFUSAL_MESSAGE_AR if is_ar else DOSAGE_REFUSAL_MESSAGE_EN
@@ -250,7 +253,10 @@ def search(request: SearchRequest) -> SearchResponse:
     valid_model = (
         manifest is None
         or manifest.embedding_model == settings.embedding_model
-        or (settings.enable_embedding_fallback and manifest.embedding_model == settings.local_embedding_model)
+        or (
+            settings.enable_embedding_fallback
+            and manifest.embedding_model == settings.local_embedding_model
+        )
     )
     if not valid_model and manifest:
         logger.error(

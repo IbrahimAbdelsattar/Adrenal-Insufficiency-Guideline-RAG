@@ -8,7 +8,6 @@ to decide *how* to deliver the result, not *how* to compute it.
 
 from __future__ import annotations
 
-import asyncio
 import logging
 import time
 from dataclasses import dataclass, field
@@ -26,13 +25,13 @@ from backend.app.generation.citations import (
 from backend.app.generation.clarification import suggest_clarifying_questions
 from backend.app.generation.client import LLMClient
 from backend.app.generation.guardrails import (
-    GREETING_RESPONSE_AR,
-    GREETING_RESPONSE_EN,
     DOSAGE_REFUSAL_MESSAGE_AR,
     DOSAGE_REFUSAL_MESSAGE_EN,
+    GREETING_RESPONSE_AR,
+    GREETING_RESPONSE_EN,
     detect_prompt_injection,
-    is_greeting,
     is_dosage_or_medication_query,
+    is_greeting,
 )
 from backend.app.generation.prompt import SYSTEM_PROMPT, construct_user_prompt
 from backend.app.generation.reasoning import strip_reasoning
@@ -169,7 +168,6 @@ def _finalize_answer(raw: str) -> str | None:
             answer_stripped += PHARMACOLOGICAL_DISCLAIMER
 
     return answer_stripped
-
 
 
 def _abstention_response(

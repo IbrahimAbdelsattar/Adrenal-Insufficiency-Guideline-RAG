@@ -99,7 +99,7 @@ upstream credentials for it; that is an account action, not a code change.
 The extractor required a `]` immediately after the digits:
 
 ```python
-re.findall(r"\[Source (\d+)\]", text)   # before
+re.findall(r"\[Source (\d+)\]", text)  # before
 ```
 
 Models routinely append the NICE recommendation id inside the bracket. On a real
@@ -208,7 +208,7 @@ to both consumers:
 
 ```python
 cited_sources = select_sources(evidence_results)
-evidence_text  = assemble_evidence(evidence_results)
+evidence_text = assemble_evidence(evidence_results)
 ...
 citations = resolve_citations(answer, cited_sources)
 ```

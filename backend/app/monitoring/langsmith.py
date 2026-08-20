@@ -29,6 +29,7 @@ _LANGSMITH_ENABLED = False
 try:
     from langsmith import traceable as _traceable
 except ImportError:  # pragma: no cover - only hit if the package is missing
+
     def _traceable(*_args: Any, **_kwargs: Any):  # type: ignore[misc]
         def _decorator(func):
             return func

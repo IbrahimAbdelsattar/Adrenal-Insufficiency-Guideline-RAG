@@ -1,8 +1,6 @@
 """Integration tests for Dense and Hybrid retrieval with embedding fallback."""
 
-from unittest.mock import patch
 
-import pytest
 
 from backend.app.config import Settings
 from backend.app.embeddings.fallback import FallbackEmbedder

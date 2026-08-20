@@ -22,19 +22,18 @@ from backend.app.config import get_settings
 from backend.app.errors import PipelineError
 from backend.app.generation.assembler import assemble_evidence, select_sources
 from backend.app.generation.citations import (
-    strip_trailing_disclaimer,
     validate_grounding,
 )
 from backend.app.generation.client import LLMClient
 from backend.app.generation.guardrails import (
-    detect_prompt_injection,
-    is_greeting,
-    is_dosage_or_medication_query,
     DOSAGE_REFUSAL_MESSAGE_AR,
     DOSAGE_REFUSAL_MESSAGE_EN,
+    detect_prompt_injection,
+    is_dosage_or_medication_query,
+    is_greeting,
 )
 from backend.app.generation.prompt import SYSTEM_PROMPT, construct_user_prompt
-from backend.app.generation.reasoning import ReasoningFilter, strip_reasoning
+from backend.app.generation.reasoning import ReasoningFilter
 from backend.app.generation.service import (
     GROUNDING_FAILED_MESSAGE,
     INJECTION_REFUSAL_MESSAGE,
@@ -369,7 +368,6 @@ async def generate_answer_stream(request: GenerateRequest) -> StreamingResponse:
             trace.emit(status="error_reasoning_only", level=logging.ERROR)
             yield _sse("error", {"detail": REASONING_ONLY_MESSAGE})
             return
-
 
         with trace.stage("citations", level=logging.DEBUG) as span:
             grounding = validate_grounding(answer, cited_sources)

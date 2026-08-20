@@ -15,8 +15,6 @@ import sys
 from pathlib import Path
 from typing import Any
 
-import yaml
-
 # Ensure UTF-8 output on Windows consoles
 if sys.platform == "win32":
     try:
@@ -38,8 +36,10 @@ REPORT_OUTPUT_PATH = ROOT_DIR / "docs/RETRIEVAL_THRESHOLD_CALIBRATION.md"
 
 def load_dataset() -> list[dict[str, Any]]:
     import json
+
     if not EVAL_DATASET_PATH.exists():
         from scripts.build_evaluation_dataset import build_unified_dataset
+
         return build_unified_dataset()
     data = json.loads(EVAL_DATASET_PATH.read_text(encoding="utf-8"))
     return data.get("cases", [])
@@ -65,15 +65,39 @@ def calibrate() -> None:
 
     # If few negative controls in dataset, supplement with known non-endocrinology queries
     extra_negatives = [
-        {"eval_id": "NEG_01", "query": "What is the surgical approach for acute appendicitis?", "should_abstain": True},
-        {"eval_id": "NEG_02", "query": "What are the first-line antihypertensive agents in primary hypertension?", "should_abstain": True},
-        {"eval_id": "NEG_03", "query": "How do you diagnose acute ischemic stroke in the emergency department?", "should_abstain": True},
-        {"eval_id": "NEG_04", "query": "What is the recommended antibiotic regimen for community-acquired pneumonia?", "should_abstain": True},
-        {"eval_id": "NEG_05", "query": "What is the capital of France and its population?", "should_abstain": True},
+        {
+            "eval_id": "NEG_01",
+            "query": "What is the surgical approach for acute appendicitis?",
+            "should_abstain": True,
+        },
+        {
+            "eval_id": "NEG_02",
+            "query": "What are the first-line antihypertensive agents in primary hypertension?",
+            "should_abstain": True,
+        },
+        {
+            "eval_id": "NEG_03",
+            "query": "How do you diagnose acute ischemic stroke in the emergency department?",
+            "should_abstain": True,
+        },
+        {
+            "eval_id": "NEG_04",
+            "query": "What is the recommended antibiotic regimen for community-acquired pneumonia?",
+            "should_abstain": True,
+        },
+        {
+            "eval_id": "NEG_05",
+            "query": "What is the capital of France and its population?",
+            "should_abstain": True,
+        },
     ]
-    all_negatives = negatives + [n for n in extra_negatives if n["eval_id"] not in [c["eval_id"] for c in negatives]]
+    all_negatives = negatives + [
+        n for n in extra_negatives if n["eval_id"] not in [c["eval_id"] for c in negatives]
+    ]
 
-    print(f"Loaded {len(positives)} In-Scope Positive cases and {len(all_negatives)} Negative controls.")
+    print(
+        f"Loaded {len(positives)} In-Scope Positive cases and {len(all_negatives)} Negative controls."
+    )
     print("Retrieving top scores for all evaluation queries...")
 
     # Score Positives
@@ -95,7 +119,9 @@ def calibrate() -> None:
 
     print("\nCandidate Threshold Evaluation:")
     print("-" * 75)
-    print(f"{'Threshold':<10}{'Sensitivity (TPR)':<18}{'Specificity (TNR)':<18}{'Precision':<12}{'F1-Score':<10}{'Status'}")
+    print(
+        f"{'Threshold':<10}{'Sensitivity (TPR)':<18}{'Specificity (TNR)':<18}{'Precision':<12}{'F1-Score':<10}{'Status'}"
+    )
     print("-" * 75)
 
     best_f1 = 0.0
@@ -121,17 +147,19 @@ def calibrate() -> None:
             best_f1 = f1
             optimal_threshold = tau
 
-        calibration_rows.append({
-            "threshold": tau,
-            "tpr": tpr,
-            "tnr": tnr,
-            "precision": prec,
-            "f1": f1,
-            "tp": tp,
-            "fn": fn,
-            "tn": tn,
-            "fp": fp,
-        })
+        calibration_rows.append(
+            {
+                "threshold": tau,
+                "tpr": tpr,
+                "tnr": tnr,
+                "precision": prec,
+                "f1": f1,
+                "tp": tp,
+                "fn": fn,
+                "tn": tn,
+                "fp": fp,
+            }
+        )
 
         star = " ★ (OPTIMAL)" if tau == 0.50 else ""
         print(f"{tau:<10.2f}{tpr:<18.1%}{tnr:<18.1%}{prec:<12.1%}{f1:<10.3f}{star}")
@@ -149,7 +177,7 @@ This report documents the empirical calibration of the retrieval relevance floor
 - **Evaluated Dataset**: {len(positives)} In-Scope Guideline Inquiries vs {len(all_negatives)} Out-of-Scope Negative Controls.
 - **Retriever Mode**: Hybrid Dense (ChromaDB) + Lexical (BM25) with Reciprocal Rank Fusion ($k=60$).
 - **Calibrated Operating Point**: **`RELEVANCE_FLOOR = 0.50`** / **`SCOPE_THRESHOLD = 0.50`**
-- **Resulting Metric at Optimal Point**: **Sensitivity = {next(r['tpr'] for r in calibration_rows if r['threshold'] == 0.50):.1%}**, **Specificity = {next(r['tnr'] for r in calibration_rows if r['threshold'] == 0.50):.1%}**, **$F_1$-Score = {next(r['f1'] for r in calibration_rows if r['threshold'] == 0.50):.3f}**.
+- **Resulting Metric at Optimal Point**: **Sensitivity = {next(r["tpr"] for r in calibration_rows if r["threshold"] == 0.50):.1%}**, **Specificity = {next(r["tnr"] for r in calibration_rows if r["threshold"] == 0.50):.1%}**, **$F_1$-Score = {next(r["f1"] for r in calibration_rows if r["threshold"] == 0.50):.3f}**.
 
 ---
 
@@ -159,8 +187,8 @@ This report documents the empirical calibration of the retrieval relevance floor
 | :---: | :---: | :---: | :---: | :---: | :--- |
 """
     for r in calibration_rows:
-        opt_label = "**Selected Standard**" if r['threshold'] == 0.50 else "Sub-optimal"
-        report_md += f"| `{r['threshold']:.2f}` | {r['tpr']:.1%} ({r['tp']}/{r['tp']+r['fn']}) | {r['tnr']:.1%} ({r['tn']}/{r['tn']+r['fp']}) | {r['precision']:.1%} | **{r['f1']:.3f}** | {opt_label} |\n"
+        opt_label = "**Selected Standard**" if r["threshold"] == 0.50 else "Sub-optimal"
+        report_md += f"| `{r['threshold']:.2f}` | {r['tpr']:.1%} ({r['tp']}/{r['tp'] + r['fn']}) | {r['tnr']:.1%} ({r['tn']}/{r['tn'] + r['fp']}) | {r['precision']:.1%} | **{r['f1']:.3f}** | {opt_label} |\n"
 
     report_md += f"""
 ---

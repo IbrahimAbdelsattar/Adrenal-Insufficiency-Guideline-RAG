@@ -30,7 +30,6 @@ from backend.app.generation.prompt import (
 from backend.app.models import Chunk, RetrievalResult
 from backend.app.retrieval.scope import classify_scope
 
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
@@ -250,7 +249,10 @@ class TestPromptConstruction:
     def test_system_prompt_contains_grounding_rules(self):
         assert "EVIDENCE-ONLY" in SYSTEM_PROMPT
         assert "MANDATORY CITATIONS" in SYSTEM_PROMPT
-        assert "EXPLICIT ABSTENTION" in SYSTEM_PROMPT or "insufficient information" in SYSTEM_PROMPT.lower()
+        assert (
+            "EXPLICIT ABSTENTION" in SYSTEM_PROMPT
+            or "insufficient information" in SYSTEM_PROMPT.lower()
+        )
 
     def test_system_prompt_contains_injection_resistance(self):
         assert "SECURITY CONSTRAINTS" in SYSTEM_PROMPT
@@ -326,32 +328,38 @@ class TestAPIInjectionRefusal:
 class TestPharmacologicalContentDetection:
     """Verify that contains_pharmacological_content() correctly classifies text."""
 
-    @pytest.mark.parametrize("text", [
-        "Hydrocortisone 100 mg IV should be administered immediately.",
-        "The recommended dose is 15-25 mg daily in divided doses.",
-        "Administer fludrocortisone 0.05-0.2 mg orally once daily.",
-        "Prednisolone 5 mg as an alternative corticosteroid.",
-        "Intravenous injection of hydrocortisone is required.",
-        "Intramuscular route can be used for home treatment.",
-        "The tablet should be taken in the morning.",
-        "Treatment involves corticosteroid replacement therapy.",
-        "This medication must be prescribed by a specialist.",
-        "Steroid dose adjustment during physiological stress.",
-        "Drug interactions with antifungal agents should be considered.",
-    ])
+    @pytest.mark.parametrize(
+        "text",
+        [
+            "Hydrocortisone 100 mg IV should be administered immediately.",
+            "The recommended dose is 15-25 mg daily in divided doses.",
+            "Administer fludrocortisone 0.05-0.2 mg orally once daily.",
+            "Prednisolone 5 mg as an alternative corticosteroid.",
+            "Intravenous injection of hydrocortisone is required.",
+            "Intramuscular route can be used for home treatment.",
+            "The tablet should be taken in the morning.",
+            "Treatment involves corticosteroid replacement therapy.",
+            "This medication must be prescribed by a specialist.",
+            "Steroid dose adjustment during physiological stress.",
+            "Drug interactions with antifungal agents should be considered.",
+        ],
+    )
     def test_pharmacological_text_is_detected(self, text: str):
         """Text containing drugs, dosages, or treatments must be flagged."""
         assert contains_pharmacological_content(text), (
             f"FAILED: pharmacological content not detected in: {text!r}"
         )
 
-    @pytest.mark.parametrize("text", [
-        "The patient should be referred to a specialist.",
-        "Adrenal insufficiency is a chronic condition.",
-        "Blood tests for cortisol levels should be performed.",
-        "Diagnostic criteria include clinical symptoms and biochemical tests.",
-        "The clinician should assess the patient's history.",
-    ])
+    @pytest.mark.parametrize(
+        "text",
+        [
+            "The patient should be referred to a specialist.",
+            "Adrenal insufficiency is a chronic condition.",
+            "Blood tests for cortisol levels should be performed.",
+            "Diagnostic criteria include clinical symptoms and biochemical tests.",
+            "The clinician should assess the patient's history.",
+        ],
+    )
     def test_non_pharmacological_text_is_not_flagged(self, text: str):
         """Text without drug/dosage/treatment content must not be flagged."""
         assert not contains_pharmacological_content(text), (
@@ -443,17 +451,25 @@ class TestSystemPromptMedicalSafetyPolicy:
         assert "PRESCRIPTION REFUSAL POLICY" in SYSTEM_PROMPT
 
     def test_system_prompt_forbids_prescriber_identity(self):
-        assert "not a prescribing physician" in SYSTEM_PROMPT.lower() or \
-               "not a doctor" in SYSTEM_PROMPT.lower()
+        assert (
+            "not a prescribing physician" in SYSTEM_PROMPT.lower()
+            or "not a doctor" in SYSTEM_PROMPT.lower()
+        )
 
     def test_system_prompt_requires_guideline_framing(self):
-        assert "According to NICE NG243" in SYSTEM_PROMPT or \
-               "according to nice ng243" in SYSTEM_PROMPT.lower()
+        assert (
+            "According to NICE NG243" in SYSTEM_PROMPT
+            or "according to nice ng243" in SYSTEM_PROMPT.lower()
+        )
 
     def test_system_prompt_bans_second_person_commands(self):
         """The prompt must explicitly list forbidden second-person command forms."""
         assert "You should take" in SYSTEM_PROMPT
-        assert "Take X mg" in SYSTEM_PROMPT or "Take X mg daily" in SYSTEM_PROMPT or "Take X mg..." in SYSTEM_PROMPT
+        assert (
+            "Take X mg" in SYSTEM_PROMPT
+            or "Take X mg daily" in SYSTEM_PROMPT
+            or "Take X mg..." in SYSTEM_PROMPT
+        )
 
     def test_system_prompt_requires_personal_advice_refusal(self):
         assert "personal medical advice" in SYSTEM_PROMPT.lower()
@@ -481,33 +497,43 @@ class TestSystemPromptMedicalSafetyPolicy:
 class TestDosageMedicationRefusalGuard:
     """Verify that dosage and medication query guard triggers correctly on queries."""
 
-    @pytest.mark.parametrize("query", [
-        "what is the recommended dose of hydrocortisone?",
-        "how many mg of prednisolone should I take?",
-        "should I take fludrocortisone?",
-        "جرعة الهيدروكورتيزون للبالغين",
-        "كم ملغ من الدواء يجب أن آخذ؟",
-        "هل تنصح باستخدام ستيرويد؟",
-        "what is the stress dosing regimen?",
-        "how to taper fludrocortisone?",
-    ])
+    @pytest.mark.parametrize(
+        "query",
+        [
+            "what is the recommended dose of hydrocortisone?",
+            "how many mg of prednisolone should I take?",
+            "should I take fludrocortisone?",
+            "جرعة الهيدروكورتيزون للبالغين",
+            "كم ملغ من الدواء يجب أن آخذ؟",
+            "هل تنصح باستخدام ستيرويد؟",
+            "what is the stress dosing regimen?",
+            "how to taper fludrocortisone?",
+        ],
+    )
     def test_dosage_medication_queries_are_refused_pre_retrieval(self, query: str):
         from backend.app.generation.guardrails import is_dosage_or_medication_query
+
         assert is_dosage_or_medication_query(query)
 
-    @pytest.mark.parametrize("query", [
-        "what is adrenal crisis?",
-        "what is adrenal insufficiency?",
-        "كيف يتم تشخيص قصور الكظر؟",
-        "what is treatment?",  # Allowed conceptual question
-    ])
+    @pytest.mark.parametrize(
+        "query",
+        [
+            "what is adrenal crisis?",
+            "what is adrenal insufficiency?",
+            "كيف يتم تشخيص قصور الكظر؟",
+            "what is treatment?",  # Allowed conceptual question
+        ],
+    )
     def test_clean_clinical_queries_are_not_refused_pre_retrieval(self, query: str):
         from backend.app.generation.guardrails import is_dosage_or_medication_query
+
         assert not is_dosage_or_medication_query(query)
 
     def test_generate_api_dosage_query_returns_refusal(self):
         from fastapi.testclient import TestClient
+
         from backend.app.main import app
+
         client = TestClient(app)
         response = client.post(
             "/api/generate",
@@ -520,7 +546,9 @@ class TestDosageMedicationRefusalGuard:
 
     def test_search_api_dosage_query_returns_empty_results(self):
         from fastapi.testclient import TestClient
+
         from backend.app.main import app
+
         client = TestClient(app)
         response = client.post(
             "/api/search",
@@ -530,4 +558,3 @@ class TestDosageMedicationRefusalGuard:
         data = response.json()
         assert data["evidence_found"] is False
         assert data["results"] == []
-

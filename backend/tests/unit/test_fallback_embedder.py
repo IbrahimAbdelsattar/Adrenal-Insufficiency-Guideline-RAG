@@ -1,13 +1,11 @@
 """Unit tests for FallbackEmbedder."""
 
-from unittest.mock import MagicMock
 
 import pytest
 
 from backend.app.config import Settings
-from backend.app.embeddings.base import Embedder
 from backend.app.embeddings.fallback import FallbackEmbedder
-from backend.app.errors import ConfigurationError, EmbeddingProviderError
+from backend.app.errors import EmbeddingProviderError
 
 
 class DummyEmbedder:

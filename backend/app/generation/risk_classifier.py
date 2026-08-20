@@ -90,7 +90,8 @@ def classify_input_risk(
 
     # 2. Acute Emergency Critical Detection
     emergency_matches = [
-        pattern for pattern in _EMERGENCY_PATTERNS
+        pattern
+        for pattern in _EMERGENCY_PATTERNS
         if re.search(pattern, cleaned_query, re.IGNORECASE)
     ]
     if emergency_matches:
@@ -98,7 +99,10 @@ def classify_input_risk(
             tier=InputRiskTier.EMERGENCY_CRITICAL,
             is_emergency=True,
             risk_score=0.95,
-            detected_risk_factors=["Acute Adrenal Crisis Indicators", f"Matched {len(emergency_matches)} emergency pattern(s)"],
+            detected_risk_factors=[
+                "Acute Adrenal Crisis Indicators",
+                f"Matched {len(emergency_matches)} emergency pattern(s)",
+            ],
             recommended_triage_action=(
                 "IMMEDIATE EMERGENCY ACTION REQUIRED: Administer 100 mg parenteral hydrocortisone "
                 "(IM or IV) immediately. Do not delay for diagnostic tests. Call emergency services (999/112)."
@@ -111,7 +115,8 @@ def classify_input_risk(
 
     # 3. Sick-Day & Physiological Stress Detection
     sick_day_matches = [
-        pattern for pattern in _SICK_DAY_PATTERNS
+        pattern
+        for pattern in _SICK_DAY_PATTERNS
         if re.search(pattern, cleaned_query, re.IGNORECASE)
     ]
     if sick_day_matches:
@@ -131,7 +136,8 @@ def classify_input_risk(
 
     # 4. Pediatric & BSPED Specialist Detection
     pediatric_matches = [
-        pattern for pattern in _PEDIATRIC_PATTERNS
+        pattern
+        for pattern in _PEDIATRIC_PATTERNS
         if re.search(pattern, cleaned_query, re.IGNORECASE)
     ]
     if pediatric_matches:
@@ -150,7 +156,8 @@ def classify_input_risk(
 
     # 5. Steroid Withdrawal & Tapering Detection
     withdrawal_matches = [
-        pattern for pattern in _WITHDRAWAL_PATTERNS
+        pattern
+        for pattern in _WITHDRAWAL_PATTERNS
         if re.search(pattern, cleaned_query, re.IGNORECASE)
     ]
     if withdrawal_matches:
@@ -169,7 +176,8 @@ def classify_input_risk(
 
     # 6. Out-of-Scope Detection
     out_of_scope_matches = [
-        pattern for pattern in _OUT_OF_SCOPE_NON_ENDOCRINE
+        pattern
+        for pattern in _OUT_OF_SCOPE_NON_ENDOCRINE
         if re.search(pattern, cleaned_query, re.IGNORECASE)
     ]
     if out_of_scope_matches and not is_clinical_domain_query(query):

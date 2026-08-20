@@ -63,7 +63,11 @@ class DenseRetriever:
         else:
             embeddings = self.embedder.embed_documents(texts)
         self._store.build(chunks, embeddings, collection_name=fallback_col)
-        logger.info("Fallback vector collection '%s' is now ready with %d chunks.", fallback_col, len(chunks))
+        logger.info(
+            "Fallback vector collection '%s' is now ready with %d chunks.",
+            fallback_col,
+            len(chunks),
+        )
 
     def _resolve_target_collection(self) -> str:
         """Determine whether to query the primary or fallback vector collection."""
@@ -87,7 +91,9 @@ class DenseRetriever:
 
             target_collection = self._resolve_target_collection()
 
-            with stage_timer("retrieval.dense.query", logger, top_k=k, collection=target_collection) as span:
+            with stage_timer(
+                "retrieval.dense.query", logger, top_k=k, collection=target_collection
+            ) as span:
                 try:
                     hits = self._store.query(embedding, k, collection_name=target_collection)
                 except Exception as exc:

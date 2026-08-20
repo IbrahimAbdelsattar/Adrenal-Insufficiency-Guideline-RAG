@@ -51,9 +51,9 @@ The startup pre-warm in `main.py` built these objects and threw them away.
 **Fix.** Process-wide cached singletons in `backend/app/retrieval/factory.py`:
 
 ```python
-def get_shared_store(settings=None) -> VectorStore: ...      # one Chroma client
-def get_shared_retriever(settings=None) -> Retriever: ...    # one retriever
-def reset_shared_retriever() -> None: ...                    # after re-ingest
+def get_shared_store(settings=None) -> VectorStore: ...  # one Chroma client
+def get_shared_retriever(settings=None) -> Retriever: ...  # one retriever
+def reset_shared_retriever() -> None: ...  # after re-ingest
 ```
 
 Both are double-checked-locked (thread-safe). All request handlers

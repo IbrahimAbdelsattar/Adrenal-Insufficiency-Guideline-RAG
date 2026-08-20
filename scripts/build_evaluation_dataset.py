@@ -97,7 +97,14 @@ def build_unified_dataset() -> list[dict[str, Any]]:
 
 
 def export_json(dataset: list[dict[str, Any]], path: Path) -> None:
-    path.write_text(json.dumps({"dataset_version": "1.0.0", "total_cases": len(dataset), "cases": dataset}, indent=2, ensure_ascii=False), encoding="utf-8")
+    path.write_text(
+        json.dumps(
+            {"dataset_version": "1.0.0", "total_cases": len(dataset), "cases": dataset},
+            indent=2,
+            ensure_ascii=False,
+        ),
+        encoding="utf-8",
+    )
 
 
 def export_jsonl(dataset: list[dict[str, Any]], path: Path) -> None:
@@ -125,7 +132,9 @@ def export_csv(dataset: list[dict[str, Any]], path: Path) -> None:
         for item in dataset:
             row = dict(item)
             row["expected_sections"] = ", ".join(item.get("expected_sections") or [])
-            row["expected_recommendation_ids"] = ", ".join(item.get("expected_recommendation_ids") or [])
+            row["expected_recommendation_ids"] = ", ".join(
+                item.get("expected_recommendation_ids") or []
+            )
             row["must_include"] = "; ".join(item.get("must_include") or [])
             row["must_not_include"] = "; ".join(item.get("must_not_include") or [])
             writer.writerow(row)

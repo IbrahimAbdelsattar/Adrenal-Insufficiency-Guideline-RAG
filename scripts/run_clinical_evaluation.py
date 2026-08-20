@@ -70,7 +70,6 @@ def main():
     print(" [EVAL] EVA AI - SERIOUS CLINICAL EVALUATION SUITE RUNNER (NICE NG243)")
     print("=" * 80)
 
-
     with open(EVAL_DATASET_PATH, encoding="utf-8") as f:
         data = yaml.safe_load(f)
         cases = data.get("cases", [])
@@ -79,7 +78,9 @@ def main():
     in_scope_cases = [c for c in cases if not c.get("should_abstain", False)]
     in_scope_count = len(in_scope_cases)
 
-    print(f"Loaded {total_cases} clinician-reviewed cases ({in_scope_count} in-scope, {total_cases - in_scope_count} out-of-scope/adversarial).\n")
+    print(
+        f"Loaded {total_cases} clinician-reviewed cases ({in_scope_count} in-scope, {total_cases - in_scope_count} out-of-scope/adversarial).\n"
+    )
 
     results = []
     emergency_failures = []
@@ -101,8 +102,11 @@ def main():
         must_not_include = case.get("must_not_include", [])
         crit_check = case.get("critical_medication_check")
 
-        print(f"[{idx:02d}/{total_cases:02d}] Evaluating: {case_id} ({category}) ... ", end="", flush=True)
-
+        print(
+            f"[{idx:02d}/{total_cases:02d}] Evaluating: {case_id} ({category}) ... ",
+            end="",
+            flush=True,
+        )
 
         case_start = time.perf_counter()
         response = client.post(
@@ -117,18 +121,24 @@ def main():
         # Mark as INFRA_ERROR and skip clinical assertion checks.
         if response.status_code >= 500:
             print(f"[INFRA_ERROR] ({latency_ms:.0f}ms)")
-            print(f"       Reason: API returned HTTP {response.status_code} — infrastructure failure, not a clinical error")
-            results.append({
-                "case_id": case_id,
-                "category": category,
-                "is_emergency": is_emergency,
-                "passed": None,  # Neither pass nor fail — infrastructure skip
-                "infra_error": True,
-                "latency_ms": round(latency_ms, 1),
-                "citations_count": 0,
-                "reasons": [f"API HTTP {response.status_code} — skipped (infrastructure failure)"],
-                "notes": case.get("notes", ""),
-            })
+            print(
+                f"       Reason: API returned HTTP {response.status_code} — infrastructure failure, not a clinical error"
+            )
+            results.append(
+                {
+                    "case_id": case_id,
+                    "category": category,
+                    "is_emergency": is_emergency,
+                    "passed": None,  # Neither pass nor fail — infrastructure skip
+                    "infra_error": True,
+                    "latency_ms": round(latency_ms, 1),
+                    "citations_count": 0,
+                    "reasons": [
+                        f"API HTTP {response.status_code} — skipped (infrastructure failure)"
+                    ],
+                    "notes": case.get("notes", ""),
+                }
+            )
             continue
 
         data = response.json()
@@ -198,7 +208,11 @@ def main():
         if omission_passed:
             omission_passed_count += 1
 
-        case_passed = abstention_passed and (should_abstain or (retrieval_hit and citation_valid and accuracy_passed)) and omission_passed
+        case_passed = (
+            abstention_passed
+            and (should_abstain or (retrieval_hit and citation_valid and accuracy_passed))
+            and omission_passed
+        )
 
         if is_emergency and not case_passed:
             emergency_failures.append(f"[{case_id}] {category}: {'; '.join(reasons)}")
@@ -208,18 +222,19 @@ def main():
         if not case_passed:
             print(f"       Reasons: {'; '.join(reasons)}")
 
-        results.append({
-            "case_id": case_id,
-            "category": category,
-            "is_emergency": is_emergency,
-            "passed": case_passed,
-            "infra_error": False,
-            "latency_ms": round(latency_ms, 1),
-            "citations_count": len(citations),
-            "reasons": reasons,
-            "notes": case.get("notes", ""),
-        })
-
+        results.append(
+            {
+                "case_id": case_id,
+                "category": category,
+                "is_emergency": is_emergency,
+                "passed": case_passed,
+                "infra_error": False,
+                "latency_ms": round(latency_ms, 1),
+                "citations_count": len(citations),
+                "reasons": reasons,
+                "notes": case.get("notes", ""),
+            }
+        )
 
     total_duration = time.perf_counter() - start_time
 
@@ -229,18 +244,30 @@ def main():
     infra_error_count = len(infra_error_results)
 
     evaluated_count = len(clinical_results)
-    evaluated_in_scope = sum(1 for r in clinical_results if r["category"] not in ("out_of_scope", "adversarial_security") or not any("abstain" in reason.lower() for reason in r.get("reasons", [])))
+    evaluated_in_scope = sum(
+        1
+        for r in clinical_results
+        if r["category"] not in ("out_of_scope", "adversarial_security")
+        or not any("abstain" in reason.lower() for reason in r.get("reasons", []))
+    )
 
     recall_rate = (retrieval_hits / in_scope_count) * 100 if in_scope_count else 100.0
     citation_rate = (citation_valid_count / in_scope_count) * 100 if in_scope_count else 100.0
     accuracy_rate = (accuracy_passed_count / in_scope_count) * 100 if in_scope_count else 100.0
-    abstention_rate = (abstention_passed_count / (total_cases - infra_error_count)) * 100 if (total_cases - infra_error_count) else 100.0
+    abstention_rate = (
+        (abstention_passed_count / (total_cases - infra_error_count)) * 100
+        if (total_cases - infra_error_count)
+        else 100.0
+    )
     passed_cases_count = sum(1 for r in clinical_results if r["passed"])
     overall_pass_rate = (passed_cases_count / evaluated_count) * 100 if evaluated_count else 0.0
 
     # Dynamic category breakdown
     from collections import defaultdict
-    category_stats: dict[str, dict[str, Any]] = defaultdict(lambda: {"total": 0, "passed": 0, "infra_errors": 0})
+
+    category_stats: dict[str, dict[str, Any]] = defaultdict(
+        lambda: {"total": 0, "passed": 0, "infra_errors": 0}
+    )
     for r in results:
         cat = r["category"]
         if r.get("infra_error", False):
@@ -268,7 +295,9 @@ def main():
         stats = category_stats.get(cat_key)
         if not stats or stats["total"] == 0:
             if stats and stats["infra_errors"] > 0:
-                domain_table += f"| **{label}** | {stats['infra_errors']} | N/A (infra error) | — |\n"
+                domain_table += (
+                    f"| **{label}** | {stats['infra_errors']} | N/A (infra error) | — |\n"
+                )
             continue
         pct = (stats["passed"] / stats["total"]) * 100
         infra_note = f" (+{stats['infra_errors']} infra skip)" if stats["infra_errors"] > 0 else ""
@@ -335,8 +364,12 @@ This report documents the automated evaluation results of **Eva AI Clinical Deci
     print("\n" + "=" * 80)
     print(" [SUMMARY] EVALUATION SCORECARD")
     print("=" * 80)
-    print(f" Evaluated Cases:            {evaluated_count}/{total_cases} (infra errors: {infra_error_count})")
-    print(f" Overall Pass Rate:          {overall_pass_rate:.1f}% ({passed_cases_count}/{evaluated_count})")
+    print(
+        f" Evaluated Cases:            {evaluated_count}/{total_cases} (infra errors: {infra_error_count})"
+    )
+    print(
+        f" Overall Pass Rate:          {overall_pass_rate:.1f}% ({passed_cases_count}/{evaluated_count})"
+    )
     print(f" Retrieval Recall@5:         {recall_rate:.1f}%")
     print(f" Citation Validity Rate:     {citation_rate:.1f}%")
     print(f" Medication Accuracy Rate:   {accuracy_rate:.1f}%")
@@ -346,7 +379,9 @@ This report documents the automated evaluation results of **Eva AI Clinical Deci
     print("=" * 80)
 
     if infra_error_count > 0:
-        print(f"\n[WARNING] {infra_error_count} case(s) skipped due to API infrastructure errors (HTTP 5xx):")
+        print(
+            f"\n[WARNING] {infra_error_count} case(s) skipped due to API infrastructure errors (HTTP 5xx):"
+        )
         for r in infra_error_results:
             print(f"  ⊘ [{r['case_id']}] {r['category']}")
 
@@ -357,7 +392,5 @@ This report documents the automated evaluation results of **Eva AI Clinical Deci
         sys.exit(1)
 
 
-
 if __name__ == "__main__":
     main()
-

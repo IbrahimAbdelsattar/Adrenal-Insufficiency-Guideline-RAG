@@ -53,10 +53,28 @@ PHARMACOLOGICAL_DISCLAIMER = (
 )
 
 PHARMACOLOGICAL_KEYWORDS = [
-    "mg", "dose", "hydrocortisone", "fludrocortisone", "prednisolone", "dexamethasone",
-    "injection", "intravenous", "intramuscular", "oral", "tablet", "capsule",
-    "once daily", "twice daily", "divided dose", "treatment", "prescri", "administer",
-    "medication", "drug", "steroid", "corticosteroid"
+    "mg",
+    "dose",
+    "hydrocortisone",
+    "fludrocortisone",
+    "prednisolone",
+    "dexamethasone",
+    "injection",
+    "intravenous",
+    "intramuscular",
+    "oral",
+    "tablet",
+    "capsule",
+    "once daily",
+    "twice daily",
+    "divided dose",
+    "treatment",
+    "prescri",
+    "administer",
+    "medication",
+    "drug",
+    "steroid",
+    "corticosteroid",
 ]
 
 

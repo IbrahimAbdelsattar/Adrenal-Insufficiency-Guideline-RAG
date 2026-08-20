@@ -61,7 +61,9 @@ class LocalEmbedder:
                     try:
                         from sentence_transformers import SentenceTransformer
 
-                        logger.info("Loading local SentenceTransformer model '%s'...", self._model_name)
+                        logger.info(
+                            "Loading local SentenceTransformer model '%s'...", self._model_name
+                        )
                         started = time.perf_counter()
                         model = SentenceTransformer(self._model_name)
                         elapsed_ms = (time.perf_counter() - started) * 1000

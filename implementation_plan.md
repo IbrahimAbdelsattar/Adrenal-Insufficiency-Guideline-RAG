@@ -325,6 +325,7 @@ $$RRF\_Score(d) = \frac{1}{k + rank_{dense}(d)} + \frac{1}{k + rank_{bm25}(d)}$$
 # backend/tests/unit/test_config.py
 from backend.app.config import get_settings
 
+
 def test_hybrid_config_defaults():
     settings = get_settings()
     assert hasattr(settings, "retriever_type")
@@ -383,13 +384,22 @@ Expected: PASS
 from backend.app.models import Chunk, RetrievalResult
 from backend.app.retrieval.bm25 import BM25Retriever
 
+
 def test_bm25_retrieval_finds_exact_keyword():
-    c1 = Chunk.from_stored("c1", "Hydrocortisone is indicated for primary adrenal insufficiency.", {"doc_id": "d1", "page_number": 1})
-    c2 = Chunk.from_stored("c2", "Prednisolone is an alternative glucocorticoid replacement.", {"doc_id": "d1", "page_number": 2})
-    
+    c1 = Chunk.from_stored(
+        "c1",
+        "Hydrocortisone is indicated for primary adrenal insufficiency.",
+        {"doc_id": "d1", "page_number": 1},
+    )
+    c2 = Chunk.from_stored(
+        "c2",
+        "Prednisolone is an alternative glucocorticoid replacement.",
+        {"doc_id": "d1", "page_number": 2},
+    )
+
     retriever = BM25Retriever(chunks=[c1, c2])
     results = retriever.search("Hydrocortisone", top_k=2)
-    
+
     assert len(results) == 2
     assert results[0].chunk.chunk_id == "c1"
     assert results[0].score > results[1].score
@@ -399,6 +409,7 @@ def test_bm25_retrieval_finds_exact_keyword():
 
 ```python
 """BM25 Lexical Retriever using BM25Okapi."""
+
 from __future__ import annotations
 import re
 from typing import Sequence
@@ -407,18 +418,25 @@ from backend.app.config import Settings, get_settings
 from backend.app.models import Chunk, RetrievalResult
 from backend.app.retrieval.store import VectorStore
 
+
 def tokenize_clinical_text(text: str) -> list[str]:
     """Tokenize clinical text preserving drug names, numbers, and Arabic/English terms."""
     return [t.lower() for t in re.findall(r"\w+", text) if len(t) > 1]
 
+
 class BM25Retriever:
     """BM25 lexical search over stored guideline chunks."""
 
-    def __init__(self, chunks: Sequence[Chunk] | None = None, store: VectorStore | None = None, settings: Settings | None = None) -> None:
+    def __init__(
+        self,
+        chunks: Sequence[Chunk] | None = None,
+        store: VectorStore | None = None,
+        settings: Settings | None = None,
+    ) -> None:
         self._settings = settings or get_settings()
         self._store = store or VectorStore(self._settings)
         self._chunks: list[Chunk] = list(chunks) if chunks is not None else self._store.all_chunks()
-        
+
         tokenized_corpus = [tokenize_clinical_text(c.text) for c in self._chunks]
         self._bm25 = BM25Okapi(tokenized_corpus) if tokenized_corpus else None
 
@@ -434,7 +452,7 @@ class BM25Retriever:
 
         raw_scores = self._bm25.get_scores(tokens)
         max_s = max(raw_scores) if len(raw_scores) > 0 and max(raw_scores) > 0 else 1.0
-        
+
         # Sort by score descending
         ranked = sorted(zip(self._chunks, raw_scores), key=lambda x: x[1], reverse=True)[:k]
 
@@ -473,13 +491,18 @@ Expected: PASS
 from backend.app.models import Chunk
 from backend.app.retrieval.reranker import CrossEncoderReranker
 
+
 def test_reranker_scores_chunks():
-    c1 = Chunk.from_stored("c1", "Hydrocortisone dosage for adrenal crisis.", {"doc_id": "d1", "page_number": 1})
-    c2 = Chunk.from_stored("c2", "General guidelines for clinical documentation.", {"doc_id": "d1", "page_number": 2})
-    
+    c1 = Chunk.from_stored(
+        "c1", "Hydrocortisone dosage for adrenal crisis.", {"doc_id": "d1", "page_number": 1}
+    )
+    c2 = Chunk.from_stored(
+        "c2", "General guidelines for clinical documentation.", {"doc_id": "d1", "page_number": 2}
+    )
+
     reranker = CrossEncoderReranker(disabled=True)  # Tests fallback behavior
     scored = reranker.rerank("Hydrocortisone dosage", [c1, c2])
-    
+
     assert len(scored) == 2
     assert scored[0][0].chunk_id == "c1"
 ```
@@ -488,6 +511,7 @@ def test_reranker_scores_chunks():
 
 ```python
 """Cross-Encoder Reranking module with graceful fallback."""
+
 from __future__ import annotations
 import logging
 from typing import Sequence
@@ -496,20 +520,23 @@ from backend.app.models import Chunk
 
 logger = logging.getLogger(__name__)
 
+
 class CrossEncoderReranker:
     def __init__(self, settings: Settings | None = None, disabled: bool = False) -> None:
         self._settings = settings or get_settings()
         self._model = None
         self._disabled = disabled
-        
+
         if not self._disabled:
             try:
                 from sentence_transformers import CrossEncoder
+
                 self._model = CrossEncoder(self._settings.reranker_model)
             except Exception as exc:
                 logger.warning(
                     "Could not initialize CrossEncoder reranker model '%s': %s. Falling back to rank fusion.",
-                    self._settings.reranker_model, exc,
+                    self._settings.reranker_model,
+                    exc,
                 )
                 self._model = None
 
@@ -528,7 +555,9 @@ class CrossEncoderReranker:
                 ranked = sorted(zip(chunks, norm_scores), key=lambda x: x[1], reverse=True)
                 return ranked
             except Exception as exc:
-                logger.error("CrossEncoder reranking failed at runtime: %s. Using default ordering.", exc)
+                logger.error(
+                    "CrossEncoder reranking failed at runtime: %s. Using default ordering.", exc
+                )
 
         # Fallback: maintain candidate ordering with uniform step-decay scores
         n = len(chunks)
@@ -561,16 +590,25 @@ from backend.app.retrieval.bm25 import BM25Retriever
 from backend.app.retrieval.reranker import CrossEncoderReranker
 from backend.app.retrieval.hybrid import HybridRetriever
 
+
 def test_hybrid_retriever_combines_bm25_and_dense():
-    c1 = Chunk.from_stored("c1", "Hydrocortisone is used for adrenal crisis management.", {"doc_id": "d1", "page_number": 1})
-    c2 = Chunk.from_stored("c2", "NICE Guideline NG243 scope and recommendation overview.", {"doc_id": "d1", "page_number": 2})
-    
+    c1 = Chunk.from_stored(
+        "c1",
+        "Hydrocortisone is used for adrenal crisis management.",
+        {"doc_id": "d1", "page_number": 1},
+    )
+    c2 = Chunk.from_stored(
+        "c2",
+        "NICE Guideline NG243 scope and recommendation overview.",
+        {"doc_id": "d1", "page_number": 2},
+    )
+
     bm25 = BM25Retriever(chunks=[c1, c2])
     reranker = CrossEncoderReranker(disabled=True)
-    
+
     hybrid = HybridRetriever(bm25_retriever=bm25, reranker=reranker)
     results = hybrid.search("Hydrocortisone crisis", top_k=2)
-    
+
     assert len(results) > 0
     assert results[0].chunk.chunk_id == "c1"
     assert hasattr(results[0], "below_floor")
@@ -580,6 +618,7 @@ def test_hybrid_retriever_combines_bm25_and_dense():
 
 ```python
 """Hybrid Retriever combining Dense Vector + BM25 Lexical + Cross-Encoder Reranking."""
+
 from __future__ import annotations
 import logging
 from backend.app.config import Settings, get_settings
@@ -589,6 +628,7 @@ from backend.app.retrieval.dense import DenseRetriever
 from backend.app.retrieval.reranker import CrossEncoderReranker
 
 logger = logging.getLogger(__name__)
+
 
 class HybridRetriever:
     """Hybrid Retriever satisfying the Retriever protocol."""
@@ -605,7 +645,9 @@ class HybridRetriever:
         self._dense = dense_retriever or DenseRetriever(settings=self._settings)
         self._bm25 = bm25_retriever or BM25Retriever(settings=self._settings)
         self._use_reranker = use_reranker
-        self._reranker = reranker or (CrossEncoderReranker(settings=self._settings) if use_reranker else None)
+        self._reranker = reranker or (
+            CrossEncoderReranker(settings=self._settings) if use_reranker else None
+        )
 
     def search(self, query: str, top_k: int | None = None) -> list[RetrievalResult]:
         k = top_k or self._settings.top_k
@@ -679,11 +721,13 @@ Expected: PASS
 
 ```python
 """Retriever factory function for dependency injection."""
+
 from __future__ import annotations
 from backend.app.config import Settings, get_settings
 from backend.app.retrieval.base import Retriever
 from backend.app.retrieval.dense import DenseRetriever
 from backend.app.retrieval.hybrid import HybridRetriever
+
 
 def get_retriever(settings: Settings | None = None) -> Retriever:
     cfg = settings or get_settings()
@@ -702,9 +746,7 @@ Replace `DenseRetriever` instantiation in `search()` with `get_retriever(setting
 from backend.app.retrieval.factory import get_retriever
 
 # inside search():
-results = get_retriever(settings).search(
-    request.query, request.top_k or settings.top_k
-)
+results = get_retriever(settings).search(request.query, request.top_k or settings.top_k)
 ```
 
 - [x] **Step 3: Update `backend/app/cli.py`**
@@ -720,8 +762,11 @@ from backend.app.main import app
 
 client = TestClient(app)
 
+
 def test_search_api_with_hybrid_retriever():
-    response = client.post("/api/search", json={"query": "Hydrocortisone adrenal crisis", "top_k": 3})
+    response = client.post(
+        "/api/search", json={"query": "Hydrocortisone adrenal crisis", "top_k": 3}
+    )
     assert response.status_code in (200, 535, 503)
 ```
 
@@ -874,6 +919,7 @@ Create `backend/app/generation/client.py`:
 # backend/app/generation/assembler.py
 """Assembles retrieved chunks into a structured evidence context for the LLM."""
 
+
 def assemble_evidence(results: list[RetrievalResult]) -> str:
     """Convert retrieval results into numbered evidence blocks with citation metadata."""
     # Format each chunk with [Source N] markers including:
@@ -943,6 +989,7 @@ class GenerateRequest(BaseModel):
     top_k: int | None = None
     include_sources: bool = True
 
+
 class Citation(BaseModel):
     source_index: int
     chunk_id: str
@@ -951,6 +998,7 @@ class Citation(BaseModel):
     section_title: str
     recommendation_ids: str
     source_url: str
+
 
 class GenerateResponse(BaseModel):
     query: str

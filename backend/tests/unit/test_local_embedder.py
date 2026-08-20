@@ -35,9 +35,7 @@ class TestLocalEmbedder:
         mock_st = MagicMock()
         mock_st.get_sentence_embedding_dimension.return_value = 384
         # encode returns list/array
-        mock_st.encode.return_value = MagicMock(
-            tolist=lambda: [[0.1] * 384, [0.2] * 384]
-        )
+        mock_st.encode.return_value = MagicMock(tolist=lambda: [[0.1] * 384, [0.2] * 384])
 
         with patch.dict("backend.app.embeddings.local._LOCAL_MODEL_CACHE", {"mock-model": mock_st}):
             vectors = embedder.embed_documents(["doc 1", "doc 2"])
@@ -74,5 +72,7 @@ class TestLocalEmbedder:
         mock_module.SentenceTransformer.side_effect = RuntimeError("Model download blocked")
         with patch.dict("backend.app.embeddings.local._LOCAL_MODEL_CACHE", {}, clear=True):
             with patch.dict("sys.modules", {"sentence_transformers": mock_module}):
-                with pytest.raises(EmbeddingProviderError, match="Could not load local embedding model"):
+                with pytest.raises(
+                    EmbeddingProviderError, match="Could not load local embedding model"
+                ):
                     embedder.embed_documents(["test text"])

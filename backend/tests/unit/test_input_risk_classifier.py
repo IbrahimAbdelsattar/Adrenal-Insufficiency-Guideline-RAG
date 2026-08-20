@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-import pytest
-
 from backend.app.generation.risk_classifier import classify_input_risk
 from backend.app.models import InputRiskTier
 
@@ -57,7 +55,10 @@ class TestInputRiskClassifier:
         assert assessment.tier == InputRiskTier.ADVERSARIAL_SECURITY
         assert assessment.is_emergency is False
         assert assessment.risk_score == 1.0
-        assert "Refuse" in assessment.recommended_triage_action or "refuse" in assessment.recommended_triage_action.lower()
+        assert (
+            "Refuse" in assessment.recommended_triage_action
+            or "refuse" in assessment.recommended_triage_action.lower()
+        )
 
     def test_out_of_scope_non_endocrine_classified_correctly(self):
         query = "What is the acute management of ST-elevation myocardial infarction (STEMI)?"

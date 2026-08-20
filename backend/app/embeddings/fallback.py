@@ -9,12 +9,11 @@ from __future__ import annotations
 
 import logging
 import time
-from typing import Any
 
 from backend.app.config import Settings, get_settings
 from backend.app.embeddings.base import Embedder
 from backend.app.embeddings.local import LocalEmbedder
-from backend.app.errors import ConfigurationError, EmbeddingProviderError
+from backend.app.errors import ConfigurationError
 
 logger = logging.getLogger(__name__)
 
@@ -128,7 +127,9 @@ class FallbackEmbedder:
                     "event": "embedding.fallback.triggered",
                     "operation": "embed_documents",
                     "documents": len(texts),
-                    "primary_model": getattr(self._primary, "model_id", self._settings.embedding_model),
+                    "primary_model": getattr(
+                        self._primary, "model_id", self._settings.embedding_model
+                    ),
                     "fallback_model": self.secondary.model_id,
                     "error": str(exc),
                     "duration_ms": round(elapsed_ms, 2),
@@ -158,7 +159,9 @@ class FallbackEmbedder:
                 extra={
                     "event": "embedding.fallback.triggered",
                     "operation": "embed_query",
-                    "primary_model": getattr(self._primary, "model_id", self._settings.embedding_model),
+                    "primary_model": getattr(
+                        self._primary, "model_id", self._settings.embedding_model
+                    ),
                     "fallback_model": self.secondary.model_id,
                     "error": str(exc),
                     "duration_ms": round(elapsed_ms, 2),

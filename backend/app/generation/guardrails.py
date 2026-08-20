@@ -172,15 +172,49 @@ DOSAGE_REFUSAL_MESSAGE_AR = (
 
 _DOSAGE_MED_KEYWORDS = [
     # English keywords
-    "dose", "dosage", "dosing", "mg", "microgram", "mcg", "nmol", "nmol/L",
-    "milligram", "taper", "tapering", "regimen", "maintenance", "sick-day",
-    "sick day", "stress dose", "how much", "what amount", "should i take",
-    "can i take", "prescrib", "recommend", "medication", "drug", "steroid",
-    "hydrocortisone", "fludrocortisone", "prednisolone", "dexamethasone",
+    "dose",
+    "dosage",
+    "dosing",
+    "mg",
+    "microgram",
+    "mcg",
+    "nmol",
+    "nmol/L",
+    "milligram",
+    "taper",
+    "tapering",
+    "regimen",
+    "maintenance",
+    "sick-day",
+    "sick day",
+    "stress dose",
+    "how much",
+    "what amount",
+    "should i take",
+    "can i take",
+    "prescrib",
+    "recommend",
+    "medication",
+    "drug",
+    "steroid",
+    "hydrocortisone",
+    "fludrocortisone",
+    "prednisolone",
+    "dexamethasone",
     "corticosteroid",
     # Arabic keywords
-    "جرع", "ملغ", "ميكروغرام", "هيدروكورتيزون", "فلودروكورتيزون", "بريدنيزولون",
-    "ديكساميثازون", "ستيرويد", "دواء", "أدوية", "علاج دوائي", "وصف"
+    "جرع",
+    "ملغ",
+    "ميكروغرام",
+    "هيدروكورتيزون",
+    "فلودروكورتيزون",
+    "بريدنيزولون",
+    "ديكساميثازون",
+    "ستيرويد",
+    "دواء",
+    "أدوية",
+    "علاج دوائي",
+    "وصف",
 ]
 
 
@@ -228,4 +262,3 @@ def is_dosage_or_medication_query(query: str) -> bool:
     if any(re.search(pat, lower_query, re.IGNORECASE) for pat in _CLINICAL_SCENARIO_PATTERNS):
         return False
     return True
-
