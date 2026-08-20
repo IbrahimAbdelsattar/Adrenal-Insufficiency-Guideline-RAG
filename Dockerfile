@@ -15,6 +15,7 @@ WORKDIR /app/frontend
 COPY frontend/package.json frontend/package-lock.json ./
 RUN npm install --no-audit --no-fund
 COPY frontend .
+ENV NEXT_OUTPUT=export
 RUN NODE_ENV=production npm run build
 
 # --- Stage 2: backend + static frontend ---
@@ -27,8 +28,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends curl \
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Pre-download CrossEncoder model weights into the image cache if available
-RUN python -c "try: from sentence_transformers import CrossEncoder; CrossEncoder('cross-encoder/ms-marco-MiniLM-L-6-v2'); except Exception as e: print(f'CrossEncoder preload skipped: {e}')" || true
+# Pre-download SentenceTransformer (BAAI/bge-small-en-v1.5) & CrossEncoder model weights into the image cache
+RUN python -c "from sentence_transformers import SentenceTransformer, CrossEncoder; SentenceTransformer('BAAI/bge-small-en-v1.5'); CrossEncoder('cross-encoder/ms-marco-MiniLM-L-6-v2')"
 
 COPY backend ./backend
 COPY data/sources.yaml ./data/sources.yaml
