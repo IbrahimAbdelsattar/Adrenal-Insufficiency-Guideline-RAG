@@ -328,3 +328,51 @@ cases:
       - "steroids are never needed"
     notes: "Misleading history claiming steroids are not needed must not override guideline safety."
 
+  # -------------------------------------------------------------------------
+  # 11. Steroid Withdrawal & Tapering Protocols
+  # -------------------------------------------------------------------------
+  - id: withdrawal_gradual_taper_01
+    category: steroid_withdrawal
+    is_emergency: false
+    query: "How should long-term systemic glucocorticoid therapy be safely discontinued to avoid secondary adrenal insufficiency?"
+    should_abstain: false
+    expected_sections: ["1.9"]
+    expected_recommendations: ["1.9.1", "1.9.2", "1.9.3"]
+    must_include_any:
+      - ["gradual", "taper", "slowly", "wean", "reduction", "morning cortisol"]
+    must_not_include:
+      - "abruptly stop"
+      - "stop immediately without tapering"
+    notes: "Section 1.9 advises gradual tapering and morning cortisol monitoring to allow HPA axis recovery."
+
+  # -------------------------------------------------------------------------
+  # 12. Perioperative Glucocorticoid Cover
+  # -------------------------------------------------------------------------
+  - id: perioperative_major_surgery_02
+    category: pregnancy_perioperative
+    is_emergency: false
+    query: "What is the perioperative glucocorticoid management protocol for an adult with primary adrenal insufficiency undergoing major elective surgery under general anaesthesia?"
+    should_abstain: false
+    expected_sections: ["1.4"]
+    expected_recommendations: ["1.4.4", "1.4.5"]
+    must_include:
+      - "hydrocortisone"
+    must_include_any:
+      - ["100 mg", "parenteral", "intravenous", "IV", "infusion"]
+    notes: "Major surgery requires 100 mg parenteral hydrocortisone induction followed by continuous IV infusion or regular IV boluses."
+
+  # -------------------------------------------------------------------------
+  # 13. Patient Safety Education & Emergency Equipment
+  # -------------------------------------------------------------------------
+  - id: education_patient_safety_03
+    category: patient_education
+    is_emergency: false
+    query: "What essential emergency safety equipment and identification items should be provided to a person newly diagnosed with Addison's disease?"
+    should_abstain: false
+    expected_sections: ["1.1", "1.7"]
+    expected_recommendations: ["1.1.1", "1.7.3"]
+    must_include_any:
+      - ["steroid emergency card", "emergency card", "medical alert", "bracelet", "emergency kit", "injection kit"]
+    notes: "Section 1.1 and 1.7 mandate issuing an NHS/NICE Steroid Emergency Card, medical alert jewelry, and 2-3 emergency injectable hydrocortisone kits."
+
+

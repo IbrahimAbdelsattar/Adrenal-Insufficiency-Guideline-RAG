@@ -85,6 +85,7 @@ export function useStreamingChat(): UseStreamingChatReturn {
                         evidence_found: meta.evidence_found,
                         cache_hit: meta.cache_hit,
                         clarifying_questions: meta.clarifying_questions,
+                        risk_assessment: meta.risk_assessment,
                       }
                     : m,
                 ),
@@ -110,6 +111,7 @@ export function useStreamingChat(): UseStreamingChatReturn {
                         citations: done.citations,
                         latency_ms: done.latency_ms,
                         grounding_status: done.grounding_status,
+                        risk_assessment: done.risk_assessment || m.risk_assessment,
                       }
                     : m,
                 ),
@@ -144,6 +146,7 @@ export function useStreamingChat(): UseStreamingChatReturn {
                     evidence_found: fallbackRes.evidence_found,
                     grounding_status: fallbackRes.grounding_status,
                     clarifying_questions: fallbackRes.clarifying_questions,
+                    risk_assessment: fallbackRes.risk_assessment,
                   }
                 : m,
             ),

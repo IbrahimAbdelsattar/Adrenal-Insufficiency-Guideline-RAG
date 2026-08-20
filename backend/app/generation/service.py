@@ -35,10 +35,12 @@ from backend.app.generation.guardrails import (
 )
 from backend.app.generation.prompt import SYSTEM_PROMPT, construct_user_prompt
 from backend.app.generation.reasoning import strip_reasoning
+from backend.app.generation.risk_classifier import classify_input_risk
 from backend.app.models import (
     DISCLAIMER,
     GenerateRequest,
     GenerateResponse,
+    InputRiskAssessment,
     RetrievalResult,
 )
 from backend.app.monitoring import REGISTRY, RagTrace, estimate_tokens
@@ -169,7 +171,10 @@ def _finalize_answer(raw: str) -> str | None:
 
 
 def _abstention_response(
-    request: GenerateRequest, scope_status: str, elapsed_ms: int
+    request: GenerateRequest,
+    scope_status: str,
+    elapsed_ms: int,
+    risk_assessment: InputRiskAssessment | None = None,
 ) -> GenerateResponse:
     if scope_status == "out_of_scope":
         answer = OUT_OF_SCOPE_MESSAGE
@@ -184,6 +189,7 @@ def _abstention_response(
         model=get_settings().generation_model,
         latency_ms=elapsed_ms,
         grounding_status="abstained",
+        risk_assessment=risk_assessment,
     )
 
 
@@ -195,41 +201,24 @@ def _abstention_response(
 async def retrieve_and_scope(
     request: GenerateRequest, trace: RagTrace
 ) -> tuple[Settings, int, list[RetrievalResult], str, str, list[RetrievalResult]]:
-    """Retrieve candidates and classify scope (with retrieval cache)."""
-    from backend.app.api.search import _RETRIEVAL_CACHE
-
+    """Retrieve and scope chunks for a request, timing each step."""
     settings = get_settings()
     top_k = request.top_k or settings.top_k
 
-    retrieval_cache_key = (normalize_query(request.query), top_k, settings.retriever_type)
-    cached_retrieval = _RETRIEVAL_CACHE.get(retrieval_cache_key)
+    with trace.stage("retrieval"):
+        retriever = get_shared_retriever(settings)
+        results = await retriever.search_async(request.query, top_k=top_k)
 
-    if cached_retrieval is not None:
-        results, scope_status, scope_msg, filtered_results = cached_retrieval
-        trace.record_retrieval(results)
-        trace.set(scope_status=scope_status, retrieval_cached=True)
-        REGISTRY.increment(f"generate.scope.{scope_status}")
-        return settings, top_k, results, scope_status, scope_msg, filtered_results
-
-    retriever = get_shared_retriever(settings)
-    with trace.stage("retrieval", top_k=top_k, retriever_type=settings.retriever_type) as span:
-        results = await asyncio.to_thread(retriever.search, request.query, top_k)
-        span["results"] = len(results)
-        span["top_relevance"] = round(results[0].absolute_relevance, 4) if results else 0.0
-
-    trace.record_retrieval(results)
-
-    with trace.stage("scope", scope_threshold=settings.scope_threshold) as span:
+    with trace.stage("scope"):
         scope_status, scope_msg, filtered_results = classify_scope(
-            results, settings.scope_threshold, query=request.query
+            results, settings.scope_threshold, request.query
         )
-        span["scope_status"] = scope_status
-        span["kept"] = len(filtered_results)
 
-    _RETRIEVAL_CACHE.put(retrieval_cache_key, (results, scope_status, scope_msg, filtered_results))
-
-    trace.set(scope_status=scope_status)
-    REGISTRY.increment(f"generate.scope.{scope_status}")
+    trace.set(
+        top_k=top_k,
+        retrieved_chunks=len(results),
+        scope=scope_status,
+    )
     return settings, top_k, results, scope_status, scope_msg, filtered_results
 
 
@@ -306,6 +295,7 @@ class GenerationResult:
     answer: str = ""
     citations: list[dict] = field(default_factory=list)
     latency_ms: int = 0
+    risk_assessment: InputRiskAssessment | None = None
 
     # For SSE streaming: the raw accumulated parts before finalization
     raw_parts: list[str] | None = None
@@ -326,7 +316,14 @@ async def run_generation_pipeline(
     """
     settings = get_settings()
 
-    # Stage 0: Conversational Greeting
+    # Stage 0: Input Risk Classification
+    risk_assessment = classify_input_risk(request.query, request.history)
+    trace.set(
+        risk_tier=risk_assessment.tier.value,
+        is_emergency=risk_assessment.is_emergency,
+    )
+
+    # Stage 0.1: Conversational Greeting
     if is_greeting(request.query):
         is_ar = any("\u0600" <= c <= "\u06ff" for c in request.query)
         greeting_text = GREETING_RESPONSE_AR if is_ar else GREETING_RESPONSE_EN
@@ -344,11 +341,13 @@ async def run_generation_pipeline(
                 model=settings.generation_model,
                 latency_ms=elapsed_ms,
                 grounding_status="verified",
+                risk_assessment=risk_assessment,
             ),
             query=request.query,
             model=settings.generation_model,
             answer=greeting_text,
             clarifying_questions=[],  # canned greeting text, nothing to scope
+            risk_assessment=risk_assessment,
         )
 
     # Stage 0.5: Prompt Injection Guard
@@ -375,11 +374,13 @@ async def run_generation_pipeline(
                 model=settings.generation_model,
                 latency_ms=elapsed_ms,
                 grounding_status="abstained",
+                risk_assessment=risk_assessment,
             ),
             query=request.query,
             model=settings.generation_model,
             evidence_found=False,
             clarifying_questions=[],  # refused outright, nothing to scope
+            risk_assessment=risk_assessment,
         )
 
     # Stage 0.7: Dosage & Medication Query Guard
@@ -429,7 +430,7 @@ async def run_generation_pipeline(
             trace.set(evidence_found=False, abstained=True, abstain_rule=scope_status)
             trace.emit(status=f"abstained_{scope_status}")
             clarifying = suggest_clarifying_questions(request.query)
-            resp = _abstention_response(request, scope_status, elapsed_ms)
+            resp = _abstention_response(request, scope_status, elapsed_ms, risk_assessment)
             resp.clarifying_questions = clarifying
             return GenerationResult(
                 status="abstained",
@@ -438,6 +439,7 @@ async def run_generation_pipeline(
                 model=settings.generation_model,
                 answer=resp.answer,
                 clarifying_questions=clarifying,
+                risk_assessment=risk_assessment,
             )
 
         # 3. Graph expansion
@@ -471,6 +473,7 @@ async def run_generation_pipeline(
                     cache_hit=True,
                     grounding_status="verified",
                     clarifying_questions=suggest_clarifying_questions(request.query),
+                    risk_assessment=risk_assessment,
                 ),
                 query=request.query,
                 model=cached.get("model", settings.generation_model),
@@ -480,6 +483,7 @@ async def run_generation_pipeline(
                 citations=cached["citations"],
                 latency_ms=elapsed_ms,
                 clarifying_questions=suggest_clarifying_questions(request.query),
+                risk_assessment=risk_assessment,
             )
 
         # 5. Prompt assembly + LLM call
@@ -540,12 +544,14 @@ async def run_generation_pipeline(
                     latency_ms=elapsed_ms,
                     grounding_status="failed",
                     clarifying_questions=suggest_clarifying_questions(request.query),
+                    risk_assessment=risk_assessment,
                 ),
                 query=request.query,
                 model=settings.generation_model,
                 evidence_found=True,
                 answer=GROUNDING_FAILED_MESSAGE,
                 clarifying_questions=suggest_clarifying_questions(request.query),
+                risk_assessment=risk_assessment,
             )
 
         citations = grounding.citations
@@ -574,6 +580,7 @@ async def run_generation_pipeline(
                 latency_ms=elapsed_ms,
                 grounding_status="verified",
                 clarifying_questions=suggest_clarifying_questions(request.query),
+                risk_assessment=risk_assessment,
             ),
             query=request.query,
             model=settings.generation_model,
@@ -582,6 +589,7 @@ async def run_generation_pipeline(
             citations=citations,
             latency_ms=elapsed_ms,
             clarifying_questions=suggest_clarifying_questions(request.query),
+            risk_assessment=risk_assessment,
         )
 
     except PipelineError as exc:

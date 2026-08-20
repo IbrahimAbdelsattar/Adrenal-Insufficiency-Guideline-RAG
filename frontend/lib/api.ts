@@ -72,6 +72,24 @@ export interface Citation {
 
 export type GroundingStatus = "verified" | "failed" | "abstained";
 
+export type InputRiskTier =
+  | "emergency_critical"
+  | "sick_day_stress"
+  | "pediatric_specialist"
+  | "steroid_withdrawal"
+  | "adversarial_security"
+  | "out_of_scope"
+  | "routine_clinical";
+
+export interface InputRiskAssessment {
+  tier: InputRiskTier;
+  is_emergency: boolean;
+  risk_score: number;
+  detected_risk_factors: string[];
+  recommended_triage_action: string;
+  safety_banner: string;
+}
+
 export interface GenerateResponse {
   query: string;
   answer: string;
@@ -83,6 +101,7 @@ export interface GenerateResponse {
   cache_hit?: boolean;
   grounding_status?: GroundingStatus;
   clarifying_questions?: string[];
+  risk_assessment?: InputRiskAssessment;
 }
 
 export interface StreamMeta {
@@ -91,6 +110,7 @@ export interface StreamMeta {
   evidence_found: boolean;
   cache_hit: boolean;
   clarifying_questions?: string[];
+  risk_assessment?: InputRiskAssessment;
 }
 
 export interface StreamDone {
@@ -98,6 +118,7 @@ export interface StreamDone {
   latency_ms: number;
   disclaimer: string;
   grounding_status?: GroundingStatus;
+  risk_assessment?: InputRiskAssessment;
 }
 
 export interface StreamCallbacks {

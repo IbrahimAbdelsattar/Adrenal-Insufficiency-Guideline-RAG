@@ -72,6 +72,11 @@ class FallbackEmbedder:
         return self._secondary
 
     @property
+    def fallback(self) -> Embedder:
+        """Alias for secondary embedder."""
+        return self.secondary
+
+    @property
     def is_fallback_active(self) -> bool:
         """True if the system has failed over to the local fallback embedder."""
         return self._is_fallback_active

@@ -108,6 +108,21 @@ export function ChatMessage({
               : typedT.assistantRole || "Eva AI (CDS)"}
           </span>
           <div className="flex items-center gap-2">
+            {msg.role === "assistant" && msg.risk_assessment && (
+              <span
+                className={`mono-pill px-1.5 py-0.2 text-[9px] font-extrabold uppercase ${
+                  msg.risk_assessment.is_emergency
+                    ? "border-red-500 text-red-500 bg-red-500/10 animate-pulse"
+                    : msg.risk_assessment.tier === "sick_day_stress"
+                      ? "border-amber-500 text-amber-500 bg-amber-500/10"
+                      : msg.risk_assessment.tier === "pediatric_specialist"
+                        ? "border-sky-500 text-sky-500 bg-sky-500/10"
+                        : "border-line/60 text-ink-dim"
+                }`}
+              >
+                {msg.risk_assessment.is_emergency ? "🚨 EMERGENCY" : msg.risk_assessment.tier.replace(/_/g, " ")}
+              </span>
+            )}
             {msg.role === "assistant" && msg.latency_ms ? (
               <span className="font-mono text-[10px] opacity-75">
                 ⚡ {msg.latency_ms}ms
@@ -137,6 +152,21 @@ export function ChatMessage({
             <span className="opacity-60 text-[10px]">{msg.timestamp}</span>
           </div>
         </div>
+
+        {/* Clinical Risk / Emergency Triage Alert */}
+        {msg.role === "assistant" && msg.risk_assessment?.is_emergency && (
+          <div className="mb-3 rounded-xl border border-red-500/50 bg-red-500/10 p-3 text-red-600 dark:text-red-400">
+            <div className="flex items-center gap-2 font-bold text-xs">
+              <span className="flex h-2 w-2 rounded-full bg-red-500 animate-ping" />
+              {msg.risk_assessment.safety_banner || "CRITICAL EMERGENCY ALERT"}
+            </div>
+            {msg.risk_assessment.recommended_triage_action && (
+              <p className="mt-1 text-[11px] text-ink/80 leading-relaxed font-medium">
+                {msg.risk_assessment.recommended_triage_action}
+              </p>
+            )}
+          </div>
+        )}
 
         {/* Message Body */}
         <div className="text-sm leading-relaxed">

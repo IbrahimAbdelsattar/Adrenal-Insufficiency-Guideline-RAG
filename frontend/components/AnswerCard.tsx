@@ -122,8 +122,23 @@ export function AnswerCard({ result }: { result: GenerateResponse }) {
           <h2 className="text-lg font-bold text-ink">{t.aiAnswerLabel || "AI Answer"}</h2>
         </div>
 
-        {/* Quality Badges */}
+        {/* Quality & Risk Badges */}
         <div className="flex flex-wrap items-center gap-2">
+          {result.risk_assessment && (
+            <span
+              className={`mono-pill px-2.5 py-1 text-[10px] font-extrabold uppercase tracking-wider ${
+                result.risk_assessment.is_emergency
+                  ? "border-red-500/60 text-red-500 bg-red-500/10 animate-pulse"
+                  : result.risk_assessment.tier === "sick_day_stress"
+                    ? "border-amber-500/60 text-amber-500 bg-amber-500/10"
+                    : result.risk_assessment.tier === "pediatric_specialist"
+                      ? "border-sky-500/60 text-sky-500 bg-sky-500/10"
+                      : "border-line/60 text-ink-dim"
+              }`}
+            >
+              {result.risk_assessment.is_emergency ? "🚨 EMERGENCY" : result.risk_assessment.tier.replace(/_/g, " ")}
+            </span>
+          )}
           {!evidence_found && (
             <span className="mono-pill px-2.5 py-1 text-[10px] font-extrabold uppercase tracking-wider text-caution border-caution/40">
               {t.insufficientEvidenceBadge || "Insufficient Evidence"}
@@ -160,6 +175,29 @@ export function AnswerCard({ result }: { result: GenerateResponse }) {
           </span>
         </div>
       </header>
+
+      {/* Clinical Risk / Emergency Triage Alert */}
+      {result.risk_assessment?.is_emergency && (
+        <div className="mb-5 rounded-xl border border-red-500/50 bg-red-500/10 p-4 text-red-600 dark:text-red-400 animate-in fade-in duration-300">
+          <div className="flex items-center gap-2 font-bold text-xs sm:text-sm">
+            <span className="flex h-2.5 w-2.5 rounded-full bg-red-500 animate-ping" />
+            {result.risk_assessment.safety_banner || "CRITICAL EMERGENCY ALERT: Suspected Acute Adrenal Crisis"}
+          </div>
+          {result.risk_assessment.recommended_triage_action && (
+            <p className="mt-1.5 text-xs text-ink/80 leading-relaxed font-medium">
+              {result.risk_assessment.recommended_triage_action}
+            </p>
+          )}
+        </div>
+      )}
+
+      {result.risk_assessment?.safety_banner && !result.risk_assessment.is_emergency && (
+        <div className="mb-4 rounded-xl border border-amber-500/40 bg-amber-500/10 p-3 text-amber-700 dark:text-amber-300">
+          <div className="font-semibold text-xs sm:text-sm flex items-center gap-2">
+            <span>{result.risk_assessment.safety_banner}</span>
+          </div>
+        </div>
+      )}
 
       {/* Answer Body */}
       <div className="answer-markdown text-ink leading-relaxed mb-6 text-sm sm:text-base">

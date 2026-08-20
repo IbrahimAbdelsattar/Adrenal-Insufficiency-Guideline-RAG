@@ -46,6 +46,15 @@ if not exist "frontend\node_modules" (
     echo [INFO] Frontend dependencies already installed. Skipping npm install.
 )
 
+REM 5. Free ports 8010 and 3000 if already in use by previous sessions
+echo [INFO] Ensuring ports 8010 and 3000 are available...
+for /f "tokens=5" %%a in ('netstat -aon ^| findstr ":8010" ^| findstr "LISTENING"') do (
+    taskkill /F /PID %%a >nul 2>&1
+)
+for /f "tokens=5" %%a in ('netstat -aon ^| findstr ":3000" ^| findstr "LISTENING"') do (
+    taskkill /F /PID %%a >nul 2>&1
+)
+
 echo.
 echo ===================================================
 echo [1/2] Starting FastAPI Backend on http://localhost:8010 ...
