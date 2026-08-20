@@ -132,6 +132,9 @@ export const translations = {
     synthesizedLive: "🤖 Synthesized live by eva-ai",
     activeSession: "Active Consultation",
     untitledSession: "New Clinical Inquiry",
+    pinChat: "Pin Chat Window",
+    unpinChat: "Unpin Chat Window",
+    pinnedActive: "Pinned View",
 
     // Citation grounding & evidence UX
     directCitation: "Direct Citation",
@@ -277,10 +280,13 @@ export const translations = {
     retrievalScoreHint: "إشارة ترتيب فقط — ليست ثقة سريرية",
     copyEvidence: "نسخ الدليل",
     copiedEvidence: "تم نسخ الدليل!",
-    servedFromCache: "⚡ استجابة فورية من الذاكرة المؤقتة L3 (<5ms)",
-    synthesizedLive: "🤖 توليد مباشر عبر eva-ai",
-    activeSession: "الاستشارة الحالية",
-    untitledSession: "استفسار سريري جديد",
+    servedFromCache: "⚡ تم الجلب من الذاكرة المؤقتة (<5ms)",
+    synthesizedLive: "🤖 تم التوليد مباشرة عبر eva-ai",
+    activeSession: "الاستشارة النشطة",
+    untitledSession: "استشارة طبية جديدة",
+    pinChat: "تثبيت نافذة المحادثة",
+    unpinChat: "إلغاء التثبيت",
+    pinnedActive: "عرض مثبت",
 
     // Citation grounding & evidence UX
     directCitation: "استشهاد مباشر",

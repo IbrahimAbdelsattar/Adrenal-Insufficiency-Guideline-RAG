@@ -46,9 +46,19 @@ export function ChatView({ lang, topK, onTopKChange }: ChatViewProps) {
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [copiedEvidenceId, setCopiedEvidenceId] = useState<string | null>(null);
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
+  const [isPinned, setIsPinned] = useState(true);
   const [expandedEvidenceMsgId, setExpandedEvidenceMsgId] = useState<string | null>(null);
   const [fullTextCitationMap, setFullTextCitationMap] = useState<Record<string, boolean>>({});
   const [highlightedCitationKey, setHighlightedCitationKey] = useState<string | null>(null);
+
+  useEffect(() => {
+    try {
+      const savedPin = localStorage.getItem("eva_chat_pinned");
+      if (savedPin !== null) {
+        setIsPinned(savedPin === "true");
+      }
+    } catch {}
+  }, []);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
@@ -145,9 +155,13 @@ export function ChatView({ lang, topK, onTopKChange }: ChatViewProps) {
   };
 
   return (
-    <div className="flex flex-col h-full space-y-4 relative">
+    <div
+      className={`flex flex-col relative transition-all duration-300 ${
+        isPinned ? "h-[calc(100vh-10.5rem)] min-h-[580px] space-y-3" : "h-full space-y-4"
+      }`}
+    >
       {/* Top Consultation Navigation & Action Bar */}
-      <div className="mono-card flex flex-wrap items-center justify-between gap-3 rounded-2xl p-4">
+      <div className="mono-card flex-none flex flex-wrap items-center justify-between gap-3 rounded-2xl p-4">
         <div className="flex items-center gap-3">
           <div className="mono-button flex h-9 w-9 items-center justify-center rounded-xl font-mono text-xs font-extrabold text-accent-bright border border-accent-bright/20 shadow-sm">
             AI
@@ -170,6 +184,29 @@ export function ChatView({ lang, topK, onTopKChange }: ChatViewProps) {
         </div>
 
         <div className="flex items-center gap-2">
+          {/* Pin Chat Window Toggle */}
+          <button
+            type="button"
+            onClick={() => {
+              setIsPinned((prev) => {
+                const next = !prev;
+                try {
+                  localStorage.setItem("eva_chat_pinned", String(next));
+                } catch {}
+                return next;
+              });
+            }}
+            title={isPinned ? (t.unpinChat || "Unpin Chat Window") : (t.pinChat || "Pin Chat Window")}
+            className={`mono-button flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+              isPinned
+                ? "bg-accent-bright/15 text-accent-bright border-accent-bright/40 shadow-sm"
+                : "text-ink-dim hover:text-ink"
+            }`}
+          >
+            <span>{isPinned ? "📌" : "📍"}</span>
+            <span className="hidden lg:inline">{isPinned ? (t.pinnedActive || "Pinned") : (t.pinChat || "Pin")}</span>
+          </button>
+
           {/* History Toggle */}
           <button
             type="button"
@@ -233,7 +270,7 @@ export function ChatView({ lang, topK, onTopKChange }: ChatViewProps) {
 
       {/* Error */}
       {error && (
-        <div className="mono-card rounded-2xl border-caution/40 bg-caution/5 p-4 text-caution text-xs flex items-center gap-2 animate-fade-in-up">
+        <div className="mono-card flex-none rounded-2xl border-caution/40 bg-caution/5 p-4 text-caution text-xs flex items-center gap-2 animate-fade-in-up">
           <span>⚠️ {error}</span>
         </div>
       )}
@@ -241,7 +278,9 @@ export function ChatView({ lang, topK, onTopKChange }: ChatViewProps) {
       {/* Messages */}
       <div
         ref={messagesContainerRef}
-        className="mono-card rounded-2xl p-4 sm:p-6 min-h-[420px] max-h-[620px] overflow-y-auto space-y-6"
+        className={`mono-card rounded-2xl p-4 sm:p-6 space-y-6 overscroll-contain transition-all duration-300 ${
+          isPinned ? "flex-1 min-h-0 overflow-y-auto" : "min-h-[420px] max-h-[680px] overflow-y-auto"
+        }`}
       >
         {messages.length === 0 ? (
           /* Empty State */
