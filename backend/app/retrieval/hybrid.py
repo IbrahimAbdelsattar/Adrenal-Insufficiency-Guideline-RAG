@@ -85,6 +85,11 @@ class HybridRetriever:
             CrossEncoderReranker(settings=self._settings) if should_rerank else None
         )
 
+    @property
+    def embedder(self):
+        """The embedder backing dense retrieval, so callers can pre-warm it."""
+        return self._dense.embedder
+
     def search(self, query: str, top_k: int | None = None) -> list[RetrievalResult]:
         with trace_span(op="rag.hybrid.search", description="Hybrid Dense + BM25 Search"):
             k = top_k or self._settings.top_k

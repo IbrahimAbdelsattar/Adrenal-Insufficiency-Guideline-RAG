@@ -26,8 +26,13 @@ RETRY_STATUS = {408, 409, 429, 500, 502, 503, 504}
 class OpenRouterEmbedder:
     """Batched embeddings with retry on rate limits and transient server errors."""
 
-    def __init__(self, settings: Settings | None = None) -> None:
+    def __init__(
+        self,
+        settings: Settings | None = None,
+        model_name: str | None = None,
+    ) -> None:
         self._settings = settings or get_settings()
+        self._model_name = model_name or self._settings.remote_embedding_model
         if not self._settings.openrouter_api_key:
             raise ConfigurationError(
                 "OMNIROUTE_API_KEY is not set — the OmniRoute gateway key is "
@@ -45,7 +50,7 @@ class OpenRouterEmbedder:
 
     @property
     def model_id(self) -> str:
-        return self._settings.embedding_model
+        return self._model_name
 
     @property
     def dimensions(self) -> int:
@@ -136,6 +141,12 @@ class OpenRouterEmbedder:
         }
 
         last_error = "unknown error"
+        # Tracked so the failure log reports what actually happened: a permanent
+        # error (depleted credits, 4xx) gives up on attempt 1, and claiming it
+        # "exhausted 5 attempts" sends whoever reads the log chasing a timeout
+        # or rate limit that never occurred.
+        permanent = False
+        attempt = 0
         for attempt in range(1, MAX_ATTEMPTS + 1):
             attempt_started = time.perf_counter()
             try:
@@ -161,8 +172,10 @@ class OpenRouterEmbedder:
                 last_error = f"HTTP {response.status_code}: {response.text[:300]}"
                 # Fast fail if account credits are depleted or quota exhausted (retrying will not fix this)
                 if "depleted" in last_error.lower() or "credits" in last_error.lower():
+                    permanent = True
                     break
                 if response.status_code not in RETRY_STATUS:
+                    permanent = True
                     break
 
             logger.warning(
@@ -184,19 +197,22 @@ class OpenRouterEmbedder:
                 time.sleep(BACKOFF_BASE_SECONDS**attempt)
 
         logger.error(
-            "Embedding request exhausted %d attempts (model=%s): %s",
-            MAX_ATTEMPTS,
+            "Embedding request failed after %d attempt(s)%s (model=%s): %s",
+            attempt,
+            " [permanent, not retried]" if permanent else "",
             self.model_id,
             last_error,
             extra={
                 "event": "embedding.exhausted",
                 "model": self.model_id,
-                "attempts": MAX_ATTEMPTS,
+                "attempts": attempt,
+                "max_attempts": MAX_ATTEMPTS,
+                "permanent": permanent,
                 "error": last_error,
             },
         )
         raise EmbeddingProviderError(
-            f"Embedding request failed after {MAX_ATTEMPTS} attempts "
+            f"Embedding request failed after {attempt} attempt(s) "
             f"(model={self.model_id}). Last error — {last_error}"
         )
 

@@ -54,6 +54,26 @@ class VectorStore:
     def is_ready(self, collection_name: str | None = None) -> bool:
         return self.count(collection_name) > 0
 
+    def dimension_of(self, collection_name: str | None = None) -> int | None:
+        """Width of the vectors already stored in a collection, or None if empty/unreadable.
+
+        Lets callers detect a collection built by a different embedder *before*
+        querying it, instead of finding out through a dimension-mismatch
+        exception on the request path.
+        """
+        col_name = collection_name or self.collection_name
+        try:
+            collection = self._get(col_name)
+            if collection.count() == 0:
+                return None
+            raw = collection.get(limit=1, include=["embeddings"])
+            embeddings = raw.get("embeddings")
+            if embeddings is None or len(embeddings) == 0:
+                return None
+            return len(embeddings[0])
+        except Exception:
+            return None
+
     def query(
         self,
         embedding: list[float],

@@ -44,10 +44,37 @@ class DenseRetriever:
                 self._embedder = OpenRouterEmbedder(self._settings)
         return self._embedder
 
+    def _embedder_for_fallback(self) -> Embedder:
+        """The embedder whose vectors the fallback collection must be built from."""
+        embedder = self.embedder
+        return embedder.secondary if isinstance(embedder, FallbackEmbedder) else embedder
+
     def _ensure_fallback_collection(self, fallback_col: str) -> None:
-        """Populate fallback collection on the fly if primary collection has chunks but fallback does not."""
+        """Build the fallback collection if it is missing, empty, or the wrong width.
+
+        A collection built by a different embedder is worse than an empty one: it
+        looks ready, so it is never rebuilt, and every query against it dies on a
+        dimension mismatch. Comparing the stored width to the embedder's own
+        catches that and forces a rebuild.
+        """
         if self._store.is_ready(fallback_col):
-            return
+            stored_dims = self._store.dimension_of(fallback_col)
+            expected_dims = getattr(self._embedder_for_fallback(), "dimensions", 0)
+            if not stored_dims or not expected_dims or stored_dims == expected_dims:
+                return
+            logger.warning(
+                "Fallback collection '%s' holds %d-dimensional vectors but the active "
+                "embedder produces %d. Rebuilding it.",
+                fallback_col,
+                stored_dims,
+                expected_dims,
+                extra={
+                    "event": "retrieval.dense.fallback_dim_mismatch",
+                    "collection": fallback_col,
+                    "stored_dimensions": stored_dims,
+                    "expected_dimensions": expected_dims,
+                },
+            )
         chunks = self._store.all_chunks(self._store.collection_name)
         if not chunks:
             return
@@ -58,10 +85,7 @@ class DenseRetriever:
             extra={"event": "retrieval.dense.auto_populate_fallback", "chunks": len(chunks)},
         )
         texts = [c.text for c in chunks]
-        if isinstance(self.embedder, FallbackEmbedder):
-            embeddings = self.embedder.secondary.embed_documents(texts)
-        else:
-            embeddings = self.embedder.embed_documents(texts)
+        embeddings = self._embedder_for_fallback().embed_documents(texts)
         self._store.build(chunks, embeddings, collection_name=fallback_col)
         logger.info(
             "Fallback vector collection '%s' is now ready with %d chunks.",
@@ -97,20 +121,25 @@ class DenseRetriever:
                 try:
                     hits = self._store.query(embedding, k, collection_name=target_collection)
                 except Exception as exc:
-                    # If query failed (e.g. dimension mismatch), auto-populate fallback collection and retry
+                    # If the query failed (e.g. dimension mismatch), rebuild the
+                    # fallback collection with the embedder we are actually using
+                    # and retry there. Retrying against the collection that just
+                    # failed only reproduces the same error, so bail out instead
+                    # and let the caller degrade to BM25.
                     fallback_col = self._store.fallback_collection_name
-                    self._ensure_fallback_collection(fallback_col)
-                    if self._store.is_ready(fallback_col):
-                        logger.warning(
-                            "Dense query against '%s' failed (%s). Retrying against fallback collection '%s'.",
-                            target_collection,
-                            exc,
-                            fallback_col,
-                        )
-                        hits = self._store.query(embedding, k, collection_name=fallback_col)
-                        target_collection = fallback_col
-                    else:
+                    if target_collection == fallback_col:
                         raise
+                    self._ensure_fallback_collection(fallback_col)
+                    if not self._store.is_ready(fallback_col):
+                        raise
+                    logger.warning(
+                        "Dense query against '%s' failed (%s). Retrying against fallback collection '%s'.",
+                        target_collection,
+                        exc,
+                        fallback_col,
+                    )
+                    hits = self._store.query(embedding, k, collection_name=fallback_col)
+                    target_collection = fallback_col
 
                 span["hits"] = len(hits)
                 span["top_score"] = round(hits[0][1], 4) if hits else 0.0

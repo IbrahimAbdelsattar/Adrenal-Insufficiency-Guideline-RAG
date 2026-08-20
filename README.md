@@ -47,7 +47,7 @@ The core architecture enforces six strict constitutional principles:
 2. **Citation Metadata Is Structural**: Citation metadata (`document_name`, `page_number`, `section_title`, `source_url`, `chunk_id`) is stored natively on every vector entry and returned alongside relevance scores in a single query call—never in an external sidecar file.
 3. **Source Legitimacy and Provenance**: Every corpus document MUST be registered in [data/sources.yaml](file:///c:/Users/C-LAB/Videos/ai%20hackthon/data/sources.yaml) with its publisher, publication year, source URL, document type, and written credibility justification. Ingestion fails closed on unregistered files.
 4. **Narrow Scope Discipline**: Restricted strictly to adrenal insufficiency identification and management based on NICE NG243. Prominent decision-support disclaimers are enforced across UI and API responses.
-5. **Staged Delivery**: Retrieval quality is fully verified, measured, and benchmarked before any LLM answer generation is introduced. `POST /api/generate` returns `501 Not Implemented` by design.
+5. **Staged Delivery**: Retrieval quality is fully verified, measured, and benchmarked before any LLM answer generation is introduced. Generation shipped only after the retrieval golden set was in place; `POST /api/generate` and `POST /api/generate/stream` are now live and evidence-gated.
 6. **Human Verification Over Automated Confidence**: Weak or low-scoring evidence is never hidden or silently filtered; every retrieved chunk provides exact page-number trace-back to the original source PDF.
 
 ---
@@ -199,7 +199,7 @@ graph LR
     end
 
     subgraph Stage4["4. Embedding & Indexing"]
-        OpenRouterEmbed["Batch Embedding (1536-dim)"]
+        OpenRouterEmbed["Batch Embedding (3072-dim Gemini)"]
         ChromaStore["ChromaDB Vector Storage (Scalar Metadata)"]
         ManifestGen["Manifest Generation (manifest.json)"]
     end
@@ -226,7 +226,7 @@ graph LR
 3. **Frequency-Based Cleaning** ([ingestion/cleaner.py](file:///c:/Users/C-LAB/Videos/ai%20hackthon/backend/app/ingestion/cleaner.py)): Detects lines appearing on >60% of pages (footers, rights notices) and removes them dynamically. Repairs hyphenated word splits (`\w+-\n\w+`) and normalizes bullet glyphs (`•` $\rightarrow$ `-`). Filters non-clinical front matter (cover, contents, dot leaders).
 4. **Hierarchy Detection** ([ingestion/sectioner.py](file:///c:/Users/C-LAB/Videos/ai%20hackthon/backend/app/ingestion/sectioner.py)): Identifies `N.N` major section headings (e.g., `1.2 Initial identification and referral`) and `N.N.N` numbered recommendations (e.g., `1.2.1`).
 5. **Atomic Recommendation Packing** ([ingestion/chunker.py](file:///c:/Users/C-LAB/Videos/ai%20hackthon/backend/app/ingestion/chunker.py)): Numbered recommendations are **atomic**—they are never split across chunks. Consecutive sibling recommendations under the same section heading are packed into token budgets targetting 400–800 tokens (`tiktoken` `cl100k_base`). Oversized atomic recommendations are emitted whole and flagged (`is_oversized=true`).
-6. **Batched Embeddings** ([embeddings/openrouter.py](file:///c:/Users/C-LAB/Videos/ai%20hackthon/backend/app/embeddings/openrouter.py)): Requests 1536-dimensional vector embeddings via OpenRouter's OpenAI-compatible endpoint with exponential backoff retries.
+6. **Batched Embeddings** ([embeddings/openrouter.py](file:///c:/Users/C-LAB/Videos/ai%20hackthon/backend/app/embeddings/openrouter.py)): Requests 3072-dimensional `gemini/gemini-embedding-001` vectors via OpenRouter's OpenAI-compatible endpoint with exponential backoff retries, falling back to local 384-dim `BAAI/bge-small-en-v1.5` on quota failure.
 7. **Atomic Collection Swap** ([retrieval/store.py](file:///c:/Users/C-LAB/Videos/ai%20hackthon/backend/app/retrieval/store.py)): Reads/writes ChromaDB. If ingestion succeeds, the index collection is atomically swapped; if ingestion fails, existing index state is preserved.
 
 ---
@@ -296,7 +296,7 @@ sequenceDiagram
     API->>Ret: search(query="...", top_k=5)
     Ret->>Emb: embed_query(query)
     Emb->>OR: POST /api/v1/embeddings { input: query, model: "..." }
-    OR-->>Emb: 1536-dim vector embedding
+    OR-->>Emb: 3072-dim vector embedding (384-dim on local fallback)
     Emb-->>Ret: Vector array
     Ret->>VStore: query(query_embeddings, n_results=5)
     VStore-->>Ret: Top-5 chunks + distances + scalar metadatas

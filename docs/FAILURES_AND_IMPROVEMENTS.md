@@ -19,6 +19,8 @@ This document records the critical engineering, architectural, and clinical safe
 | **7** | **Scope & Adversarial Defense** | Out-of-scope inquiries (Cardiology, Asthma) and prompt injection risks | LLMs attempt to answer general medical questions outside the registered NICE NG243 guideline | Semantic scope classifier (`scope.py`) + adversarial regex guardrail (`guardrails.py`) enforcing fail-closed refusals | **100% prompt injection defense pass rate; fail-closed abstention** |
 | **8** | **System Latency** | High end-to-end latency (4.4s on repeat inquiries) | Redundant remote embedding and LLM calls on identical or common queries | 3-Tier caching (L1 Embedding, L2 Retrieval, L3 Answer Cache) + 0ms instant greeting handler | **Sub-5ms response time on warm queries (492x speedup; ~1.6s cold)** |
 
+| **9** | **Retrieval / Vector Store** | Dense retrieval silently degraded to BM25-only for every query; demo still answered fluently | Leftover CI stub collection `guidelines_local` (2 records, **dimension 4**) from `scripts/build_stub_index.py`; the local 384-dim BGE embedder routes to that fallback collection, so every dense query raised `Collection expecting embedding with dimension of 4, got 384` | Dropped the stub collections; `DenseRetriever._ensure_fallback_collection()` repopulated `guidelines_local` with all 34 chunks at 384 dims | **Clinical pass rate 64.0% → 80.0%; out-of-scope refusal 0% → 100%** |
+
 ---
 
 ## 🔍 Detailed Failure Case Studies
@@ -50,6 +52,16 @@ This document records the critical engineering, architectural, and clinical safe
 - **Systematic Fix**:
   1. Removed manual wildcard `optionalDependencies` from `package.json`.
   2. Standardized container and CI/CD install commands to `npm install --no-audit --no-fund`.
+
+### 4. Silent Dense-Retrieval Degradation (caught by evaluation, not by demo)
+- **Context**: `data/index/` accumulated collections from CI smoke tests and unit tests alongside the real corpus.
+- **Failure**: `guidelines_local` held 2 records at dimension 4. Every dense query failed and `HybridRetriever` fell back to BM25 alone. Nothing surfaced to the user — answers still streamed with citations, so manual demoing could not detect it. Only the golden-set run exposed the drop.
+- **Detection**: `scripts/run_clinical_evaluation.py` scored 64.0% overall with 0/3 out-of-scope refusals and 5 zero-tolerance emergency errors.
+- **Systematic Fix**:
+  1. Deleted the stub collections `guidelines_local` and `test_local`.
+  2. Let `DenseRetriever._ensure_fallback_collection()` rebuild `guidelines_local` from the 34 real chunks.
+  3. Re-ran the suite: 80.0% overall, out-of-scope refusal 3/3, emergency errors 5 → 3.
+- **Open follow-up**: unit tests still write into the production Chroma path — the test suite needs its own index directory so this cannot recur.
 
 ---
 

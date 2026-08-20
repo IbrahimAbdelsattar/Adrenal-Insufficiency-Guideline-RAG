@@ -116,6 +116,30 @@ async def lifespan(app: FastAPI):
     except Exception as exc:
         logger.warning("Lifespan: shared retriever pre-warm warning: %s", exc)
 
+    # Pre-warm the query embedder. Loading a SentenceTransformer costs ~9s (far
+    # more on the first run, which downloads the weights); without this the
+    # first real user query pays all of it inside its retrieval stage.
+    try:
+        started = time.perf_counter()
+        embedder = get_shared_retriever(settings).embedder
+        embedder.embed_query("adrenal insufficiency")
+        elapsed_ms = (time.perf_counter() - started) * 1000
+        logger.info(
+            "Lifespan: query embedder pre-warmed in %.0f ms (model=%s, dims=%s).",
+            elapsed_ms,
+            embedder.model_id,
+            embedder.dimensions,
+            extra={
+                "event": "startup.prewarm",
+                "component": "embedder",
+                "model": embedder.model_id,
+                "dimensions": embedder.dimensions,
+                "duration_ms": round(elapsed_ms, 2),
+            },
+        )
+    except Exception as exc:
+        logger.warning("Lifespan: query embedder pre-warm warning: %s", exc)
+
     total_warmup_ms = (time.perf_counter() - warmup_started) * 1000
     logger.info(
         "Startup complete in %.0f ms.",

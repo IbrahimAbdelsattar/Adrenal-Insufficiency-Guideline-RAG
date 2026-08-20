@@ -38,17 +38,24 @@ class Settings(BaseSettings):
     )
 
     # --- Embeddings ---
-    embedding_model: str = Field(default="gemini/gemini-embedding-001", alias="EMBEDDING_MODEL")
+    embedding_model: str = Field(
+        default="BAAI/bge-small-en-v1.5",
+        validation_alias=AliasChoices("EMBEDDING_MODEL", "LOCAL_EMBEDDING_MODEL"),
+    )
     embedding_batch_size: int = Field(default=32, alias="EMBEDDING_BATCH_SIZE")
     local_embedding_model: str = Field(
         default="BAAI/bge-small-en-v1.5",
+        validation_alias=AliasChoices("local_embedding_model", "LOCAL_EMBEDDING_MODEL"),
+    )
+    remote_embedding_model: str = Field(
+        default="gemini/gemini-embedding-001",
         validation_alias=AliasChoices(
-            "local_embedding_model", "LOCAL_EMBEDDING_MODEL", "FALLBACK_EMBEDDING_MODEL"
+            "remote_embedding_model", "REMOTE_EMBEDDING_MODEL", "FALLBACK_EMBEDDING_MODEL"
         ),
     )
     enable_embedding_fallback: bool = Field(default=True, alias="ENABLE_EMBEDDING_FALLBACK")
     fallback_chroma_collection: str = Field(
-        default="guidelines_local", alias="FALLBACK_CHROMA_COLLECTION"
+        default="guidelines_remote", alias="FALLBACK_CHROMA_COLLECTION"
     )
 
     # --- Generation (Day 3) ---

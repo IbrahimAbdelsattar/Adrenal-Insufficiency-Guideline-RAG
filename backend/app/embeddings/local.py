@@ -65,7 +65,24 @@ class LocalEmbedder:
                             "Loading local SentenceTransformer model '%s'...", self._model_name
                         )
                         started = time.perf_counter()
-                        model = SentenceTransformer(self._model_name)
+                        # Try the local HF cache first. Even with the weights
+                        # already downloaded, SentenceTransformer revalidates
+                        # every file against the Hub, which dominates load time
+                        # (~20s of HEAD/GET round trips here) and makes startup
+                        # depend on huggingface.co being reachable. Fall back to
+                        # a networked load only if the cache cannot satisfy it.
+                        try:
+                            model = SentenceTransformer(self._model_name, local_files_only=True)
+                        except Exception:
+                            logger.info(
+                                "Local cache miss for '%s'; downloading from the HF Hub.",
+                                self._model_name,
+                                extra={
+                                    "event": "embedding.local.cache_miss",
+                                    "model": self._model_name,
+                                },
+                            )
+                            model = SentenceTransformer(self._model_name)
                         elapsed_ms = (time.perf_counter() - started) * 1000
                         _LOCAL_MODEL_CACHE[self._model_name] = model
 
