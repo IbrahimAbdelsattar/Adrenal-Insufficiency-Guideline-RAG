@@ -60,6 +60,9 @@ echo ===================================================
 echo [1/2] Starting FastAPI Backend on http://localhost:8010 ...
 start "Eva AI Backend (FastAPI)" cmd /k "call .venv\Scripts\activate.bat && uvicorn backend.app.main:app --reload --port 8010"
 
+echo [INFO] Waiting 3 seconds for backend warmup...
+timeout /t 3 /nobreak >nul
+
 echo [2/2] Starting Next.js Frontend on http://localhost:3000 ...
 start "Eva AI Frontend (Next.js)" cmd /k "cd frontend && npm run dev"
 
