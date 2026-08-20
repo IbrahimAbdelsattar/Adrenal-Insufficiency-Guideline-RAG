@@ -84,6 +84,21 @@ We tested two distinct chunking architectures:
 > [!NOTE]
 > **Key Finding:** Config A (Fixed-size small chunks) frequently bifurcated dosage instructions from their parent condition (e.g., splitting hydrocortisone milligrams from the pediatric weight band), leading to retrieval degradation and lower precision. **Config B (Section-Aware)** was significantly superior and is chosen as the standard.
 
+### 3.2 Granularity Sweep & Corpus Sizing (34 vs 48 vs 82 Chunks)
+
+Detailed in [docs/CHUNKING_GRANULARITY_SWEEP.md](file:///c:/Users/C-LAB/Videos/ai%20hackthon/docs/CHUNKING_GRANULARITY_SWEEP.md), a 5-point chunking granularity sweep was evaluated against the 20-question golden set using the local `BAAI/bge-small-en-v1.5` embedder:
+
+| Chunks ($N$) | Target Tokens | Hit Rate | Precision@3 | Precision@5 | Mean Rank | Clinical Assessment |
+| :---: | :---: | :---: | :---: | :---: | :---: | :--- |
+| **34** | **600** | **100%** | **0.45** | **0.36** | **1.50** | ✅ **Safe Production Baseline (Atomic Recommendations)** |
+| **48** | **250** | **100%** | **0.50** | **0.42** | **1.45** | ⭐ **Optimal (+11% P@3, +17% P@5, Lower Token Cost)** |
+| **63** | **150** | **100%** | **0.47** | **0.38** | **1.40** | 🟡 Viable (Moderate Over-fragmentation) |
+| **74** | **110** | **100%** | **0.48** | **0.42** | **1.55** | 🟡 Viable (Higher boundary noise) |
+| **81 / 82** | **90** | **95% ❌** | **0.45** | **0.41** | **1.42** | ❌ **Failed Gate (Over-splitting Miss on `gq_19`)** |
+
+- **Why 82 Chunks Fails**: Over-splitting causes `gq_19` (pediatric glucocorticoid replacement) to fail retrieval entirely, misrouting to sections 1.9/1.8 instead of section 1.3.
+- **Decision**: **34 Chunks** is retained as the standard reference index for maximum recall safety. **48 Chunks** is the approved candidate for high-precision prompt token trimming.
+
 ---
 
 ## 4. Top-$k$ Retrieval Depth Analysis

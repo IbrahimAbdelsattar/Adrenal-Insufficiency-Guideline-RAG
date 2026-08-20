@@ -68,9 +68,14 @@ class Settings(BaseSettings):
     generation_temperature: float = Field(default=0.1, alias="GENERATION_TEMPERATURE")
 
     # --- Chunking ---
-    chunk_target_tokens: int = Field(default=600, alias="CHUNK_TARGET_TOKENS")
-    chunk_min_tokens: int = Field(default=400, alias="CHUNK_MIN_TOKENS")
-    chunk_max_tokens: int = Field(default=800, alias="CHUNK_MAX_TOKENS")
+    # Swept against the 20-question golden set (hybrid, bge-small): 250 tokens
+    # gives 48 chunks and the best precision at a full 100% hit rate. 600 (34
+    # chunks) holds the hit rate but dilutes precision; going smaller over-splits
+    # the guideline and starts losing whole sections (90 -> 81 chunks drops the
+    # pediatric question and the hit rate to 95%).
+    chunk_target_tokens: int = Field(default=250, alias="CHUNK_TARGET_TOKENS")
+    chunk_min_tokens: int = Field(default=150, alias="CHUNK_MIN_TOKENS")
+    chunk_max_tokens: int = Field(default=350, alias="CHUNK_MAX_TOKENS")
 
     # --- Retrieval ---
     # k=3 scored highest precision in the Day 2 eval and cuts prompt tokens.

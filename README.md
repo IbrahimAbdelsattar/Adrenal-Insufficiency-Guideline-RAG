@@ -758,11 +758,11 @@ ai-hackthon/
 │   │   │   └── store.py                       # ChromaDB persistent store with multi-collection support
 │   │   └── embeddings/
 │   │       ├── base.py                        # Embedder protocol seam
-│   │       ├── fallback.py                    # Resilient FallbackEmbedder wrapper (Gemini -> Local BGE)
+│   │       ├── fallback.py                    # Resilient FallbackEmbedder wrapper (Local BGE Primary -> Gemini Fallback)
 │   │       ├── local.py                       # Local SentenceTransformer embedder (BAAI/bge-small-en-v1.5)
 │   │       └── openrouter.py                  # OpenRouter batched embedding client with query cache
 │   └── tests/
-│       ├── unit/                              # 315+ unit tests (100% pass rate)
+│       ├── unit/                              # 383 unit & integration tests (100% pass rate)
 │       │   ├── test_local_embedder.py         # Local SentenceTransformer unit tests
 │       │   ├── test_fallback_embedder.py      # Fallback embedder failover unit tests
 │       │   ├── test_sentry_monitoring.py      # Sentry init & PHI sanitization unit tests
@@ -777,6 +777,14 @@ ai-hackthon/
 │       │   └── test_scope.py                  # Scope classification threshold tests
 │       ├── integration/                       # Pipeline, generate API, latency & embedding fallback tests
 │       └── eval/                              # Golden questions and retrieval evaluation
+├── docs/                                      # Comprehensive Engineering & Clinical Reports
+│   ├── CHUNKING_GRANULARITY_SWEEP.md          # Granularity sweep (34 vs 48 vs 82 chunks evaluation)
+│   ├── LOCAL_EMBEDDING_FALLBACK.md            # Local-first embedding & high-availability fallback architecture
+│   ├── RETRIEVAL_THRESHOLD_CALIBRATION.md     # Relevance floor & scope threshold calibration report (tau=0.68)
+│   ├── MEMORY_ARCHITECTURE.md                 # Multi-turn conversational & multi-tier cache memory architecture
+│   ├── GROUNDING_REFUSAL_VERIFICATION.md      # 4-layer safety guardrail & prescription refusal report
+│   ├── CACHING_OPTIMIZATION.md                # Multi-tier RAG caching & benchmark evaluation (106.5x speedup)
+│   └── CLINICAL_EVALUATION_REPORT.md          # 25-case clinical benchmark scorecard & evaluation audit
 ├── frontend/
 │   ├── sentry.client.config.ts                # Client-side Sentry configuration & sanitization
 │   ├── sentry.server.config.ts                # Server-side Sentry configuration
@@ -800,7 +808,7 @@ ai-hackthon/
 │   │   ├── api.ts                             # Typed API client for FastAPI backend
 │   │   └── translations.ts                    # English & Arabic medical translation dictionary
 │   └── next.config.ts                         # Wrapped with withSentryConfig & dev proxy
-
+│
 └── specs/
     └── 001-clinical-rag-ingestion/            # Feature specification & architectural docs
         ├── spec.md                            # Feature Specification
