@@ -55,8 +55,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends curl \
     && addgroup --system --gid 1001 nodejs \
     && adduser --system --uid 1001 nextjs
 
-# `output: "standalone"` emits a self-contained server plus only the modules it
-# actually needs; static/ and public/ are copied alongside it.
+COPY --from=builder --chown=nextjs:nodejs /app/public ./public
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 
