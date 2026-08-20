@@ -68,19 +68,29 @@ graph TD
   }
   ```
 
-### 2.2 Multi-Turn Context Window Ingestion
-- When sending inquiries to `POST /api/generate` or `POST /api/generate/stream`, the client transmits the prior conversation turns.
-- In [`backend/app/generation/prompt.py`](file:///c:/Users/C-LAB/Videos/ai%20hackthon/backend/app/generation/prompt.py), the prompt constructor serializes the last 4 messages (`history[-4:]`) into a structured consultation block:
-  ```text
-  PRIOR CONSULTATION CONTEXT:
-  Clinician: What are the emergency management steps for adrenal crisis?
-  Eva-AI: Administer 100 mg IM or IV hydrocortisone immediately... [Source 1, 1.7.1]
+### 2.2 Multi-Turn Retrieval Contextualization & Context Window
 
-  ---
+Multi-turn conversations are handled at both the **Retrieval** and **Prompt Construction** layers:
 
-  QUESTION: What should be done if IV access cannot be established?
-  ```
-- This enables contextual follow-up questions while bounding token expenditure.
+1. **Pre-Retrieval Query Enrichment (`backend/app/generation/service.py`)**:
+   - When an elliptical or pronoun-dependent follow-up inquiry is received (e.g. *"And what about in children?"* or *"What dose for them?"*), `retrieve_and_scope` dynamically extracts the clinical subject from the preceding user turn (`last_user_q`) and prefixes the search vector:
+     ```python
+     search_query = f"{last_user_q} {request.query}"
+     ```
+   - This ensures the vector search retrieves the correct pediatric guideline chunks from NICE NG243 rather than suffering from out-of-context retrieval drift.
+
+2. **Prompt Context Ingestion (`backend/app/generation/prompt.py`)**:
+   - The prompt constructor serializes the last 4 conversation turns (`history[-4:]`) into a structured consultation context block:
+     ```text
+     PRIOR CONSULTATION CONTEXT:
+     Clinician: What are the symptoms of adrenal insufficiency?
+     Eva-AI: The symptoms include persistent fatigue, hypotension... [Source 1, 1.2.1]
+
+     ---
+
+     QUESTION: And what about in children?
+     ```
+   - This allows the LLM to understand conversation references while strictly bounding token expenditure.
 
 ---
 

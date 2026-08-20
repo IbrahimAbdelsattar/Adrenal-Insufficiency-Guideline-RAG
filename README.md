@@ -1,8 +1,9 @@
 # Eva AI — Clinical Decision Support (Adrenal Insufficiency RAG)
 
 [![CI/CD Pipeline](https://github.com/IbrahimAbdelsattar/Eva-AI/actions/workflows/ci-cd.yml/badge.svg)](https://github.com/IbrahimAbdelsattar/Eva-AI/actions/workflows/ci-cd.yml)
-[![Unit Tests](https://img.shields.io/badge/Unit_Tests-317_Passing-brightgreen.svg)](file:///c:/Users/C-LAB/Videos/ai%20hackthon/backend/tests/unit/)
-[![Local Embedding Fallback](https://img.shields.io/badge/Embeddings-Gemini_%2B_Local_BGE_Fallback-blue.svg)](file:///c:/Users/C-LAB/Videos/ai%20hackthon/docs/DAY5_LOCAL_EMBEDDING_FALLBACK.md)
+[![Unit & Integration Tests](https://img.shields.io/badge/Unit_%26_Integration_Tests-383_Passing-brightgreen.svg)](file:///c:/Users/C-LAB/Videos/ai%20hackthon/backend/tests/)
+[![Live E2E Verification](https://img.shields.io/badge/Live_E2E_Tests-88%2F88_Passing-brightgreen.svg)](file:///c:/Users/C-LAB/Videos/ai%20hackthon/scripts/test_live_e2e.py)
+[![Local-First Embeddings](https://img.shields.io/badge/Embeddings-Local_BGE_Primary_%2B_Gemini_Fallback-blue.svg)](file:///c:/Users/C-LAB/Videos/ai%20hackthon/docs/LOCAL_EMBEDDING_FALLBACK.md)
 
 [![Docker GHCR](https://img.shields.io/badge/Container-GHCR-blue?logo=docker&logoColor=white)](https://github.com/IbrahimAbdelsattar/Eva-AI/pkgs/container/eva-ai)
 [![Python Version](https://img.shields.io/badge/python-3.13-blue.svg)](https://www.python.org/)
@@ -10,6 +11,7 @@
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.115+-009688.svg)](https://fastapi.tiangolo.com/)
 [![Next.js](https://img.shields.io/badge/Next.js-15.x-black.svg)](https://nextjs.org/)
 [![Sentry Monitoring](https://img.shields.io/badge/Sentry-Full--Stack_Monitoring-362D59?logo=sentry&logoColor=white)](https://sentry.io/)
+[![LangSmith Tracing](https://img.shields.io/badge/LangSmith-RAG_Observability-orange.svg)](https://smith.langchain.com/)
 [![Code Style: Ruff](https://img.shields.io/badge/code%20style-ruff-000000.svg)](https://github.com/astral-sh/ruff)
 [![License](https://img.shields.io/badge/License-NICE_Notice_of_Rights-red.svg)](https://www.nice.org.uk/terms-and-conditions#notice-of-rights)
 
@@ -24,15 +26,16 @@
 
 The application pairs a high-performance **FastAPI backend** with a **Next.js 15 Monomorphic Soft UI** frontend featuring:
 - 💬 **Interactive Multi-Turn RAG Chatbot**: Real-time SSE streaming answers with inline structural citations directly from NICE NG243.
+- 🔁 **Multi-Turn Contextual Retrieval**: Dynamic pre-retrieval query enrichment from preceding conversation turns in `retrieve_and_scope` ensures accurate chunk retrieval on elliptical follow-up questions (e.g. *"And what about in children?"*).
 - 📜 **Consultation History & Evidence Inspector**: Persistent multi-session consultation threads stored in `localStorage`, session search, markdown export, and expandable retrieved evidence accordions showing full verbatim guideline chunks, page citations, and relevance scores on every historical turn.
 - 🧠 **Layered Memory & State Architecture**: Bounded client-side `localStorage` session management paired with multi-turn conversation context windows (`history[-4:]`), documented in [docs/MEMORY_ARCHITECTURE.md](file:///c:/Users/C-LAB/Videos/ai%20hackthon/docs/MEMORY_ARCHITECTURE.md).
 - 🧭 **Conversational Capability Routing**: Common greetings and capability questions (for example, “How can you help me?”) return an immediate live introduction before clinical retrieval, while clinical questions retain strict evidence guardrails.
-- 🔄 **Zero-Network Local Embedding Fallback**: Resilient `FallbackEmbedder` routing to local `BAAI/bge-small-en-v1.5` via `sentence-transformers` on upstream API / Gemini 429 quota failure, ensuring uninterrupted clinical search and ingestion.
-- 🚀 **Multi-Tier RAG Caching Architecture**: Sub-5ms response time on warm queries (**492x speedup**) with L1 Embedding, L2 Retrieval, and L3 Answer Caching with TTL/LRU eviction and automatic index manifest invalidation.
-- 🔍 **Retrieval & Evidence Inspector**: In-depth vector & BM25 ranking inspection with similarity scores and confidence floors.
+- 🔄 **Local-First Embedding Engine & Resilient Fallback**: Primary local `BAAI/bge-small-en-v1.5` embedder delivering ultra-low latency (~20–30ms) with zero remote failure risk, backed by automatic transparent failover to remote Gemini (`gemini/gemini-embedding-001`).
+- 🚀 **Multi-Tier RAG Caching Architecture**: Sub-5ms response time on warm queries (**106.5x speedup**) with L1 Embedding, L2 Retrieval, and L3 Answer Caching with TTL/LRU eviction and automatic index manifest invalidation.
+- 🔍 **Calibrated Thresholds**: Calibrated `RELEVANCE_FLOOR=0.68` and `SCOPE_THRESHOLD=0.68` providing 100% clean separation between authentic endocrinology queries and out-of-scope noise.
 - ⚡ **Ultra-Low Latency OmniRoute Routing**: Optimized with `GENERATION_MODEL=eva-ai` (~1.6s vs 4.4s) and instant 0ms zero-LLM greeting handling.
-- 🛡️ **Fail-Closed Clinical Guardrails**: Adversarial prompt injection defense, out-of-scope refusal, insufficient evidence abstention, and pre-retrieval dosage & prescription recommendation refusal.
-- 📊 **Full-Stack Sentry Observability**: Distributed tracing across RAG stages, continuous CPU profiling, and automatic PHI/PII sanitization.
+- 🛡️ **Fail-Closed Clinical Guardrails**: Adversarial prompt injection defense, out-of-scope refusal, insufficient evidence abstention, and calibrated pre-retrieval dosage & prescription recommendation refusal with clinical scenario bypass.
+- 📊 **Full-Stack Sentry & LangSmith Observability**: Distributed tracing across RAG stages, continuous CPU profiling, and automatic PHI/PII sanitization.
 - 🌐 **Bilingual Medical Interface**: Native English and Arabic (RTL) support with localized terminology.
 
 

@@ -35,39 +35,46 @@ Both Day 3 checklist items and strict Medical Safety constraints have been verif
 Request
    │
    ▼
-┌─────────────────────────────────────┐
-│  Layer 0: Injection Guard           │  ← pre-retrieval regex-based filter
-│  detect_prompt_injection(query)     │
-│  Action: immediate refusal response │
-└─────────────────────────────────────┘
+┌─────────────────────────────────────────┐
+│  Layer 0: Injection Guard               │  ← pre-retrieval regex-based filter
+│  detect_prompt_injection(query)         │
+│  Action: immediate refusal response     │
+└─────────────────────────────────────────┘
    │ Clean query
    ▼
-┌─────────────────────────────────────┐
-│  Layer 1: Scope Classifier          │  ← classify_scope(results, threshold)
-│  Threshold: scope_threshold = 0.005 │
-│  Action: "Honest, Not Unhelpful"    │
-└─────────────────────────────────────┘
+┌─────────────────────────────────────────┐
+│  Layer 0.5: Prescription & Dosage Guard │  ← is_dosage_or_medication_query(query)
+│  Checks standalone dosage requests      │     Bypassed for clinical scenario lookups
+│  Action: bilingual refusal (EN / AR)    │     (crisis protocol, routine replacement, etc.)
+└─────────────────────────────────────────┘
+   │ Clinical query
+   ▼
+┌─────────────────────────────────────────┐
+│  Layer 1: Scope Classifier              │  ← classify_scope(results, threshold)
+│  Threshold: scope_threshold = 0.68      │
+│  Action: "Honest, Not Unhelpful"        │
+└─────────────────────────────────────────┘
    │ in_scope results
    ▼
-┌─────────────────────────────────────┐
-│  Layer 2: Floor Guard               │  ← should_abstain(results)
-│  Threshold: relevance_floor = 0.30  │
-│  Action: "Honest, Not Unhelpful"    │
-└─────────────────────────────────────┘
+┌─────────────────────────────────────────┐
+│  Layer 2: Floor Guard                   │  ← should_abstain(results)
+│  Threshold: relevance_floor = 0.68      │
+│  Action: "Honest, Not Unhelpful"        │
+└─────────────────────────────────────────┘
    │ Strong evidence
    ▼
-┌─────────────────────────────────────┐
-│  Layer 3: Pharmacological Disclaimer │  ← contains_pharmacological_content()
-│  Action: Force-append disclaimer   │
-└─────────────────────────────────────┘
+┌─────────────────────────────────────────┐
+│  Layer 3: Pharmacological Disclaimer    │  ← contains_pharmacological_content()
+│  Action: Force-append disclaimer        │
+└─────────────────────────────────────────┘
    │ Finalized grounded answer
    ▼
- Gp / Clinician Response
+  Clinician Response
 ```
 
 ### "Honest, Not Unhelpful" Refusal Messages
 
-Refusal messages in [`scope.py`](file:///c:/Users/Mayada%20AbouZeid/Documents/Study2026/Summer26/AI%20Hackathon/Eva-AI/backend/app/retrieval/scope.py) strictly do three things:
+Refusal messages in [`backend/app/retrieval/scope.py`](file:///c:/Users/C-LAB/Videos/ai%20hackthon/backend/app/retrieval/scope.py) strictly do three things:
 1. State clearly that the available evidence is insufficient.
 2. Explain what was searched (NICE NG243 adrenal insufficiency guideline).
 3. Suggest a next step (rephrasing or consulting a clinician).
@@ -88,7 +95,7 @@ Any answer containing pharmacological content (dosing, drug names, administratio
 > ⚠️ **Clinical Disclaimer:** This tool provides clinical reference data strictly for decision support. It does not provide medical advice or individual prescriptions. All dosing and treatment decisions must be evaluated by a licensed healthcare professional.
 ```
 
-This is scanned and injected by `_finalize_answer` in [`service.py`](file:///c:/Users/Mayada%20AbouZeid/Documents/Study2026/Summer26/AI%20Hackathon/Eva-AI/backend/app/generation/service.py) for both the JSON and SSE streaming endpoints.
+This is scanned and injected by `_finalize_answer` in [`backend/app/generation/service.py`](file:///c:/Users/C-LAB/Videos/ai%20hackthon/backend/app/generation/service.py) for both the JSON and SSE streaming endpoints.
 
 ---
 
@@ -96,10 +103,17 @@ This is scanned and injected by `_finalize_answer` in [`service.py`](file:///c:/
 
 ### Execution Verification
 
-We executed `pytest` across the backend stress, unit, and API integration suites.
+We executed `pytest` across the backend stress, unit, evaluation, and API integration suites:
 
-- **`test_grounding_stress.py`**: **98/98 PASS**
-- **`test_sectioner.py`**: **13/13 PASS**
-- **`test_generate_api.py`**: **7/7 PASS**
+- **Full Backend Test Suite**: **383 passed, 0 failed** in 57.96s
+- **Live E2E Verification Suite (`scripts/test_live_e2e.py`)**: **88/88 checks passed (100%)**
+  - Group 1 (Greetings / Capability in EN & AR): 3/3 passed
+  - Group 2 (In-Scope Clinical Qs): 7/7 passed
+  - Group 3 (Multi-Turn History): 2/2 passed
+  - Group 4 (Out-of-Scope Abstention): 3/3 passed
+  - Group 5 (Dosage Refusal & Scenario Bypass): 4/4 passed
+  - Group 6 (Prompt Injection / Jailbreak): 4/4 passed
+  - Group 7 (Response Caching): 106.5x speedup verified
+  - Group 8 (SSE Token Streaming): verified
 
 All safety filters, prompt restrictions, disclaimer injections, and boundary conditions passed cleanly.
