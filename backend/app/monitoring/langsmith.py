@@ -83,3 +83,11 @@ def scrub_trace_value(value: Any) -> Any:
     if isinstance(value, (list, tuple)):
         return [scrub_trace_value(v) for v in value]
     return value
+
+
+# Auto-initialize on module load so os.environ is populated before any @traceable decorator is evaluated
+try:
+    init_langsmith()
+except Exception as _exc:  # pragma: no cover
+    logger.debug("Automatic LangSmith initialization deferred: %s", _exc)
+

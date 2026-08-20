@@ -31,6 +31,7 @@ known-first-party = ["backend"]
 minversion = "8.0"
 testpaths = ["backend/tests"]
 pythonpath = ["."]
+addopts = "-p no:langsmith"
 asyncio_mode = "strict"
 asyncio_default_fixture_loop_scope = "function"
 filterwarnings = [

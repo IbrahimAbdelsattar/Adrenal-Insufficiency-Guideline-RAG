@@ -341,6 +341,11 @@ class LLMClient:
             },
         )
 
+    @traceable(
+        run_type="llm",
+        name="omniroute.chat_completion_stream",
+        process_inputs=_reduce_llm_inputs,
+    )
     async def stream_completion(
         self,
         system_prompt: str,
