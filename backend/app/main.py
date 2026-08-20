@@ -21,6 +21,7 @@ from backend.app.monitoring import (
     REGISTRY,
     configure_logging,
     get_request_id,
+    init_langsmith,
     init_sentry,
     reset_request_id,
     set_request_id,
@@ -35,6 +36,9 @@ logger = logging.getLogger(__name__)
 
 # Initialize Sentry error tracking & monitoring
 init_sentry(_settings)
+
+# Initialize LangSmith RAG tracing
+init_langsmith(_settings)
 
 
 @asynccontextmanager

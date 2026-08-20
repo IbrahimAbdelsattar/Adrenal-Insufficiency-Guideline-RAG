@@ -19,9 +19,21 @@ import httpx
 
 from backend.app.config import Settings, get_settings
 from backend.app.errors import ConfigurationError, PipelineError
-from backend.app.monitoring import REGISTRY, estimate_tokens, trace_span
+from backend.app.monitoring import REGISTRY, estimate_tokens, trace_span, traceable
+from backend.app.monitoring.langsmith import scrub_trace_value
 
 logger = logging.getLogger(__name__)
+
+
+def _reduce_llm_inputs(inputs: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "system_prompt": scrub_trace_value(inputs.get("system_prompt", "")),
+        "user_prompt": scrub_trace_value(inputs.get("user_prompt", "")),
+    }
+
+
+def _reduce_llm_outputs(output: str) -> dict[str, Any]:
+    return {"answer": scrub_trace_value(output)}
 
 
 MAX_ATTEMPTS = 3
@@ -118,6 +130,12 @@ class LLMClient:
             )
         return fields
 
+    @traceable(
+        run_type="llm",
+        name="omniroute.chat_completion",
+        process_inputs=_reduce_llm_inputs,
+        process_outputs=_reduce_llm_outputs,
+    )
     async def generate_completion(
         self,
         system_prompt: str,

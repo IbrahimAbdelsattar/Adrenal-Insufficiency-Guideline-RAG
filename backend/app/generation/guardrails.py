@@ -184,10 +184,48 @@ _DOSAGE_MED_KEYWORDS = [
 ]
 
 
+_CLINICAL_SCENARIO_PATTERNS = [
+    r"\b\d+[- ]year[- ]old\b",
+    r"\bpresents?\s+(?:with|to)\b",
+    r"\bdiagnos(?:ed|is)\b",
+    r"\bundergoing\b",
+    r"\bpatient\s+with\b",
+    r"\bperson\s+with\b",
+    r"\bmother\s+with\b",
+    r"\bemergency\s+management\b",
+    r"\bmanagement\s+protocol\b",
+    r"\bprotocol\s+for\b",
+    r"\brules\s+for\b",
+    r"\bsynacthen\b",
+    r"\bcortisol\b",
+    r"\binvestigation\b",
+    r"\bfever\b",
+    r"\bvomit\b",
+    r"\btablets?\b",
+    r"\bgrams?\b",
+    r"\bwithhold\b",
+    r"\bhpa\s+axis\b",
+    r"\bsurgery\b",
+    r"\banaesthesia\b",
+    r"\banesthesia\b",
+    r"\bmaterials\b",
+    r"\bwhy\s+and\s+for\s+how\s+long\b",
+    r"\bwhen\s+should\b",
+    r"\bdoes\s+a\s+patient\b",
+    r"\bhow\s+many\s+emergency\b",
+    r"(?:مريض|مشخص|يعاني|إصابة|أيام\s+المرض\s+عند|إسعافي\s+فوري)",
+]
+
+
 def is_dosage_or_medication_query(query: str) -> bool:
-    """Return True if the query is related to dosages or prescribing/medication recommendations."""
+    """Return True if the query is a direct dosage/prescribing inquiry without clinical scenario context."""
     if not query:
         return False
     lower_query = query.lower()
-    return any(k in lower_query for k in _DOSAGE_MED_KEYWORDS)
+    if not any(k in lower_query for k in _DOSAGE_MED_KEYWORDS):
+        return False
+    # If the query contains rich clinical scenario / guideline lookup context, allow retrieval & grounded response
+    if any(re.search(pat, lower_query, re.IGNORECASE) for pat in _CLINICAL_SCENARIO_PATTERNS):
+        return False
+    return True
 

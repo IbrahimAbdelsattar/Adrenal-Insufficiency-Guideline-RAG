@@ -12,6 +12,7 @@ import asyncio
 import logging
 import time
 from dataclasses import dataclass, field
+from typing import Any
 
 from backend.app import graph
 from backend.app.config import Settings, get_settings
@@ -43,7 +44,8 @@ from backend.app.models import (
     InputRiskAssessment,
     RetrievalResult,
 )
-from backend.app.monitoring import REGISTRY, RagTrace, estimate_tokens
+from backend.app.monitoring import REGISTRY, RagTrace, estimate_tokens, traceable
+from backend.app.monitoring.langsmith import scrub_trace_value
 from backend.app.retrieval.cache import TTLLRUCache, normalize_query
 from backend.app.retrieval.factory import get_shared_retriever, get_shared_store
 from backend.app.retrieval.scope import (
@@ -194,10 +196,65 @@ def _abstention_response(
 
 
 # ---------------------------------------------------------------------------
+# LangSmith trace shaping
+#
+# process_inputs/process_outputs keep raw GenerateRequest/RagTrace objects
+# (and their query text) out of what actually gets serialized and sent to
+# LangSmith -- only the scrubbed, summarized fields below leave the process.
+# ---------------------------------------------------------------------------
+
+
+def _reduce_retrieve_inputs(inputs: dict) -> dict:
+    request = inputs.get("request")
+    return {
+        "query": scrub_trace_value(getattr(request, "query", "")),
+        "top_k": getattr(request, "top_k", None),
+    }
+
+
+def _reduce_retrieve_outputs(outputs: Any) -> dict:
+    _settings, top_k, results, scope_status, _scope_msg, filtered = outputs
+    return {
+        "top_k": top_k,
+        "scope_status": scope_status,
+        "retrieved_chunks": len(results),
+        "filtered_chunks": len(filtered),
+        "chunk_ids": [r.chunk.chunk_id for r in results[:10]],
+    }
+
+
+def _reduce_pipeline_inputs(inputs: dict) -> dict:
+    request = inputs.get("request")
+    history = getattr(request, "history", None) or []
+    return {
+        "query": scrub_trace_value(getattr(request, "query", "")),
+        "top_k": getattr(request, "top_k", None),
+        "history_len": len(history),
+    }
+
+
+def _reduce_pipeline_outputs(result: Any) -> dict:
+    return {
+        "status": getattr(result, "status", None),
+        "evidence_found": getattr(result, "evidence_found", None),
+        "cache_hit": getattr(result, "cache_hit", None),
+        "citations": len(getattr(result, "citations", None) or []),
+        "latency_ms": getattr(result, "latency_ms", None),
+        "answer": scrub_trace_value(getattr(result, "answer", "")),
+    }
+
+
+# ---------------------------------------------------------------------------
 # Shared pipeline stages
 # ---------------------------------------------------------------------------
 
 
+@traceable(
+    run_type="retriever",
+    name="rag.retrieve_and_scope",
+    process_inputs=_reduce_retrieve_inputs,
+    process_outputs=_reduce_retrieve_outputs,
+)
 async def retrieve_and_scope(
     request: GenerateRequest, trace: RagTrace
 ) -> tuple[Settings, int, list[RetrievalResult], str, str, list[RetrievalResult]]:
@@ -207,7 +264,10 @@ async def retrieve_and_scope(
 
     with trace.stage("retrieval"):
         retriever = get_shared_retriever(settings)
-        results = await retriever.search_async(request.query, top_k=top_k)
+        if hasattr(retriever, "search_async"):
+            results = await retriever.search_async(request.query, top_k=top_k)
+        else:
+            results = retriever.search(request.query, top_k=top_k)
 
     with trace.stage("scope"):
         scope_status, scope_msg, filtered_results = classify_scope(
@@ -305,6 +365,12 @@ class GenerationResult:
     clarifying_questions: list[str] = field(default_factory=list)
 
 
+@traceable(
+    run_type="chain",
+    name="rag.generation_pipeline",
+    process_inputs=_reduce_pipeline_inputs,
+    process_outputs=_reduce_pipeline_outputs,
+)
 async def run_generation_pipeline(
     request: GenerateRequest,
     trace: RagTrace,

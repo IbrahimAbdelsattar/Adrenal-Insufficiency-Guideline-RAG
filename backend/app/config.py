@@ -42,7 +42,9 @@ class Settings(BaseSettings):
     embedding_batch_size: int = Field(default=32, alias="EMBEDDING_BATCH_SIZE")
     local_embedding_model: str = Field(
         default="BAAI/bge-small-en-v1.5",
-        validation_alias=AliasChoices("LOCAL_EMBEDDING_MODEL", "FALLBACK_EMBEDDING_MODEL"),
+        validation_alias=AliasChoices(
+            "local_embedding_model", "LOCAL_EMBEDDING_MODEL", "FALLBACK_EMBEDDING_MODEL"
+        ),
     )
     enable_embedding_fallback: bool = Field(default=True, alias="ENABLE_EMBEDDING_FALLBACK")
     fallback_chroma_collection: str = Field(
@@ -127,6 +129,14 @@ class Settings(BaseSettings):
         default=1.0,
         alias="SENTRY_TRACES_SAMPLE_RATE",
     )
+
+    # --- LangSmith RAG Tracing ---
+    langsmith_api_key: str = Field(default="", alias="LANGSMITH_API_KEY")
+    langsmith_project: str = Field(default="eva-ai-rag", alias="LANGSMITH_PROJECT")
+    langsmith_tracing: bool = Field(default=True, alias="LANGSMITH_TRACING")
+    # Leave blank to use LangSmith's default (https://api.smith.langchain.com);
+    # set for a self-hosted or EU LangSmith instance.
+    langsmith_endpoint: str = Field(default="", alias="LANGSMITH_ENDPOINT")
 
     # --- Serving ---
     allowed_origins: str = Field(

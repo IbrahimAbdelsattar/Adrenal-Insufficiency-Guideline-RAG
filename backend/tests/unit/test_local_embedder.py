@@ -12,10 +12,13 @@ from backend.app.errors import EmbeddingProviderError
 class TestLocalEmbedder:
     """Tests for LocalEmbedder functionality and error handling."""
 
-    def test_init_properties(self, tmp_path):
+    def test_init_properties(self, tmp_path, monkeypatch):
+        monkeypatch.delenv("LOCAL_EMBEDDING_MODEL", raising=False)
+        monkeypatch.delenv("FALLBACK_EMBEDDING_MODEL", raising=False)
         settings = Settings(
             local_embedding_model="test/dummy-model",
             index_dir=tmp_path,
+            _env_file=None,
         )
         embedder = LocalEmbedder(settings=settings)
         assert embedder.model_id == "test/dummy-model"

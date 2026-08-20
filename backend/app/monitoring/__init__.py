@@ -1,5 +1,11 @@
 """Monitoring and telemetry package: logging, latency metrics, error tracking."""
 
+from backend.app.monitoring.langsmith import (
+    init_langsmith,
+    is_langsmith_enabled,
+    scrub_trace_value,
+    traceable,
+)
 from backend.app.monitoring.logging_config import (
     configure_logging,
     get_request_id,
@@ -26,12 +32,16 @@ __all__ = [
     "configure_logging",
     "estimate_tokens",
     "get_request_id",
+    "init_langsmith",
     "init_sentry",
+    "is_langsmith_enabled",
     "is_sentry_enabled",
     "reset_request_id",
     "safe_query",
+    "scrub_trace_value",
     "set_rag_context",
     "set_request_id",
     "stage_timer",
     "trace_span",
+    "traceable",
 ]

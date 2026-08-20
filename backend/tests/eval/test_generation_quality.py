@@ -25,7 +25,7 @@ from backend.app.main import app
 logger = logging.getLogger(__name__)
 client = TestClient(app)
 
-EVAL_DATASET_PATH = Path("backend/tests/eval/golden_generation.yaml")
+EVAL_DATASET_PATH = Path(__file__).resolve().parent / "golden_generation.yaml"
 
 
 def load_golden_cases() -> list[dict[str, Any]]:
