@@ -85,7 +85,27 @@ class DenseRetriever:
             extra={"event": "retrieval.dense.auto_populate_fallback", "chunks": len(chunks)},
         )
         texts = [c.text for c in chunks]
-        embeddings = self._embedder_for_fallback().embed_documents(texts)
+        try:
+            embeddings = self._embedder_for_fallback().embed_documents(texts)
+        except Exception as exc:
+            # This runs on the request path, and the embedder it needs is the one
+            # that is already in trouble (that is why we are in the fallback path
+            # at all). Re-embedding the whole corpus through it is exactly what
+            # fails -- so give up on the fallback collection rather than letting
+            # the exception take dense retrieval down with it.
+            logger.warning(
+                "Could not build fallback collection '%s' (%s). "
+                "Continuing against the primary collection.",
+                fallback_col,
+                exc,
+                extra={
+                    "event": "retrieval.dense.fallback_build_failed",
+                    "collection": fallback_col,
+                    "chunks": len(chunks),
+                    "error": str(exc),
+                },
+            )
+            return
         self._store.build(chunks, embeddings, collection_name=fallback_col)
         logger.info(
             "Fallback vector collection '%s' is now ready with %d chunks.",

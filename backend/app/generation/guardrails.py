@@ -247,6 +247,12 @@ _CLINICAL_SCENARIO_PATTERNS = [
     r"\bwhen\s+should\b",
     r"\bdoes\s+a\s+patient\b",
     r"\bhow\s+many\s+emergency\b",
+    r"\bwhich\s+(?:glucocorticoid|medication|corticosteroid|drug|treatment|steroid)\b",
+    r"\broutine\s+replacement\b",
+    r"\bprimary\s+adrenal\s+insufficiency\b",
+    r"\badrenal\s+insufficiency\b",
+    r"\badults?\s+with\b",
+    r"\bchildren\s+with\b",
     r"(?:مريض|مشخص|يعاني|إصابة|أيام\s+المرض\s+عند|إسعافي\s+فوري)",
 ]
 

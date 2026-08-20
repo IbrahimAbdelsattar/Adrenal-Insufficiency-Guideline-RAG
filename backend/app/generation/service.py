@@ -260,16 +260,32 @@ async def retrieve_and_scope(
     settings = get_settings()
     top_k = request.top_k or settings.top_k
 
+    search_query = request.query
+    if request.history:
+        prev_user_turns = [
+            str(h.get("content", "")).strip()
+            for h in request.history
+            if h.get("role") == "user" and str(h.get("content", "")).strip()
+        ]
+        if prev_user_turns:
+            last_user_q = prev_user_turns[-1]
+            lower_q = request.query.lower().strip()
+            if len(request.query.split()) < 9 or any(
+                lower_q.startswith(prefix)
+                for prefix in ("and ", "what about", "how about", "in ", "for ", "can ", "does ")
+            ):
+                search_query = f"{last_user_q} {request.query}"
+
     with trace.stage("retrieval"):
         retriever = get_shared_retriever(settings)
         if hasattr(retriever, "search_async"):
-            results = await retriever.search_async(request.query, top_k=top_k)
+            results = await retriever.search_async(search_query, top_k=top_k)
         else:
-            results = retriever.search(request.query, top_k=top_k)
+            results = retriever.search(search_query, top_k=top_k)
 
     with trace.stage("scope"):
         scope_status, scope_msg, filtered_results = classify_scope(
-            results, settings.scope_threshold, request.query
+            results, settings.scope_threshold, search_query
         )
 
     trace.set(

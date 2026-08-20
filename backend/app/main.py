@@ -140,6 +140,46 @@ async def lifespan(app: FastAPI):
     except Exception as exc:
         logger.warning("Lifespan: query embedder pre-warm warning: %s", exc)
 
+    # Fail loudly if the index was built by a different embedder than the one now
+    # answering queries. Every dense query would raise a dimension mismatch and
+    # hybrid retrieval would quietly serve BM25-only results -- a large drop in
+    # answer quality whose only symptom is a WARNING buried in the request log.
+    try:
+        store = get_shared_store(settings)
+        embedder = get_shared_retriever(settings).embedder
+        index_dims = store.dimension_of(store.collection_name)
+        query_dims = embedder.dimensions
+        if index_dims and query_dims and index_dims != query_dims:
+            logger.error(
+                "INDEX/EMBEDDER MISMATCH: collection '%s' holds %d-dimensional vectors but "
+                "the query embedder '%s' produces %d. Dense retrieval will fail on every "
+                "request and results will silently degrade to BM25-only. Re-run ingestion.",
+                store.collection_name,
+                index_dims,
+                embedder.model_id,
+                query_dims,
+                extra={
+                    "event": "startup.index_embedder_mismatch",
+                    "collection": store.collection_name,
+                    "index_dimensions": index_dims,
+                    "query_dimensions": query_dims,
+                    "embedding_model": embedder.model_id,
+                },
+            )
+        else:
+            logger.info(
+                "Index/embedder dimensions agree (%s dims, model=%s).",
+                index_dims,
+                embedder.model_id,
+                extra={
+                    "event": "startup.index_embedder_ok",
+                    "index_dimensions": index_dims,
+                    "embedding_model": embedder.model_id,
+                },
+            )
+    except Exception as exc:
+        logger.warning("Lifespan: index/embedder dimension check warning: %s", exc)
+
     total_warmup_ms = (time.perf_counter() - warmup_started) * 1000
     logger.info(
         "Startup complete in %.0f ms.",
