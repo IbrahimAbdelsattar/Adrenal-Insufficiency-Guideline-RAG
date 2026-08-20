@@ -1,0 +1,281 @@
+SLIDES: 13
+======== Slide 1
+  [TXT] EVA AI
+  [TXT] CLINICAL DECISION SUPPORT · RAG
+  [TXT] Evidence-grounded AI for adrenal insufficiency care, built on NICE Guideline NG243
+  [TXT] Every answer traced to a page. Every claim backed by a citation. Nothing else.
+  [TXT] 45
+  [TXT] BENCHMARK TEST CASES
+  [TXT] 94.4%
+  [TXT] RETRIEVAL RECALL@5
+  [TXT] 3
+  [TXT] LAYER FAIL-CLOSED GUARDRAIL
+  [TXT] 100%
+  [TXT] BILINGUAL EN / AR
+  [TXT] NICE NG243 · Hackathon Prototype
+======== Slide 2
+  [TXT] INTRODUCTION
+  [TXT] What Eva AI Is
+  [TXT] Eva AI is an evidence-grounded Retrieval-Augmented Generation platform that helps clinicians, GPs, and clinical trainees answer questions about adrenal insufficiency — identification, diagnosis, emergency crisis management, and sick-day dosing — strictly from NICE Guideline NG243.
+  [TXT] SCOPE STATEMENT
+  [TXT] “This system helps clinicians and clinical trainees answer questions about adrenal insufficiency identification and management using NICE guideline NG243 and registered supporting official sources.”
+  [TXT] A decision-support research prototype — not a diagnostic or emergency triage tool.
+  [TXT] Multi-Turn RAG Chatbot
+  [TXT] Real-time SSE streaming answers with inline structural citations
+  [TXT] Evidence Inspector
+  [TXT] Expandable evidence cards with verbatim text, page & relevance score
+  [TXT] Bilingual EN / Arabic
+  [TXT] Full RTL interface with native medical terminology
+  [TXT] Local Embedding Fallback
+  [TXT] Zero-network resilience if the Gemini API is rate-limited
+  [TXT] Multi-Tier Caching
+  [TXT] Sub-5ms warm queries — a 492x speedup
+  [TXT] Fail-Closed Guardrails
+  [TXT] Injection defense, scope refusal, evidence abstention
+  [TXT] EVA AI  •  Clinical Decision Support
+  [TXT] 01
+======== Slide 3
+  [TXT] PROBLEM STATEMENT
+  [TXT] Clinical Guidelines Are Trustworthy. Generic AI Isn’t.
+  [TXT] Guidelines are long & dense
+  [TXT] NICE NG243 spans dozens of pages of numbered recommendations, sick-day rules, and emergency protocols — too slow to search under time pressure.
+  [TXT] Generic LLMs hallucinate
+  [TXT] Off-the-shelf chatbots answer confidently from parametric memory, with no guarantee an answer traces back to a real, current, registered guideline.
+  [TXT] Wrong doses can be fatal
+  [TXT] A confused unit (100mg vs 100g) or a wrongly-negated instruction (“stop steroids” during sepsis) can precipitate a fatal adrenal crisis.
+  [TXT] No time for manual lookup
+  [TXT] During an adrenal crisis or sick-day decision, clinicians need a verified, page-cited answer in seconds — not a 60-page PDF search.
+  [TXT] EVA AI  •  Clinical Decision Support
+  [TXT] 02
+======== Slide 4
+  [TXT] OUR SOLUTION
+  [TXT] Retrieve First. Answer Second. Refuse Otherwise.
+  [TXT] Eva AI pairs a high-performance FastAPI backend with a Next.js 15 Soft-UI frontend around one non-negotiable idea: no generation path exists that can bypass retrieval. The LLM only ever paraphrases evidence it was just handed — it cannot answer from memory.
+  [TXT] Retrieve Evidence
+  [TXT] Rank & Verify
+  [TXT] Generate Answer
+  [TXT] Cite Every Claim
+  [TXT] SYSTEM CONSTITUTION — SIX GUIDING PRINCIPLES
+  [TXT] 1
+  [TXT] Evidence-Grounded Answers Only
+  [TXT] No answer path can bypass retrieval
+  [TXT] 2
+  [TXT] Citation Metadata Is Structural
+  [TXT] Document, page, section & chunk id on every vector entry
+  [TXT] 3
+  [TXT] Source Legitimacy & Provenance
+  [TXT] Every corpus PDF registered with credibility justification
+  [TXT] 4
+  [TXT] Narrow Scope Discipline
+  [TXT] Restricted strictly to adrenal insufficiency (NG243)
+  [TXT] 5
+  [TXT] Staged Delivery
+  [TXT] Retrieval verified & benchmarked before generation shipped
+  [TXT] 6
+  [TXT] Human Verification Over Confidence
+  [TXT] Weak evidence is shown, never hidden
+  [TXT] EVA AI  •  Clinical Decision Support
+  [TXT] 03
+======== Slide 5
+  [TXT] ARCHITECTURE
+  [TXT] System Architecture & Component Topology
+  [TXT] Development runs two processes (FastAPI :8000 + Next.js :3000); production serves the static frontend export from a single FastAPI process.
+  [TXT] FRONTEND
+  [TXT] Next.js 15 / React 19
+  [TXT] Retrieval & Answer Inspector (page.tsx)
+  [TXT] ChatView — SSE streaming chat
+  [TXT] SearchBox — Retrieve / Generate toggle
+  [TXT] AnswerCard & ChunkCard components
+  [TXT] Bilingual EN / عربي Toggle + Theme Toggle
+  [TXT] BACKEND
+  [TXT] FastAPI Monolith
+  [TXT] api/search.py — Search & Health API
+  [TXT] api/generate.py — Generation & SSE
+  [TXT] Ingestion · Retrieval · Generation engines
+  [TXT] monitoring/sentry.py — PHI-safe tracing
+  [TXT] cli.py — ingest / query / eval / benchmark
+  [TXT] STORAGE
+  [TXT] Persistent Data Layer
+  [TXT] ChromaDB vector store (data/index/)
+  [TXT] manifest.json — self-describing index
+  [TXT] sources.yaml — provenance registry
+  [TXT] data/corpus/ — registered NG243 PDFs
+  [TXT] OmniRoute / OpenRouter Gateway API
+  [TXT] EVA AI  •  Clinical Decision Support
+  [TXT] 04
+======== Slide 6
+  [TXT] RAG INGESTION PIPELINE
+  [TXT] From Clinical PDF to Citation-Ready Vector
+  [TXT] Multi-page NICE guideline PDFs become section-aware, atomic, citation-ready chunks without losing clinical context.
+  [TXT] STAGE 1
+  [TXT] Validation & Extraction
+  [TXT] Fail-closed registry check vs sources.yaml
+  [TXT] PyMuPDF span extraction (font, weight, page #)
+  [TXT] STAGE 2
+  [TXT] Cleaning & Structure
+  [TXT] >60% boilerplate / footer removal
+  [TXT] Glyph & hyphenation repair
+  [TXT] Section hierarchy detection (1.1 / 1.1.1)
+  [TXT] STAGE 3
+  [TXT] Atomic Chunking
+  [TXT] Numbered recommendations never split
+  [TXT] Tiktoken budget packing (400–800 tok)
+  [TXT] Oversized chunks flagged, kept whole
+  [TXT] STAGE 4
+  [TXT] Embedding & Indexing
+  [TXT] Batched 1536-dim embeddings
+  [TXT] ChromaDB atomic collection swap
+  [TXT] manifest.json generation
+  [TXT] EVA AI  •  Clinical Decision Support
+  [TXT] 05
+======== Slide 7
+  [TXT] USER JOURNEY
+  [TXT] Question → Evidence → Answer, or a Safe Refusal
+  [TXT] Every query passes through three fail-closed gates before an LLM ever generates a token.
+  [TXT] Clinician submits question
+  [TXT] e.g. “What is the emergency dose of hydrocortisone?”
+  [TXT] Layer 0 — Injection Guard
+  [TXT] ~25 regex patterns catch jailbreaks & prompt-reveal attempts (<1ms)
+  [TXT] Retrieve Evidence — Hybrid Search
+  [TXT] Dense cosine + BM25 fused with Reciprocal Rank Fusion (k=60)
+  [TXT] Layer 1 — Scope Classifier
+  [TXT] out_of_scope → refuse · in_scope → continue (threshold 0.005)
+  [TXT] Layer 2 — Floor Guard
+  [TXT] relevance_floor 0.30 — weak matches flagged, not hidden
+  [TXT] Retrieve Answer — Grounded Generation
+  [TXT] OmniRoute LLM paraphrases evidence only, with inline [Source N] citations
+  [TXT] ANSWER
+  [TXT] Strong evidence found → grounded answer streamed with structural citations (document, section, page).
+  [TXT] REFUSE / ABSTAIN
+  [TXT] Injection detected, out-of-scope, or no evidence above the floor → a clear refusal message is returned instead of a guess.
+  [TXT] Fail-closed by design — abstention is always preferred over a fabricated answer.
+  [TXT] EVA AI  •  Clinical Decision Support
+  [TXT] 06
+======== Slide 8
+  [TXT] RETRIEVE EVIDENCE
+  [TXT] Structured Dual Retrieval
+  [TXT] Two independent retrievers run every query in parallel — each returns a fully-structured, citation-ready result, not just raw text.
+  [TXT] Dense Cosine Retriever
+  [TXT] retrieval/dense.py
+  [TXT] Embeds the query, queries ChromaDB for nearest vectors, scores by 1 − distance. Captures semantic / paraphrased meaning.
+  [TXT] BM25 Lexical Retriever
+  [TXT] retrieval/bm25.py
+  [TXT] In-memory clinical tokenizer scores exact term overlap — catches precise drug names, doses, and section numbers dense search can miss.
+  [TXT] Reciprocal Rank Fusion  (k = 60)
+  [TXT] RetrievalResult — every returned chunk carries: chunk_id · document_name · page_number · section_title · section_number · source_url · score (rank 1-indexed) · below_floor flag — stored natively, never in an external sidecar file.
+  [TXT] EVA AI  •  Clinical Decision Support
+  [TXT] 07
+======== Slide 9
+  [TXT] RETRIEVE EVIDENCE
+  [TXT] Hybrid Search Strategy: Vector + Keyword
+  [TXT] Semantic and lexical search fail in different, complementary ways. Eva AI fuses both ranked lists with Reciprocal Rank Fusion so a chunk ranking highly on either signal surfaces near the top.
+  [TXT] RRF SCORE FORMULA
+  [TXT] score(d) = Σ  weight ×  1 / (k + rankᵢ(d))
+  [TXT] k = 60 · summed across the dense and BM25 ranked lists · scores min-max normalised before the relevance floor is applied.
+  [TXT] WHY HYBRID WINS ON THIS CORPUS
+  [TXT] Catches exact drug names & dose numbers (BM25) missed by pure semantic search
+  [TXT] Catches paraphrased clinical questions (dense) missed by pure keyword search
+  [TXT] No reranker required for the default path — 12ms/query and higher Precision@3 than reranking on this corpus
+  [TXT] RETRIEVAL QUALITY — GOLDEN SET (18 QUESTIONS)
+  [TXT] Metric
+  [TXT] Before Fix
+  [TXT] After Fix
+  [TXT] Indexed chunks
+  [TXT] 82
+  [TXT] 34
+  [TXT] Hybrid hit rate
+  [TXT] 100.0%
+  [TXT] 100.0%
+  [TXT] Hybrid mean hit rank
+  [TXT] 1.83
+  [TXT] 1.11
+  [TXT] Hybrid Precision@3
+  [TXT] 0.389
+  [TXT] 0.574  (+47%)
+  [TXT] Hybrid Precision@5
+  [TXT] 0.367
+  [TXT] 0.444
+  [TXT] Dense Precision@3
+  [TXT] 0.352
+  [TXT] 0.630
+  [TXT] Fixing a sectioning bug that misattributed 61% of the corpus to one section lifted Precision@3 by 47% with zero golden-set misses.
+  [TXT] EVA AI  •  Clinical Decision Support
+  [TXT] 08
+======== Slide 10
+  [TXT] RETRIEVE EVIDENCE
+  [TXT] Re-Ranking System: Cross-Encoder
+  [TXT] An optional cross-encoder reranker (cross-encoder/ms-marco-MiniLM-L-6-v2) re-scores the fused candidate list with full query–chunk cross-attention — sharper than similarity alone, at a latency cost.
+  [TXT] Cross-Attention Scoring
+  [TXT] Every (query, chunk) pair is scored jointly by the transformer, then calibrated to [0,1] with a sigmoid.
+  [TXT] Fail-Safe Fallback
+  [TXT] If the model fails to load or errors at inference, the system falls back to normalised step-decay scoring — it never crashes.
+  [TXT] Latency Fix: -28%
+  [TXT] Truncating each chunk to 1800 chars before scoring bounded batch padding width — 4437ms → 3194ms/query, same ranking output.
+  [TXT] RERANKER LATENCY — BEFORE vs AFTER TRUNCATION FIX (18 GOLDEN QUESTIONS)
+  [TXT] Before fix
+  [TXT] 4437 ms
+  [TXT] After fix
+  [TXT] 3194 ms
+  [TXT] -28%
+  [TXT] LATENCY, SAME / RANK QUALITY
+  [TXT] EVA AI  •  Clinical Decision Support
+  [TXT] 09
+======== Slide 11
+  [TXT] RETRIEVE ANSWERS
+  [TXT] Grounded Generation & Structural Citations
+  [TXT] The LLM never freelances — it assembles, cites, and streams. It cannot answer without evidence in hand.
+  [TXT] Context Assembler
+  [TXT] Packs top-ranked chunks into a bounded evidence window with full metadata
+  [TXT] Prompt Engine
+  [TXT] Hardened system prompt: grounding + security constraints, multi-turn history[-4:]
+  [TXT] OmniRoute LLM Client
+  [TXT] eva-ai model — async call with tracing spans, ~1.6s vs 4.4s on prior routing
+  [TXT] Citation Extractor
+  [TXT] Parses [Source N] tags, validates against retrieved chunks, flags abstention
+  [TXT] SAMPLE GROUNDED RESPONSE
+  [TXT] “For adults with suspected adrenal crisis, administer 100 mg hydrocortisone immediately via IV or IM injection [Source 1]. Do not delay treatment to perform diagnostic investigations.”
+  [TXT] Streamed via POST /api/generate/stream — SSE events: meta → token → done
+  [TXT] [Source 1]
+  [TXT] NICE NG243 · Section 1.7 / Emergency management of adrenal crisis / Page 14
+  [TXT] EVA AI  •  Clinical Decision Support
+  [TXT] 10
+======== Slide 12
+  [TXT] SYSTEM GUARDRAILS
+  [TXT] In-Domain Hallucination Prevention
+  [TXT] Three independent, fail-closed layers stand between a query and the LLM — verified by a 77-test stress suite (0 failures).
+  [TXT] Layer 0 — Injection Guard
+  [TXT] ~25 deterministic regex patterns block override phrases, DAN/jailbreak personas, prompt-reveal attempts, and delimiter injection — <1ms overhead.
+  [TXT] Layer 1 — Scope Classifier
+  [TXT] classify_scope() rejects out-of-scope clinical domains (cardiology, asthma, diabetes) at threshold 0.005 before generation is attempted.
+  [TXT] Layer 2 — Floor Guard
+  [TXT] should_abstain() refuses when every retrieved chunk sits below relevance_floor = 0.30 — weak evidence is shown, never silently used.
+  [TXT] HARDENED GROUNDING PROMPT — 6 RULES
+  [TXT] Evidence-Only (no parametric memory)
+  [TXT] Mandatory Citations on every claim
+  [TXT] Explicit Abstention when evidence absent
+  [TXT] Clinical Precision — verbatim drug/dose
+  [TXT] Scope Enforcement — standard refusal msg
+  [TXT] Structured Format — bullets vs prose
+  [TXT] 77 / 77 grounding, scope & citation tests passing in 2.9s  ·  23/23 known injection patterns detected  ·  11/11 benign queries never blocked
+  [TXT] EVA AI  •  Clinical Decision Support
+  [TXT] 11
+======== Slide 13
+  [TXT] TRUST & TRANSPARENCY
+  [TXT] User Reaction & Dynamic Feedback Loop
+  [TXT] Clinicians don’t just receive an answer — they inspect the evidence behind it, then refine, in a continuous trust loop.
+  [TXT] Ask
+  [TXT] Clinician poses a clinical question in EN or Arabic
+  [TXT] Inspect
+  [TXT] Evidence Inspector shows ranked ChunkCards — score gauge, page, section, verbatim text
+  [TXT] Refine
+  [TXT] Multi-turn context (history[-4:]) lets the clinician narrow or challenge the answer
+  [TXT] Recall
+  [TXT] Session persisted to localStorage — searchable, exportable consultation history
+  [TXT] ↺  Recall loops directly back into Ask — each follow-up question inherits the trust built by the prior turn's evidence
+  [TXT] WHAT BUILDS TRUST, TURN AFTER TURN
+  [TXT] Relevance score gauge on every retrieved chunk — nothing is a black box
+  [TXT] Full verbatim guideline text + exact page citation on every historical turn
+  [TXT] Retrieve / Generate mode toggle — clinicians can inspect raw evidence before trusting a synthesized answer
+  [TXT] Answer & retrieval caches invalidate automatically the moment the guideline corpus is re-ingested
+  [TXT] EVA AI  •  Clinical Decision Support
+  [TXT] 12
