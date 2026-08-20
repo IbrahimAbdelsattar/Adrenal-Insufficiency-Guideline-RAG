@@ -246,11 +246,8 @@ export function ChatView({ lang, topK, onTopKChange }: ChatViewProps) {
         {messages.length === 0 ? (
           /* Empty State */
           <div className="py-8 text-center space-y-6 animate-fade-in-up">
-            <div className="mono-button mx-auto flex h-16 w-16 items-center justify-center rounded-2xl text-accent-bright border border-accent-bright/20 shadow-md">
-              <span className="font-brand-cursive text-3xl text-accent-bright">E</span>
-              <span className="font-brand-serif text-sm font-bold text-accent-bright -ml-0.5">
-                A
-              </span>
+            <div className="mono-card mx-auto flex h-16 w-16 items-center justify-center rounded-2xl overflow-hidden border border-accent-bright/20 shadow-md">
+              <img src="/icon.jpg" alt="Eva AI" className="h-full w-full object-cover rounded-2xl" />
             </div>
             <div>
               <h3 className="text-base font-extrabold text-ink">

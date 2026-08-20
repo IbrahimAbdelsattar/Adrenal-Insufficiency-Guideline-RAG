@@ -88,8 +88,8 @@ export function ChatMessage({
       } animate-fade-in-up`}
     >
       {msg.role === "assistant" && (
-        <div className="mono-card flex h-8 w-8 shrink-0 items-center justify-center rounded-xl text-xs font-bold text-accent-bright border border-accent-bright/20 shadow-sm mt-1">
-          AI
+        <div className="mono-card flex h-8 w-8 shrink-0 items-center justify-center rounded-xl overflow-hidden border border-accent-bright/20 shadow-sm mt-1">
+          <img src="/icon.jpg" alt="Eva AI" className="h-full w-full object-cover" />
         </div>
       )}
 

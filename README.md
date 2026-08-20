@@ -1,5 +1,9 @@
 # Eva AI — Clinical Decision Support (Adrenal Insufficiency RAG)
 
+<p align="center">
+  <img src="assets/logo.jpg" alt="Eva AI - Advanced Endocrinology Support" width="340" style="border-radius: 20px;" />
+</p>
+
 [![CI/CD Pipeline](https://github.com/IbrahimAbdelsattar/Eva-AI/actions/workflows/ci-cd.yml/badge.svg)](https://github.com/IbrahimAbdelsattar/Eva-AI/actions/workflows/ci-cd.yml)
 [![Unit & Integration Tests](https://img.shields.io/badge/Unit_%26_Integration_Tests-383_Passing-brightgreen.svg)](file:///c:/Users/C-LAB/Videos/ai%20hackthon/backend/tests/)
 [![Live E2E Verification](https://img.shields.io/badge/Live_E2E_Tests-88%2F88_Passing-brightgreen.svg)](file:///c:/Users/C-LAB/Videos/ai%20hackthon/scripts/test_live_e2e.py)

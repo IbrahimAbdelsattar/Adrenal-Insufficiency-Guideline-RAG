@@ -69,9 +69,12 @@ export default function RootLayout({
           <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-x-6 gap-y-3 px-4 py-3.5 sm:px-6">
             {/* Eva AI Brand Identity */}
             <div className="flex items-center gap-4">
-              <div className="mono-card relative flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-surface-2 to-surface text-accent-bright shadow-lg border border-accent-bright/20">
-                <span className="font-brand-cursive text-2xl text-accent-bright drop-shadow">E</span>
-                <span className="font-brand-serif text-xs font-bold tracking-widest text-accent-bright -ml-0.5">A</span>
+              <div className="mono-card relative flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-surface-2 to-surface text-accent-bright shadow-lg border border-accent-bright/20 overflow-hidden">
+                <img
+                  src="/icon.jpg"
+                  alt="Eva AI Logo"
+                  className="h-full w-full object-cover rounded-2xl"
+                />
                 <span className="absolute -bottom-0.5 -right-0.5 flex h-3 w-3">
                   <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-accent-bright opacity-75"></span>
                   <span className="relative inline-flex rounded-full h-3 w-3 bg-accent-bright"></span>
