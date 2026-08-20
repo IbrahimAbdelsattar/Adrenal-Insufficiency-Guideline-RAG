@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { getIndexStatus, getSources } from "@/lib/api";
+import { getHealth, getIndexStatus, getSources } from "@/lib/api";
 import type { IndexManifest, SourceDocument } from "@/lib/api";
 import { translations, type Language } from "@/lib/translations";
 
@@ -28,11 +28,9 @@ export function IndexStatus() {
   const t = translations[lang];
 
   useEffect(() => {
-    import("@/lib/api").then(({ getHealth }) => {
-      getHealth()
-        .then((h) => setRetrieverMode(h.retriever_type || null))
-        .catch(() => {});
-    });
+    getHealth()
+      .then((h) => setRetrieverMode(h.retriever_type || null))
+      .catch(() => {});
     getIndexStatus()
       .then(setManifest)
       .catch((e) => setError(e.message));
